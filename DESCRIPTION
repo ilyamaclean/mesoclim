@@ -1,0 +1,30 @@
+Package: mesoclim
+Type: Package
+Title: Climate downscaling and bias correction with R
+Version: 0.1.0
+Authors@R: c(
+    person("Ilya", "Maclean", email = "i.m.d.maclean@exeter.ac.uk", role = "cre"),
+    person("Alexandra", "Gardner", email = "a.gardner2@exeter.ac.uk", role = "aut"),
+    person("Jonathan", "Mosedale", email = "j.mosedale@exeter.ac.uk", role = "aut"))
+Maintainer: Ilya M. D. Maclean <i.m.d.maclean@exeter.ac.uk>
+Description: The functions in the mesoclim package contain tools for 
+    downscaling hourly climate data and for applying bias correction 
+    to UKCP18 future climate data to enable production of high-resolution
+    climate data for future climate scenarios. 
+License: GPL-2
+Encoding: UTF-8
+LazyData: true
+LinkingTo: Rcpp
+Imports:
+    terra,
+    zoo,
+    ncdf4,
+    raster
+RoxygenNote: 7.2.3
+Roxygen: list(markdown = TRUE) 
+Suggests: knitr,
+    rmarkdown,
+	testthat
+VignetteBuilder: knitr
+URL: https://github.com/ilyamaclean/mesoclim
+BugReports: http://github.com/mesoclim/issues
