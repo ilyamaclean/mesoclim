@@ -1,10 +1,68 @@
 # ******** NB - suggest putting any functions we don't want to make
 # available as stand-alone documented functions in here. Precede by dot as R
 # studio won't then expect oxygen2 when documenting package
+# ** These are functions that are definately used, checked and working
+#' Check if input is a SpatRaster or PackedSpatRaster and convert to matrix or array
+#' if it is
+#' @import terra
+.is <- function(r) {
+  if (class(r)[1] == "PackedSpatRaster") r<-rast(r)
+  if (class(r)[1] == "SpatRaster") {
+    if (dim(r)[3] == 1) {
+      m<-as.matrix(r,wide=TRUE)
+    } else m<-as.array(r)
+  } else {
+    m<-r
+  }
+  return(m)
+}
+#' Convert matrix or rast to array
+.rta <- function(r,n) {
+  m<-.is(r)
+  a<-array(rep(m,n),dim=c(dim(r)[1:2],n))
+  a
+}
+#' Convert vector to array
+.vta <- function(v,r) {
+  m<-.is(r)
+  va<-rep(v,each=dim(m)[1]*dim(m)[2])
+  a<-array(va,dim=c(dim(m),length(v)))
+  a
+}
+#' Create SpatRaster object using a template
+#' @import terra
+.rast <- function(m,tem) {
+  r<-rast(m)
+  ext(r)<-ext(tem)
+  crs(r)<-crs(tem)
+  r
+}
+#' expand daily array to hourly array
+.ehr<-function(a) {
+  n<-dim(a)[1]*dim(a)[2]
+  o1<-rep(c(1:n),24*dim(a)[3])
+  o2<-rep(c(1:dim(a)[3]),each=24*n)-1
+  o2<-o2*max(o1,na.rm=T)
+  o<-o1+o2
+  ah<-rep(a,24)
+  ah<-ah[o]
+  ah<-array(ah,dim=c(dim(a)[1:2],dim(a)[3]*24))
+  ah
+}
 # ============================================================================ #
-# ~~~~~~~~~~~~~ Data handing worker functions here ~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+# ~~~~~~~~~ Climate processing worker functions here ~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
-# ** Following is a bit of a code dump. We may not need it all:
+#' Calculate saturated vapour pressure
+.satvap <- function(tc) {
+  e0<-(tc<0)*610.78/1000+(tc>=0)*611.2/1000
+  L <- (tc<0)*2.834*10^6+(tc>=0)*((2.501*10^6)-(2340*tc))
+  T0<-(tc<0)*273.15+(tc>=0)*273.15
+  estl<-e0*exp((L/461.5)*(1/T0-1/(tc+273.15)))
+  estl
+}
+
+
+# ** Following is a bit of a code dump. We won't need it all:
 # NB:
 #  ** (1) For several of these functions we'll need to add the appropriate imports
 #     (e.g. raster terra) before they work (see example for .cropnc).
@@ -14,6 +72,12 @@
 #  ** (3) I've preceded all by a dot. But I wrote them before this was done, so they
 #          they might still call functions without the dot.
 # ============================================================================= #
+
+
+# ============================================================================ #
+# ~~~~~~~~~~~~~ Data handing worker functions here ~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+# ============================================================================ #
+
 # Quick crop of one variable nc file
 # fi - filename of nc file
 # e - raster extent object of the extent to crop to
@@ -25,88 +89,7 @@
   r<-rast(r)
   r
 }
-# Crops a large ERA5 nc file into smaller e.g. subtiles in a compuationally efficient manner
-# filein - filename of nc file to be chopped
-# ecrop - raster extent object of area to which nc file is to be cropped
-# fileout - filename (and path) of chopped nc file
-# This function writes the chopped nc file to disk
-#' @import terra, raster
-.cropera5nc<-function(filein, ecrop, fileout) {
-  vars<-c("t2m","d2m","sp","u10","v10","tp","tcc","msnlwrf","msdwlwrf","fdir","ssrd")
-  unit<-c("K","K","Pa","m s**-1","m s**-1","m","0 - 1","W m**-2","W m**-2","J m**-2","J m**-2")
-  lnames<-c("2 metre temperature","2 metre dewpoint temperature","Surface pressure",
-            "10 metre U wind component","10 metre V wind component","Total precipitation",
-            "Total cloud cover","Mean surface net long-wave radiation flux",
-            "Mean surface downward long-wave radiation flux","Total sky direct solar radiation at surface",
-            "Surface solar radiation downwards")
 
-  # (1)
-  r1<-brick(filein,varname=vars[1])
-  r1<-crop(r1,ecrop)
-  r1<-rast(r1)
-  # (2)
-  r2<-brick(filein,varname=vars[2])
-  r2<-crop(r2,ecrop)
-  r2<-rast(r2)
-  # (3)
-  r3<-brick(filein,varname=vars[3])
-  r3<-crop(r3,ecrop)
-  r3<-rast(r3)
-  # (4)
-  r4<-brick(filein,varname=vars[4])
-  r4<-crop(r4,ecrop)
-  r4<-rast(r4)
-  # (5)
-  r5<-brick(filein,varname=vars[5])
-  r5<-crop(r5,ecrop)
-  r5<-rast(r5)
-  # (6)
-  r6<-brick(filein,varname=vars[6])
-  r6<-crop(r6,ecrop)
-  r6<-rast(r6)
-  # (7)
-  r7<-brick(filein,varname=vars[7])
-  r7<-crop(r7,ecrop)
-  r7<-rast(r7)
-  # (8)
-  r8<-brick(filein,varname=vars[8])
-  r8<-crop(r8,ecrop)
-  r8<-rast(r8)
-  # (9)
-  r9<-brick(filein,varname=vars[9])
-  r9<-crop(r9,ecrop)
-  r9<-rast(r9)
-  # (10)
-  r10<-brick(filein,varname=vars[10])
-  r10<-crop(r10,ecrop)
-  r10<-rast(r10)
-  # (11)
-  r11<-brick(filein,varname=vars[11])
-  r11<-crop(r11,ecrop)
-  r11<-rast(r11)
-  # Sort out times
-  nc<-nc_open(filein)
-  tme<-ncvar_get(nc,var="time")
-  nc_close(nc)
-  tme<-as.POSIXlt(tme*3600,origin="1900-01-01 00:00", tz = "UTC")
-  terra::time(r1)<-tme
-  terra::time(r2)<-tme
-  terra::time(r3)<-tme
-  terra::time(r4)<-tme
-  terra::time(r5)<-tme
-  terra::time(r6)<-tme
-  terra::time(r7)<-tme
-  terra::time(r8)<-tme
-  terra::time(r9)<-tme
-  terra::time(r10)<-tme
-  terra::time(r11)<-tme
-  # stick together
-  a<-sds(r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11)
-  names(a) <- vars
-  terra::longnames(a)<-lnames
-  terra::units(a)<-unit
-  writeCDF(a, filename = fileout, compression = 9, overwrite=TRUE)
-}
 # extracts array data from nc file
 # filein - file name of nc file
 # varid - name of variable in nc file
@@ -245,14 +228,6 @@
 # ============================================================================ #
 # ~~~~~~~~~ Climate processing worker functions here ~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
-#' Calculate saturated vapour pressure
-.satvap <- function(tc) {
-  e0<-(tc<0)*610.78/1000+(tc>=0)*611.2/1000
-  L <- (tc<0)*2.834*10^6+(tc>=0)*((2.501*10^6)-(2340*tc))
-  T0<-(tc<0)*273.15+(tc>=0)*273.15
-  estl<-e0*exp((L/461.5)*(1/T0-1/(tc+273.15)))
-  estl
-}
 #' Calculate dewpoint
 .dewpoint <- function(ea, tc) {
   e0<-611.2/1000

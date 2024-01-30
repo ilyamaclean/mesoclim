@@ -1,9 +1,84 @@
 # ============================================================================ #
 # ~~~~~~~~~~~~ Temperature downscale ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
-# ~~ * Functions to calculate elevation effects needed here. Call to lapse rate
-#      function or with option to apply fixed lapse rate
-
+#' @title Downscale temperature with elevation effects
+#' @description Downscales an array of temperature data applying elevation effects
+#' @param tc a SpatRast or array of temperatures (deg C). If an array dtmc must
+#' be provided.
+#' @param dtmf a fine-resolution SpatRast of elevations. Temperatures down-scaled
+#' to resolution of `dtmf`.
+#' @param dtmc optional SpatRast of elevations matching resolution of `tc`. If
+#' not supplied, `tc` must be a SpatRast and `dtmc` is derived by resampling `dtmf`
+#' to resolution of `tc` and extents must match.
+#' @param rh optional SpatRast or array of relative humidities (percentage). If
+#' supplied, a humidity-dependent lapse rate is calculated. If not supplied, a
+#' fixed lapse rate of -0.05 deg C/m is applied.
+#' @param pk optional SpatRast or array of atmospheric pressures (kPa). Needed if
+#' lapse-rate humidity dependent.
+#' @return a multi-layer SpatRast of elevation-corrected temperatures (deg C) matching
+#' the resolution, extent and crs of dtmf.
+#' @rdname tempelev
+#' @import terra
+#' @export
+#'
+#' # add example
+tempelev <- function(tc, dtmf, dtmc = NA, rh = NA, pk = NA) {
+  if (class(dtmc)[1] == "logical")  dtmc<-resample(dtmf,tc)
+  if (class(tc)[1] == "array") tc<-.rast(tc,dtmc)
+  # Calculate lapse rate
+  n<-dim(tc)[3]
+  if (class(rh) == "logical") {
+    lrc<-.rta(0.005*.is(dtmc),n)
+    lrf<-.rta(0.005*.is(dtmf),n)
+  } else {
+    ea<-.satvap(.is(tc))*(.is(rh)/100)
+    lrc<-lapserate(.is(tc), ea, .is(pk))
+    lrc<-.rast(lrc,dtmc)
+    if (crs(lrc) != crs(dtmf)) {
+      lrcp<-project(lrc,crs(dtmf))
+      lrf<-resample(lrcp,dtmf)
+    } else lrf<-resample(lrc,dtmf)
+    lrc<-as.array(lrc)*.rta(dtmc,n)
+    lrf<-as.array(lrf)*.rta(dtmf,n)
+  }
+  # Sea-level temperature
+  stc<-.rast(.is(tc)+lrc,dtmc)
+  if (crs(dtmc) != crs(dtmf)) stc<-project(stc,crs(dtmf))
+  stc<-resample(stc,dtmf)
+  # Actual temperature
+  tcf<-suppressWarnings(stc-.rast(lrf,dtmf))
+  return(tcf)
+}
+#' @title Downscale pressure with elevation effects
+#' @description Downscales an array of pressure data applying elevation effects
+#' @param pk a SpatRast or array of atmospheric pressures (kPa). If an array dtmc must
+#' be provided.
+#' @param dtmf a fine-resolution SpatRast of elevations. Temperatures down-scaled
+#' to resolution of `dtmf`.
+#' @param dtmc optional SpatRast of elevations matching resolution of `pk`. If
+#' not supplied, `pk` must be a SpatRast and `dtmc` is derived by resampling `dtmf`
+#' to resolution of `pk` and extents must match.
+#' @return a multi-layer SpatRast of elevation-corrected pressures (kPa) matching the
+#' resolution of dtmf.
+#' @rdname tempelev
+#' @import terra
+#' @export
+#'
+#' # add example
+preselev<-function(pk, dtmf, dtmc, sealevel = TRUE) {
+  if (class(pk)[1] == "array") pk<-.rast(pk,dtmc)
+  if (class(dtmc)[1] == "logical")  dtmc<-resample(dtmf,pk)
+  n<-dim(pk)[3]
+  if (sealevel == FALSE) {
+    pk<-.is(pk)/(((293-0.0065*.rta(dtmc,n))/293)^5.26)
+    pk<-.rast(pk,dtmc)
+  }
+  if (crs(dtmf) != crs(dtmc)) pk<-project(pk,crs(dtmf))
+  pkf<-.is(resample(pk,dtmf))
+  pkf<-.rast(pkf*((293-0.0065*.rta(dtmf,n))/293)^5.26,dtmf)
+  return(pkf)
+}
+# ========================== NB - code dump from here ======================= #
 # * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ * #
 # ~~ * Functions to calculate coastal / water body effects
 #      NB - these are some functions form microclima that will likely be useful.

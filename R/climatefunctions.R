@@ -2,6 +2,80 @@
 # ~~~~~~~~ Useful functions for processing climate data that we likely
 # ~~~~~~~~ want to document.
 # ====================================================================== #
+#' @title convert era4 ncdf4 file to format required for model
+#' @description The function `era5toclimarray` converts data in a netCDF4 file returned
+#' by [mcera5::request_era5()] to the correct formal required for subsequent modelling.
+#'
+#' @param ncfile character vector containing the path and filename of the nc file
+#' @param dtm a SpatRaster object of elevations covering the extent of the study area (see details)
+#' @param dtr_cor_fac numeric value to be used in the diurnal temperature range
+#' correction of coastal grid cells. Default = 1.285, based on calibration against UK Met Office
+#' observations. If set to zero, no correction is applied.
+#' @return a list of the following:
+#' \describe{
+#'   \item{tme}{POSIXlt object of times corresponding to climate observations}
+#'   \item{climarray}{a list of arrays of hourly weather variables
+#'   \item{dtmc}{a coarse resolution digital elevation dataset matching the resolution of input
+#'   climate data, but with a coordinate reference system and extent matching `dtm`}
+#' }
+#' @export
+#' @details the model requires that input climate data are projected using a coordinate reference
+#' system in which x and y are in metres. Since values returned by [mcera5::request_era5()]
+#' are in lat long, the output data are reprojected using the coordinate reference system and
+#' extent of dtm (but retain the approximate original grid resolution of the input climate data).
+#' Returned climate data match the resolution, corrdinate reference system and extent of `dtmc`.
+era5toclimarray <- function(ncfile, dtm, dtr_cor_fac = 1.285)  {
+  t2m<-rast(ncfile,subds = "t2m") # Air temperature (K)
+  d2m<-rast(ncfile,subds = "d2m") # Dewpoint temperature (K)
+  sp<-rast(ncfile,subds = "sp") # Surface pressure (Pa)
+  u10<-rast(ncfile,subds = "u10") # U-wind at 10m (m/s)
+  v10<-rast(ncfile,subds = "v10") # V-wind at 10m (m/s)
+  tp<-rast(ncfile,subds = "tp") # Total precipitation (m)
+  msnlwrf<-rast(ncfile,subds = "msnlwrf")   # Mean surface net long-wave radiation flux (W/m^2)
+  msdwlwrf<-rast(ncfile,subds = "msdwlwrf") # Mean surface downward long-wave radiation flux (W/m^2)
+  fdir<-rast(ncfile,subds = "fdir") #  Total sky direct solar radiation at surface (W/m^2)
+  ssrd<-rast(ncfile,subds = "ssrd") # Surface short-wave (solar) radiation downwards (W/m^2)
+  lsm<-rast(ncfile,subds = "lsm") # Land sea mask
+  # Create coarse-resolution dtm to use as template for resampling
+  te<-terra::project(t2m[[1]],crs(dtm))
+  agf<-res(te)[1]/res(dtm)[1]
+  dtmc<-aggregate(dtm,fact=agf,fun=mean,na.rm=T)
+  # Apply coastal correction to temperature data
+  tmn<-.ehr(.hourtoday(as.array(t2m)-273.15,min))
+  mu<-(1-as.array(lsm))*dtr_cor_fac+1
+  tc<-.rast(((as.array(t2m)-273.15)-tmn)*mu+tmn,t2m)
+  # Calculate vapour pressure
+  ea<-.rast(.satvap(as.array(d2m)-273.15),t2m)
+  # Resample all variables to match dtmc
+  tc<-terra::project(tc,dtmc)
+  ea<-terra::project(ea,dtmc)
+  sp<-terra::project(sp,dtmc)
+  u10<-terra::project(u10,dtmc)
+  v10<-terra::project(v10,dtmc)
+  tp<-terra::project(tp,dtmc)
+  msnlwrf<-terra::project(msnlwrf,dtmc)
+  msdwlwrf<-terra::project(msdwlwrf,dtmc)
+  fdir<-terra::project(fdir,dtmc)
+  ssrd<-terra::project(ssrd,dtmc)
+  # Derive varies
+  temp<-as.array(tc) # Temperature (deg c)
+  relhum<-(as.array(ea)/.satvap(temp))*100 # Relative humidity (%)
+  pres<-as.array(sp)/1000  # SEa-level surface pressure (kPa)
+  swrad<-as.array(ssrd)/3600 # Downward shortwave radiation (W/m^2)
+  difrad<-swrad-as.array(fdir)/3600 # Downward diffuse radiation (W/m^2)
+  lwrad<-as.array(msdwlwrf-msnlwrf) # Downward longwave radiation
+  windspeed<-sqrt(as.array(u10)^2+as.array(v10)^2)*log(67.8*2-5.42)/log(67.8*10-5.42) # Wind speed (m/s)
+  winddir<-as.array((terra::atan2(u10,v10)*180/pi+180)%%360) # Wind direction (deg from N - from)
+  prech<-as.array(tp)*1000
+  # Save lists
+  climarray<-list(temp=temp,relhum=relhum,pres=pres,swrad=swrad,difrad=difrad,
+                  lwrad=lwrad,windspeed=windspeed,winddir=winddir,prech=prech)
+  # Generate POSIXlt object of times
+  tme<-as.POSIXlt(time(t2m),tz="UTC")
+  # Output for returning
+  out<-list(tme=tme,climarray=climarray,dtmc=dtmc)
+  return(out)
+}
 # Converts between different humidity types
 # h - humidity
 # intype - one of relative, absolute, specific or vapour pressure
