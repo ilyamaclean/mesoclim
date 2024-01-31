@@ -26,6 +26,8 @@ fixed lapse rate of -0.05 deg C/m is applied.}
 
 \item{pk}{a SpatRast or array of atmospheric pressures (kPa). If an array dtmc must
 be provided.}
+
+\item{sealevel}{optional logical indicating whether \code{pk} is pressure at sea-level}
 }
 \value{
 a multi-layer SpatRast of elevation-corrected temperatures (deg C) matching

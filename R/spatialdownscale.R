@@ -58,6 +58,7 @@ tempelev <- function(tc, dtmf, dtmc = NA, rh = NA, pk = NA) {
 #' @param dtmc optional SpatRast of elevations matching resolution of `pk`. If
 #' not supplied, `pk` must be a SpatRast and `dtmc` is derived by resampling `dtmf`
 #' to resolution of `pk` and extents must match.
+#' @param sealevel optional logical indicating whether `pk` is pressure at sea-level
 #' @return a multi-layer SpatRast of elevation-corrected pressures (kPa) matching the
 #' resolution of dtmf.
 #' @rdname tempelev

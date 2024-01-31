@@ -211,6 +211,16 @@ pres_dailytohourly <- function(pres, tme, adjust = TRUE) {
 # ============================================================================ #
 # ~~~~~~~~~~~~ Downward shortwave radiation downscale ~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
+# NB - this assumes input radiation is downward flux, not net radiation (as assumed in UKCP)
+# to get from net to downward flux we need to recognise that rswnet = (1-alb)*radsw, so
+# radsw = rswnet/(1-alb), where alb is white sky albedo. White-sky albedo changes as a function
+# of solar angle, but in a manner dependent on ground reflectance, leaf area, leaf inclination
+# angles and leaf transmittance and the ratio of diffuse and direct. There are too
+# many vegetation parameter unknowns to reverse engineer, so suggest ignoring this.
+# discrepancies probably quite minor expect in areas with very low cover and will be handled
+# mostly by bias correction anyway
+
+
 # ~~ * Need to spline interpolate clear-sky fraction (bounding by 1 and 0) and
 # ~~   then calculate clear-sky radiation
 # ~~ * Need to spline interpolate sky emissvity (bounding by 1 and 0) and
