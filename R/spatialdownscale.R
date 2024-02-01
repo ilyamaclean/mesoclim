@@ -61,12 +61,12 @@ tempelev <- function(tc, dtmf, dtmc = NA, rh = NA, pk = NA) {
 #' @param sealevel optional logical indicating whether `pk` is pressure at sea-level
 #' @return a multi-layer SpatRast of elevation-corrected pressures (kPa) matching the
 #' resolution of dtmf.
-#' @rdname tempelev
+#' @rdname presdownscale
 #' @import terra
 #' @export
 #'
 #' # add example
-preselev<-function(pk, dtmf, dtmc, sealevel = TRUE) {
+presdownscale<-function(pk, dtmf, dtmc, sealevel = TRUE) {
   if (class(pk)[1] == "array") pk<-.rast(pk,dtmc)
   if (class(dtmc)[1] == "logical")  dtmc<-resample(dtmf,pk)
   n<-dim(pk)[3]
@@ -79,6 +79,68 @@ preselev<-function(pk, dtmf, dtmc, sealevel = TRUE) {
   pkf<-.rast(pkf*((293-0.0065*.rta(dtmf,n))/293)^5.26,dtmf)
   return(pkf)
 }
+# NB function below still needs to be modified to account for elevation effects
+# Worth playing around with thresholds to simulate patchiness a bit better
+#' @title Downscale shortwave radiation
+#' @description Downscales an array of shortwave radiation data with option to
+#' simulate cloud patchiness
+#' @param swrad a SpatRast or array of shortwave radiation (W/m^2). If an array dtmc must
+#' be provided.
+#' @param tme POSIXlt object of times corresponding to radiation values in `swrad`.
+#' @param dtmf a fine-resolution SpatRast of elevations. Temperatures down-scaled
+#' to resolution of `dtmf`.
+#' @param dtmc optional SpatRast of elevations matching resolution of `swrad`. If
+#' not supplied, `swrad` must be a SpatRast and `dtmc` is derived by resampling `dtmf`
+#' to resolution of `swrad` and extents must match.
+#' @param patchiness one of 0 (not simulated), 1 (low patchiness), 2 (medium patchines)
+#' or (3) high patchiness
+#' @return a multi-layer SpatRast of shortwave radiation (W/m^2) matching the
+#' resolution of dtmf.
+#' @rdname swraddownscale
+#' @import terra, gstat
+#' @export
+#'
+#' # add example
+swdownscale<-function(swrad, tme, dtmf, dtmc, patchiness = 0) {
+  if (class(dtmc)[1] == "logical")  dtmc<-resample(dtmf,pk)
+  # Calculate clear sky fraction
+  dtmc<-project(dtmc,"+proj=longlat +datum=WGS84")
+  # Compute coarse res clear-sky fraction
+  lats <- .latsfromr(dtmc)
+  lons <- .lonsfromr(dtmc)
+  n<-length(tme)
+  jd<-.jday(tme)
+  lt<-tme$hour+tme$min/60+tme$sec/3600
+  csr<-clearskyrad(.vta(jd,dtmc),.vta(lt,dtmc),.rta(lats,n),.rta(lons,n))
+  csf<-.is(swrad)/csr
+  csf[is.na(csf)]<-0.5
+  csf[is.infinite(csf)]<-0.5
+  # Resample clear-sky fraction
+  csf<-.rast(csf,dtmc)
+  if (crs(dtmf) != crs(dtmc)) csf<-project(csf,crs(dtmf))
+  csf<-resample(csf,dtmf)
+  if (patchiness > 0) {
+    lcsf<-log(csf/(1-csf))
+    if (patchiness == 1) mu<-.simpatch(dtmf,n,mn=0.6,mx=1.666667)
+    if (patchiness == 2) mu<-.simpatch(dtmf,n,mn=0.4,mx=2.5)
+    if (patchiness == 3) mu<-.simpatch(dtmf,n,mn=0.2,mx=5)
+    lcsf<-lcsf*mu
+    csf<-1/(1+exp(-lcsf))
+  }
+  # Calculate fine-res clear sky rad
+  xy <- data.frame(xyFromCell(dtmf, 1:ncell(dtmf)))
+  xy <- sf::st_as_sf(xy, coords = c("x", "y"), crs = sf::st_crs(dtmf)$wkt)
+  ll <- sf::st_transform(xy, 4326)
+  xy<-data.frame(x=sf::st_coordinates(ll)[,1],y=sf::st_coordinates(ll)[,2])
+  lats<-matrix(xy$y,ncol=dim(dtmf)[2],byrow=T)
+  lons<-matrix(xy$x,ncol=dim(dtmf)[2],byrow=T)
+  csr<-clearskyrad(.vta(jd,dtmf),.vta(lt,dtmf),.rta(lats,n),.rta(lons,n))
+  csr<-.rast(csr,dtmf)
+  rad<-csr*csf
+  return(rad)
+}
+
+
 # ========================== NB - code dump from here ======================= #
 # * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ * #
 # ~~ * Functions to calculate coastal / water body effects

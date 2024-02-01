@@ -4,10 +4,12 @@
 \alias{clearskyrad}
 \title{Calculates clear sky radiation}
 \usage{
-clearskyrad(tme, lat, long, tc = 15, rh = 80, pk = 101.3)
+clearskyrad(jd, lt, lat, long, tc = 15, rh = 80, pk = 101.3)
 }
 \arguments{
-\item{tme}{a POSIXlt object of times}
+\item{jd}{astronomical Julian day}
+
+\item{lt}{local time (decimal hours)}
 
 \item{lat}{latitude (decimal degrees)}
 

@@ -49,6 +49,27 @@
   ah<-array(ah,dim=c(dim(a)[1:2],dim(a)[3]*24))
   ah
 }
+# Produces a matrix of latitudes form a terra::SpatRaster object
+# Inputs:
+# r - a terra::SpatRaster object
+# Returns a matrix of latidues
+.latsfromr <- function(r) {
+  e <- ext(r)
+  lts <- rep(seq(e$ymax - res(r)[2] / 2, e$ymin + res(r)[2] / 2, length.out = dim(r)[1]), dim(r)[2])
+  lts <- array(lts, dim = dim(r)[1:2])
+  lts
+}
+# Produces a matrix of longitudes form a terra::SpatRaster object
+# Inputs:
+# r - a terra::SpatRaster object
+# Returns a matrix of longitudes
+.lonsfromr <- function(r) {
+  e <- ext(r)
+  lns <- rep(seq(e$xmin + res(r)[1] / 2, e$xmax - res(r)[1] / 2, length.out = dim(r)[2]), dim(r)[1])
+  lns <- lns[order(lns)]
+  lns <- array(lns, dim = dim(r)[1:2])
+  lns
+}
 # ============================================================================ #
 # ~~~~~~~~~ Climate processing worker functions here ~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
@@ -60,7 +81,60 @@
   estl<-e0*exp((L/461.5)*(1/T0-1/(tc+273.15)))
   estl
 }
-
+#' Calculates the astronomical Julian day
+.jday <- function(tme) {
+  yr<-tme$year+1900
+  mth<-tme$mon+1
+  dd<-tme$mday+(tme$hour+(tme$min+tme$sec/60)/60)/24
+  madj<-mth+(mth<3)*12
+  yadj<-yr+(mth<3)*-1
+  jd<-trunc(365.25*(yadj+4716))+trunc(30.6001*(madj+1))+dd-1524.5
+  b<-(2-trunc(yadj/100)+trunc(trunc(yadj/100)/4))
+  jd<-jd+(jd>2299160)*b
+  jd
+}
+#' Calculates solar time
+.soltime <- function(localtime, long, jd, merid = 0, dst = 0) {
+  m<-6.24004077+0.01720197*(jd-2451545)
+  eot<- -7.659*sin(m)+9.863*sin(2*m+3.5932)
+  st<-localtime+(4*(long-merid)+eot)/60-dst
+  st
+}
+#' Calculates the solar altitude
+.solalt <- function(localtime, lat, long, jd, merid = 0, dst = 0) {
+  st<-.soltime(localtime,long,jd,merid,dst)
+  tt<-0.261799*(st-12)
+  d<-(pi*23.5/180)*cos(2*pi*((jd-159.5)/365.25))
+  sh<-sin(d)*sin(lat*pi/180)+cos(d)*cos(lat*pi/180)*cos(tt)
+  sa<-(180*atan(sh/sqrt(1-sh^2)))/pi
+  sa
+}
+#' Simulate cloud patchiness
+#' @import gstat
+.simpatch<-function(dtmf,n,mn=0.5,mx=2) {
+  reso<-res(dtmf)[1]
+  if (reso <= 10) dtmc<-aggregate(dtmf,100)
+  if (reso <= 100) dtmc<-aggregate(dtmf,10)
+  reso2<-res(dtmc)[1]
+  sill<-1000/reso2
+  rge<-sill
+  xy <- expand.grid(1:dim(dtmc)[2], 1:dim(dtmc)[1])
+  names(xy) <- c('x','y')
+  g1 <- gstat(formula=z~1, locations=~x+y, dummy=T, beta=0,
+              model=vgm(psill = sill, range = rge, nugget = 3, model='Sph'), nmax = 40)
+  yy1 <- predict(g1, newdata=xy, nsim=n)
+  r<-rast(yy1)
+  # adjust to required range
+  rge<-max(as.vector(r))-min(as.vector(r))
+  nrge<-log(mx)-log(mn)
+  mu<-nrge/rge
+  r<-r*mu
+  r<-exp(r-mean(r))
+  ext(r)<-ext(dtmc)
+  crs(r)<-crs(dtmc)
+  r<-resample(r,dtmf)
+  return(r)
+}
 
 # ** Following is a bit of a code dump. We won't need it all:
 # NB:
@@ -204,27 +278,7 @@
   fo<-paste0(path,varn,".tif")
   writeRaster(r,filename=fo,overwrite=TRUE)
 }
-# Produces a matrix of latitudes form a terra::SpatRaster object
-# Inputs:
-# r - a terra::SpatRaster object
-# Returns a matrix of latidues
-.latsfromr <- function(r) {
-  e <- ext(r)
-  lts <- rep(seq(e$ymax - res(r)[2] / 2, e$ymin + res(r)[2] / 2, length.out = dim(r)[1]), dim(r)[2])
-  lts <- array(lts, dim = dim(r)[1:2])
-  lts
-}
-# Produces a matrix of longitudes form a terra::SpatRaster object
-# Inputs:
-# r - a terra::SpatRaster object
-# Returns a matrix of longitudes
-.lonsfromr <- function(r) {
-  e <- ext(r)
-  lns <- rep(seq(e$xmin + res(r)[1] / 2, e$xmax - res(r)[1] / 2, length.out = dim(r)[2]), dim(r)[1])
-  lns <- lns[order(lns)]
-  lns <- array(lns, dim = dim(r)[1:2])
-  lns
-}
+
 # ============================================================================ #
 # ~~~~~~~~~ Climate processing worker functions here ~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
@@ -241,34 +295,6 @@
   sel<-which(Tdew<0)
   Tdew[sel]<-Tfrost[sel]
   Tdew
-}
-#' Calculates the astronomical Julian day
-.jday <- function(tme) {
-  yr<-tme$year+1900
-  mth<-tme$mon+1
-  dd<-tme$mday+(tme$hour+(tme$min+tme$sec/60)/60)/24
-  madj<-mth+(mth<3)*12
-  yadj<-yr+(mth<3)*-1
-  jd<-trunc(365.25*(yadj+4716))+trunc(30.6001*(madj+1))+dd-1524.5
-  b<-(2-trunc(yadj/100)+trunc(trunc(yadj/100)/4))
-  jd<-jd+(jd>2299160)*b
-  jd
-}
-#' Calculates solar time
-.soltime <- function(localtime, long, jd, merid = 0, dst = 0) {
-  m<-6.24004077+0.01720197*(jd-2451545)
-  eot<- -7.659*sin(m)+9.863*sin(2*m+3.5932)
-  st<-localtime+(4*(long-merid)+eot)/60-dst
-  st
-}
-#' Calculates the solar altitude
-.solalt <- function(localtime, lat, long, jd, merid = 0, dst = 0) {
-  st<-.soltime(localtime,long,jd,merid,dst)
-  tt<-0.261799*(st-12)
-  d<-(pi*23.5/180)*cos(2*pi*((jd-159.5)/365.25))
-  sh<-sin(d)*sin(lat*pi/180)+cos(d)*cos(lat*pi/180)*cos(tt)
-  sa<-(180*atan(sh/sqrt(1-sh^2)))/pi
-  sa
 }
 #' Calculate clear sky radiation
 .clearskyrad <- function(tme, lat, long, tc = 15, rh = 80, pk = 101.3) {

@@ -2,12 +2,9 @@
 % Please edit documentation in R/spatialdownscale.R
 \name{tempelev}
 \alias{tempelev}
-\alias{preselev}
 \title{Downscale temperature with elevation effects}
 \usage{
 tempelev(tc, dtmf, dtmc = NA, rh = NA, pk = NA)
-
-preselev(pk, dtmf, dtmc, sealevel = TRUE)
 }
 \arguments{
 \item{tc}{a SpatRast or array of temperatures (deg C). If an array dtmc must
@@ -16,28 +13,21 @@ be provided.}
 \item{dtmf}{a fine-resolution SpatRast of elevations. Temperatures down-scaled
 to resolution of \code{dtmf}.}
 
-\item{dtmc}{optional SpatRast of elevations matching resolution of \code{pk}. If
-not supplied, \code{pk} must be a SpatRast and \code{dtmc} is derived by resampling \code{dtmf}
-to resolution of \code{pk} and extents must match.}
+\item{dtmc}{optional SpatRast of elevations matching resolution of \code{tc}. If
+not supplied, \code{tc} must be a SpatRast and \code{dtmc} is derived by resampling \code{dtmf}
+to resolution of \code{tc} and extents must match.}
 
 \item{rh}{optional SpatRast or array of relative humidities (percentage). If
 supplied, a humidity-dependent lapse rate is calculated. If not supplied, a
 fixed lapse rate of -0.05 deg C/m is applied.}
 
-\item{pk}{a SpatRast or array of atmospheric pressures (kPa). If an array dtmc must
-be provided.}
-
-\item{sealevel}{optional logical indicating whether \code{pk} is pressure at sea-level}
+\item{pk}{optional SpatRast or array of atmospheric pressures (kPa). Needed if
+lapse-rate humidity dependent.}
 }
 \value{
 a multi-layer SpatRast of elevation-corrected temperatures (deg C) matching
 the resolution, extent and crs of dtmf.
-
-a multi-layer SpatRast of elevation-corrected pressures (kPa) matching the
-resolution of dtmf.
 }
 \description{
 Downscales an array of temperature data applying elevation effects
-
-Downscales an array of pressure data applying elevation effects
 }

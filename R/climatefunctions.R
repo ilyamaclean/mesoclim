@@ -116,7 +116,8 @@ converthumidity <- function (h, intype = "relative", outtype = "vapour pressure"
   return(h)
 }
 #' Calculates clear sky radiation
-#' @param tme a POSIXlt object of times
+#' @param jd astronomical Julian day
+#' @param lt local time (decimal hours)
 #' @param lat latitude (decimal degrees)
 #' @param long longitude (decimal degrees)
 #' @param tc temperature (deg C)
@@ -124,9 +125,7 @@ converthumidity <- function (h, intype = "relative", outtype = "vapour pressure"
 #' @param pk atmospheric pressure (kPa)
 #' @return expected clear-sky radiation (W/m^2)
 #' @export
-clearskyrad <- function(tme, lat, long, tc = 15, rh = 80, pk = 101.3) {
-  jd<-.jday(tme)
-  lt <- tme$hour+tme$min/60+tme$sec/3600
+clearskyrad <- function(jd, lt, lat, long, tc = 15, rh = 80, pk = 101.3) {
   sa<-.solalt(lt,lat,long,jd)*pi/180
   m<-35*sin(sa)*((1224*sin(sa)^2+1)^(-0.5))
   TrTpg<-1.021-0.084*(m*0.00949*pk+0.051)^0.5

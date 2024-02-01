@@ -19,7 +19,7 @@ Imports:
     terra,
     zoo,
     ncdf4,
-    raster
+    gstat
 RoxygenNote: 7.2.3
 Roxygen: list(markdown = TRUE) 
 Suggests: knitr,
