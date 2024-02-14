@@ -1,3 +1,41 @@
+#' @title delineate hydrological or cold-air drainage basins
+#' @description The function `basindelin` uses a digital elevation dataset to delineate
+#' hydrological basins, merging adjoining basis seperated by a low boundary if specified.
+#' @param dtm a SpatRast object of elevations
+#' @param boundary optional numeric value. If greater than 0, adjoining basins
+#' separated by elevation differences < boundary are merged (see details.
+#' @return a SpatRast of basins sequentially numbered as integers.
+#' @details This function searches for the lowest grid cell in `dtm` and assigns it
+#' as basin 1. All immediately adjacent pixels (in 8 directions) not previously assigned
+#' are then assigned as being part of this basin if higher than the focal cell. The process is repeated
+#' until no higher further cells are found. The next lowest unassigned grid cell is identified
+#' and assigned as basin 2 and the process repeated until all grid cells are assigned a basin number.
+#' If `boundary > 0`, edge grid cells are identified and the height difference from all
+#' surrounding cells calculated. If the height difference is less than `boundary`, basins
+#' are merged and the basins renumbered sequentially.
+#' @import terra
+#' @export
+#' @examples
+#' bsn<-basindelin(rast(dtmf)) # Takes ~30 seconds to run
+#' plot(bsn)
+basindelin<-function(dtm, boundary = 0) {
+  if (boundary <0) boundary<-0
+  # Delineate basins
+  bsn<-.basindelin(dtm)
+  # Merge basins if boundary > 0
+  if (boundary > 0) {
+    mx<-max(as.vector(bsn),na.rm=T)
+    tst<-1
+    while (tst == 1) {
+      bsn<-.basinmerge(dtm,bsn,boundary)
+      mx2<-max(as.vector(bsn),na.rm=T)
+      if (mx2 ==  mx) {
+        tst<-0
+      } else mx<-mx2
+    } # end while
+  } # end if
+  return(bsn)
+}
 # ====================================================================== #
 # ~~~~~~~~ Useful functions for processing climate data that we likely
 # ~~~~~~~~ want to document.

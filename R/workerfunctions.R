@@ -136,6 +136,168 @@
   return(r)
 }
 
+# basin code
+# function to identify which basin edge cells are less or equal to boundary
+.edge<-function(v) {
+  o<-0
+  if (is.na(v[1]) == FALSE) {
+    if (max(v,na.rm=TRUE) > v[1]) o<-1
+  }
+  o
+}
+# function to assign which surrounding cells should be merged
+.edgec<-function(v) {
+  o<-v*0
+  if (is.na(v[1]) == FALSE) {
+    s<-which(v>v[1])
+    o[s]<-1
+  }
+  o
+}
+# function to grab neighbouring cells and reassign basin number
+.asign3<-function(bm2,bea,rw,cl) {
+  b3<-bm2[rw:(rw+2),cl:(cl+2)]
+  v<-bea[rw,cl,]
+  if (is.na(v[2])==FALSE & v[2] > 0) b3[2,1]<-b3[2,2]
+  if (is.na(v[3])==FALSE & v[3] > 0)  b3[2,3]<-b3[2,2]
+  if (is.na(v[4])==FALSE & v[4] > 0)  b3[1,2]<-b3[2,2]
+  if (is.na(v[5])==FALSE & v[5] > 0)  b3[1,1]<-b3[2,2]
+  if (is.na(v[6])==FALSE & v[6] > 0)  b3[1,3]<-b3[2,2]
+  if (is.na(v[7])==FALSE & v[7] > 0) b3[3,2]<-b3[2,2]
+  if (is.na(v[8])==FALSE & v[8] > 0)  b3[3,1]<-b3[2,2]
+  if (is.na(v[9])==FALSE & v[9] > 0)  b3[3,3]<-b3[2,2]
+  b3
+}
+# ============================================================================ #
+# ~~~~~~~~~ Basin delineation worker functions here  ~~~~~~~~~~~~~~~~~~~~~~~~~ #
+# ============================================================================ #
+.basindelin<-function(dtm) {
+  # (1) stick buffer around dtm
+  dm<-as.matrix(dtm,wide=TRUE)
+  dm2<-array(NA,dim=c(dim(dm)[1]+2,dim(dm)[2]+2))
+  dm2[2:(dim(dm)[1]+1),2:(dim(dm)[2]+1)]<-dm
+  # (2) create blank basin file
+  bsn<-dm2*NA
+  dun<-array(1,dim=dim(bsn))
+  # Iterate to delineate all basins
+  tsta<-1
+  bn<-1 # basin number
+  while (tsta == 1) {
+    # First iteration
+    mu<-bsn*NA
+    mu[is.na(bsn)]<-1
+    s<-suppressWarnings(which(dm2*mu*dun==min(dm2*mu*dun,na.rm=T),arr.ind=T))
+    if (length(s) > 0) {
+      rw<-as.numeric(s[1,1])
+      cl<-as.numeric(s[1,2])
+      bsn[rw,cl]<-bn
+      dun[rw,cl]<-NA
+      # (4) select 3 x 3 matrix around grid cell
+      m3<-dm2[(c(rw-1):(rw+1)),(c(cl-1):(cl+1))]
+      b3<-bsn[(c(rw-1):(rw+1)),(c(cl-1):(cl+1))]
+      # (5) identify  which grid cells in 3 x 3 undone and higher and assign to basin i
+      sb<-which(m3>m3[2,2])
+      b3[sb]<-bn
+      bsn[(c(rw-1):(rw+1)),(c(cl-1):(cl+1))]<-b3
+    } else tsta<-0
+    # Subsequent iterations
+    if (tsta > 0) {
+      tst<-1
+      while (tst == 1) {
+        mu<-bsn*NA
+        mu[bsn==bn]<-1
+        s<-suppressWarnings(which(dm2*mu*dun==min(dm2*mu*dun,na.rm=T),arr.ind=T))
+        if (length(s) > 0) {
+          rw<-as.numeric(s[1,1])
+          cl<-as.numeric(s[1,2])
+          bsn[rw,cl]<-bn
+          dun[rw,cl]<-NA
+          # (4) select 3 x 3 matrix around grid cell
+          d3<-dun[(c(rw-1):(rw+1)),(c(cl-1):(cl+1))]
+          m3<-dm2[(c(rw-1):(rw+1)),(c(cl-1):(cl+1))]*d3
+          b3<-bsn[(c(rw-1):(rw+1)),(c(cl-1):(cl+1))]
+          m3[2,2]<-dm2[rw,cl]
+          # (5) identify  which grid cells in 3 x 3 undone and higher and assign to basin bn
+          sb<-which(m3>m3[2,2])
+          b3[sb]<-bn
+          bsn[(c(rw-1):(rw+1)),(c(cl-1):(cl+1))]<-b3
+        } else tst<-0
+      }
+      bn<-bn+1  # go on to next basin
+    }
+  }
+  dd<-dim(bsn)
+  bsn<-bsn[2:(dd[1]-1),2:(dd[2]-1)]
+  r<-.rast(bsn,dtm)
+  return(r)
+}
+.basinmerge<-function(dtm,bsn,boundary=0.25) {
+  # Put buffer around basin and dtn
+  bm<-as.matrix(bsn,wide=TRUE)
+  bm2<-array(NA,dim=c(dim(bm)[1]+2,dim(bm)[2]+2))
+  bm2[2:(dim(bm)[1]+1),2:(dim(bm)[2]+1)]<-bm
+  dm<-as.matrix(dtm,wide=TRUE)
+  dm2<-array(NA,dim=c(dim(dm)[1]+2,dim(dm)[2]+2))
+  dm2[2:(dim(dm)[1]+1),2:(dim(dm)[2]+1)]<-dm
+  # Create 3D array of  basin numbers  with adjoining cells
+  bma<-array(NA,dim=c(dim(bm),9))
+  bma[,,1]<-bm # rw, cl
+  bma[,,2]<-bm2[2:(dim(bm)[1]+1),1:dim(bm)[2]] # rw, cl-1
+  bma[,,3]<-bm2[2:(dim(bm)[1]+1),3:(dim(bm)[2]+2)] # rw, cl+1
+  bma[,,4]<-bm2[1:dim(bm)[1],2:(dim(bm)[2]+1)] # rw-1, cl
+  bma[,,5]<-bm2[1:dim(bm)[1],1:dim(bm)[2]] # rw-1, cl-1
+  bma[,,6]<-bm2[1:dim(bm)[1],3:(dim(bm)[2]+2)] # rw-1, cl+1
+  bma[,,7]<-bm2[3:(dim(bm)[1]+2),2:(dim(bm)[2]+1)] # rw+1, cl
+  bma[,,8]<-bm2[3:(dim(bm)[1]+2),1:dim(bm)[2]] # rw+1, cl-1
+  bma[,,9]<-bm2[3:(dim(bm)[1]+2),3:(dim(bm)[2]+2)] # rw+1, cl+1
+  # Create 3D array of elevation differences with adjoining cells
+  dma<-array(NA,dim=c(dim(dm),9))
+  dma[,,1]<-dm # rw, cl
+  dma[,,2]<-dm2[2:(dim(dm)[1]+1),1:dim(dm)[2]]-dm # rw, cl-1
+  dma[,,3]<-dm2[2:(dim(dm)[1]+1),3:(dim(dm)[2]+2)]-dm  # rw, cl+1
+  dma[,,4]<-dm2[1:dim(dm)[1],2:(dim(dm)[2]+1)]-dm  # rw-1, cl
+  dma[,,5]<-dm2[1:dim(dm)[1],1:dim(dm)[2]]-dm  # rw-1, cl-1
+  dma[,,6]<-dm2[1:dim(dm)[1],3:(dim(dm)[2]+2)]-dm  # rw-1, cl+1
+  dma[,,7]<-dm2[3:(dim(dm)[1]+2),2:(dim(dm)[2]+1)]-dm  # rw+1, cl
+  dma[,,8]<-dm2[3:(dim(dm)[1]+2),1:dim(dm)[2]]-dm  # rw+1, cl-1
+  dma[,,9]<-dm2[3:(dim(dm)[1]+2),3:(dim(dm)[2]+2)]-dm  # rw+1, cl+1
+  dma2<-dma*0
+  dma2[abs(dma)<boundary]<-1
+  bma<-bma*dma2
+  bma[,,1]<-bm
+  # identify edge and basin merge cells
+  be<-apply(bma,c(1,2),.edge)
+  bea<-aperm(apply(bma,c(1,2),.edgec),c(2,3,1))
+  s<-which(be>0,arr.ind=TRUE)
+  for (i in 1:dim(s)[1]) {
+    rw<-as.numeric(s[i,1])
+    cl<-as.numeric(s[i,2])
+    b3<-.asign3(bm2,bea,rw,cl)
+    bm2[rw:(rw+2),cl:(cl+2)]<-b3
+  }
+  # reassign basin number
+  u<-unique(as.vector(bm2))
+  u<-u[is.na(u)==FALSE]
+  u<-u[order(u)]
+  bm3<-bm2
+  for (i in 1:length(u)) {
+    s<-which(bm2==u[i])
+    bm3[s]<-i
+  }
+  dd<-dim(bm3)
+  bsn<-bm3[2:(dd[1]-1),2:(dd[2]-1)]
+  r<-.rast(bsn,dtm)
+}
+
+
+
+
+
+
+
+
+
+
 # ** Following is a bit of a code dump. We won't need it all:
 # NB:
 #  ** (1) For several of these functions we'll need to add the appropriate imports
