@@ -16,7 +16,7 @@ a list with the following elements:
 \item{swrad}{Total downward shortwave radiation (W/m^2)}
 \item{difrad}{Downward diffuse radiation (W / m^2)}
 \item{lwrad}{Total downward longwave radiation (W/m^2)}
-\item{windspeed at 10m (m/s)}
+\item{windspeed at 2m (m/s)}
 \item{winddir}{Wind direction (decimal degrees)}
 }
 \item{dtmc}{a wrapped SpatRast object of elevations (m) matching the extent and resolution of climate data}
