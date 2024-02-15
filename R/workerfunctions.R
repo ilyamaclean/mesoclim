@@ -231,6 +231,7 @@
   r<-.rast(bsn,dtm)
   return(r)
 }
+#' Merge basins based on specified boundary
 .basinmerge<-function(dtm,bsn,boundary=0.25) {
   # Put buffer around basin and dtn
   bm<-as.matrix(bsn,wide=TRUE)
@@ -288,16 +289,182 @@
   bsn<-bm3[2:(dd[1]-1),2:(dd[2]-1)]
   r<-.rast(bsn,dtm)
 }
-
-
-
-
-
-
-
-
-
-
+#' Mosaic tiled basins merging common joins
+.basinmosaic<-function(b1,b2) {
+  e1<-ext(b1)
+  e2<-ext(b2)
+  reso<-res(b1)
+  # *********** Do this if the tiles are vertically adjoined  *************** #
+  if (abs(e1$ymax-e2$ymax) > reso[1]) {
+    if (e2$ymax > e1$ymax) {  # b2 above b1
+      m1<-as.matrix(b1,wide=TRUE)
+      m2<-as.matrix(b2,wide=TRUE)
+    } else {  # b1 above b2
+      m1<-as.matrix(b2,wide=TRUE)
+      m2<-as.matrix(b1,wide=TRUE)
+    }
+    for (itr in 1:3) {
+      # merge based on top row of b1
+      v1<-m1[1,] # top row of b1
+      n<-dim(m2)[1] # mumber of rows
+      v2<-m2[n,] # bottom row of b2
+      # Create unique pairs matrix
+      mup<-as.matrix(cbind(v1,v2))
+      mup<-unique(mup)
+      s<-which(is.na(mup[,1])==FALSE)
+      mup<-mup[s,]
+      if (class(mup)[1] != "matrix") mup<-t(as.matrix(mup))
+      s<-which(is.na(mup[,2])==FALSE)
+      mup<-mup[s,]
+      if (class(mup)[1] != "matrix") mup<-t(as.matrix(mup))
+      # Create vector of unique v1s
+      u1<-unique(v1)
+      u1<-u1[is.na(u1)==FALSE]
+      u1<-u1[order(u1)]
+      ras2<-list() # list of basins in m2 that should be re-asigned for each basin in u1
+      ras1<-list() # list of basins in m1 that should be re-asigned for each basin in u1
+      if (length(u1) > 0) {
+        for (i in 1:length(u1)) {
+          s<-which(mup[,1]==u1[i])
+          u2<-mup[s,2] # list of basins in m2 that need reassigned
+          u2<-u2[order(u2)]
+          ras2[[i]]<-u2
+          # list of basins in m1 that need reassinged
+          s<-which(mup[,2]==u2[1])
+          u1n<-mup[s,1] # list of basins in m2 that need reassigned
+          if (length(u2) > 1) {
+            for (j in 2:length(u2)) {
+              s<-which(mup[,2]==u2[j])
+              u1n<-c(u1n,mup[s,1]) # list of basins in m2 that need reassigned
+            }
+          }
+          u1n<-unique(u1n)
+          u1n<-u1n[u1n>u1[i]]
+          ras1[[i]]<-u1n[order(u1n)]
+          u2<-ras2[[i]]
+          # Reassign basins in m2
+          if (length(u2) > 0) for (j in 1:length(u2)) m2[m2==u2[j]]<-u1[i]
+          u1n<-ras1[[i]]
+          # Reassign basins in m1
+          if (length(u1n) > 0) for (j in 1:length(u1n)) m1[m1==u1n[j]]<-u1[i]
+        } # end for u1
+      } # end if u1
+    } # end iter
+    # Convert back to SpatRasts
+    if (e2$ymax > e1$ymax) {  # b2 above b1
+      b1n<-.rast(m1,b1)
+      b2n<-.rast(m2,b2)
+    } else {  # b1 above b2
+      b1n<-.rast(m2,b1)
+      b2n<-.rast(m1,b2)
+    }
+  } else {# end do this if the tiles are vertically adjoined
+    # *********** Do this if the tiles are horizontally adjoined  ************** #
+    if (e2$xmax > e1$xmax) {  # b2 right of b1
+      m1<-as.matrix(b1,wide=TRUE)
+      m2<-as.matrix(b2,wide=TRUE)
+    } else {  # b2 left of b1
+      m1<-as.matrix(b2,wide=TRUE)
+      m2<-as.matrix(b1,wide=TRUE)
+    }
+    for (itr in 1:3) {
+      # merge based on right hand column of b1
+      n<-dim(m1)[2]
+      v1<-m1[,n] # right-hand column of b1
+      v2<-m2[,1] # left-hand column of b2
+      # Create unique pairs matrix
+      mup<-as.matrix(cbind(v1,v2))
+      mup<-unique(mup)
+      s<-which(is.na(mup[,1])==FALSE)
+      mup<-mup[s,]
+      if (class(mup)[1] != "matrix") mup<-t(as.matrix(mup))
+      s<-which(is.na(mup[,2])==FALSE)
+      mup<-mup[s,]
+      if (class(mup)[1] != "matrix") mup<-t(as.matrix(mup))
+      # Create vector of unique v1s
+      u1<-unique(v1)
+      u1<-u1[is.na(u1)==FALSE]
+      u1<-u1[order(u1)]
+      ras2<-list() # list of basins in m2 that should be re-asigned for each basin in u1
+      ras1<-list() # list of basins in m1 that should be re-asigned for each basin in u1
+      if (length(u1) > 0) {
+        for (i in 1:length(u1)) {
+          s<-which(mup[,1]==u1[i])
+          u2<-mup[s,2] # list of basins in m2 that need reassigned
+          u2<-u2[order(u2)]
+          ras2[[i]]<-u2
+          # list of basins in m1 that need reassinged
+          s<-which(mup[,2]==u2[1])
+          u1n<-mup[s,1] # list of basins in m2 that need reassigned
+          if (length(u2) > 1) {
+            for (j in 2:length(u2)) {
+              s<-which(mup[,2]==u2[j])
+              u1n<-c(u1n,mup[s,1]) # list of basins in m2 that need reassigned
+            }
+          }
+          u1n<-unique(u1n)
+          u1n<-u1n[u1n>u1[i]]
+          ras1[[i]]<-u1n[order(u1n)]
+          u2<-ras2[[i]]
+          # Reassign basins in m2
+          if (length(u2) > 0) for (j in 1:length(u2)) m2[m2==u2[j]]<-u1[i]
+          u1n<-ras1[[i]]
+          # Reassign basins in m1
+          if (length(u1n) > 0) for (j in 1:length(u1n)) m1[m1==u1n[j]]<-u1[i]
+        } # end for u1
+      } # end if u1
+    } # end iter
+    # Convert back to SpatRasts
+    if (e2$xmax > e1$xmax) {  # b2 above b1
+      b1n<-.rast(m1,b1)
+      b2n<-.rast(m2,b2)
+    } else {  # b1 above b2
+      b1n<-.rast(m2,b1)
+      b2n<-.rast(m1,b2)
+    }
+  }
+  # ********************** Mosaic and renumber ******************************* #
+  bout<-mosaic(b1n,b2n)
+  m<-as.matrix(bout,wide=TRUE)
+  # renumber basins
+  u<-unique(as.vector(m))
+  u<-u[is.na(u) == FALSE]
+  u<-u[order(u)]
+  for (i in 1:length(u)) m[m==u[i]]<-i
+  bout<-.rast(m,bout)
+  return(bout)
+}
+#' Do an entire column of tiled basins
+.docolumn<-function(dtm,tilesize,boundary,x) {
+  e<-ext(dtm)
+  reso<-res(dtm)
+  ymxs<-as.numeric(ceiling((e$ymax-e$ymin)/reso[2]/100))-1
+  xmn<-as.numeric(e$xmin)+reso[1]*tilesize*x
+  xmx<-xmn+reso[1]*tilesize
+  ymn<-as.numeric(e$ymin)+reso[2]*tilesize*0
+  ymx<-ymn+reso[2]*tilesize
+  if (xmx > e$xmax) xmx<-e$xmax
+  if (ymx > e$ymax) ymx<-e$ymax
+  ec<-ext(xmn,xmx,ymn,ymx)
+  dc<-crop(dtm,ec)
+  bma<-basindelin(dc,boundary)
+  # delineate basins for columns
+  for (y in 1:ymxs) {
+    xmn<-as.numeric(e$xmin)+reso[1]*100*x
+    xmx<-xmn+reso[1]*100
+    ymn<-as.numeric(e$ymin)+reso[2]*100*y
+    ymx<-ymn+reso[2]*100
+    if (xmx > e$xmax) xmx<-e$xmax
+    if (ymx > e$ymax) ymx<-e$ymax
+    ec<-ext(xmn,xmx,ymn,ymx)
+    dc<-crop(dtm,ec)
+    ta<-suppressWarnings(max(as.vector(bma),na.rm=T))
+    if (is.infinite(ta)) ta<-0
+    bo<-basindelin(dc,boundary)+ta
+    bma<-.basinmosaic(bma,bo)
+  } # end y
+  return(bma)
+}
 # ** Following is a bit of a code dump. We won't need it all:
 # NB:
 #  ** (1) For several of these functions we'll need to add the appropriate imports

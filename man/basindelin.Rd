@@ -33,3 +33,6 @@ are merged and the basins renumbered sequentially.
 bsn<-basindelin(rast(dtmf)) # Takes ~30 seconds to run
 plot(bsn)
 }
+\seealso{
+\code{\link[=basindelin_big]{basindelin_big()}}
+}

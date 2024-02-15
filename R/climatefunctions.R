@@ -15,27 +15,69 @@
 #' are merged and the basins renumbered sequentially.
 #' @import terra
 #' @export
+#' @seealso [basindelin_big()]
 #' @examples
 #' bsn<-basindelin(rast(dtmf)) # Takes ~30 seconds to run
 #' plot(bsn)
 basindelin<-function(dtm, boundary = 0) {
-  if (boundary <0) boundary<-0
   # Delineate basins
-  bsn<-.basindelin(dtm)
-  # Merge basins if boundary > 0
-  if (boundary > 0) {
-    mx<-max(as.vector(bsn),na.rm=T)
-    tst<-1
-    while (tst == 1) {
-      bsn<-.basinmerge(dtm,bsn,boundary)
-      mx2<-max(as.vector(bsn),na.rm=T)
-      if (mx2 ==  mx) {
-        tst<-0
-      } else mx<-mx2
-    } # end while
-  } # end if
+  dm<-dim(dtm)
+  if (sqrt(dm[1]*dm[2]) > 500) warning("Large dtm. Calculations will be slow. Consider using basindelin_big")
+  me<-mean(as.vector(dtm),na.rm=TRUE)
+  if (is.na(me) == FALSE) {
+    bsn<-.basindelin(dtm)
+    # Merge basins if boundary > 0
+    if (boundary > 0) {
+      mx<-max(as.vector(bsn),na.rm=T)
+      tst<-1
+      while (tst == 1) {
+        bsn<-.basinmerge(dtm,bsn,boundary)
+        u<-unique(as.vector(bsn))
+        u<-u[is.na(u) == F]
+        if (length(u) == 1) tst<-0
+        mx2<-max(as.vector(bsn),na.rm=T)
+        if (mx2 ==  mx) {
+          tst<-0
+        } else mx<-mx2
+      } # end while
+    } # end if boundary
+  } else bsn<-dtm # end if boundary
   return(bsn)
 }
+#' @title equivalent of [basindelin()] for large areas
+#' @description The function `basindelin_big` applies [basindelin()] in tiles and
+#' merges the tiles
+#' @param dtm a SpatRast object of elevations
+#' @param boundary optional numeric value. If greater than 0, adjoining basins
+#' separated by elevation differences < boundary are merged (see details.
+#' @param tilesize optionally, the size of each tile over which  [basindelin()]
+#' is applied.
+#' @param plotprogress optional logical indicating to whether to plot results for
+#' each column as calculations progress.
+#' @return a SpatRast of basins sequentially numbered as integers.
+#' @seealso [basindelin()]
+#' @import terra
+#' @export
+#' @examples
+#' bsn<-basindelin(rast(dtmf)) # Takes ~30 seconds to run
+#' plot(bsn)
+basindelin_big<-function(dtm, boundary = 0, tilesize = 100, plotprogress = FALSE) {
+  # chop into tiles
+  e<-ext(dtm)
+  reso<-res(dtm)
+  xmxs<-as.numeric(ceiling((e$xmax-e$xmin)/reso[1]/100))-1
+  bma<-.docolumn(dtm,tilesize,boundary,0)
+  for (x in 1:xmxs) {
+    ta<-suppressWarnings(max(as.vector(bma),na.rm=T))
+    if (is.infinite(ta)) ta<-0
+    bo<-.docolumn(dtm,tilesize,boundary,x)+ta
+    bma<-.basinmosaic(bma,bo)
+    if (plotprogress) plot(bma,main=x)
+  }
+  return(bma)
+}
+
+
 # ====================================================================== #
 # ~~~~~~~~ Useful functions for processing climate data that we likely
 # ~~~~~~~~ want to document.
