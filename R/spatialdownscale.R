@@ -1092,6 +1092,8 @@ waterbodyeffects <- function(tme, temperature, windspeed, winddir, wst, demf, de
 # ~~   logairthmic height profile. Suggest sampling at progressively large spacings
 # ~~  and averaging wind profile
 
+
+
 # ============================================================================ #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Precipitation downscale  ~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
