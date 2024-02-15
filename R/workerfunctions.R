@@ -234,10 +234,10 @@
 #' Merge basins based on specified boundary
 .basinmerge<-function(dtm,bsn,boundary=0.25) {
   # Put buffer around basin and dtn
-  bm<-as.matrix(bsn,wide=TRUE)
+  bm<-.is(bsn)
   bm2<-array(NA,dim=c(dim(bm)[1]+2,dim(bm)[2]+2))
   bm2[2:(dim(bm)[1]+1),2:(dim(bm)[2]+1)]<-bm
-  dm<-as.matrix(dtm,wide=TRUE)
+  dm<-.is(dtm)
   dm2<-array(NA,dim=c(dim(dm)[1]+2,dim(dm)[2]+2))
   dm2[2:(dim(dm)[1]+1),2:(dim(dm)[2]+1)]<-dm
   # Create 3D array of  basin numbers  with adjoining cells
@@ -297,11 +297,11 @@
   # *********** Do this if the tiles are vertically adjoined  *************** #
   if (abs(e1$ymax-e2$ymax) > reso[1]) {
     if (e2$ymax > e1$ymax) {  # b2 above b1
-      m1<-as.matrix(b1,wide=TRUE)
-      m2<-as.matrix(b2,wide=TRUE)
+      m1<-.is(b1)
+      m2<-.is(b2)
     } else {  # b1 above b2
-      m1<-as.matrix(b2,wide=TRUE)
-      m2<-as.matrix(b1,wide=TRUE)
+      m1<-.is(b2)
+      m2<-.is(b1)
     }
     for (itr in 1:3) {
       # merge based on top row of b1
@@ -361,11 +361,11 @@
   } else {# end do this if the tiles are vertically adjoined
     # *********** Do this if the tiles are horizontally adjoined  ************** #
     if (e2$xmax > e1$xmax) {  # b2 right of b1
-      m1<-as.matrix(b1,wide=TRUE)
-      m2<-as.matrix(b2,wide=TRUE)
+      m1<-.is(b1)
+      m2<-.is(b2)
     } else {  # b2 left of b1
-      m1<-as.matrix(b2,wide=TRUE)
-      m2<-as.matrix(b1,wide=TRUE)
+      m1<-.is(b2)
+      m2<-.is(b1)
     }
     for (itr in 1:3) {
       # merge based on right hand column of b1
@@ -425,7 +425,7 @@
   }
   # ********************** Mosaic and renumber ******************************* #
   bout<-mosaic(b1n,b2n)
-  m<-as.matrix(bout,wide=TRUE)
+  m<-.is(bout)
   # renumber basins
   u<-unique(as.vector(m))
   u<-u[is.na(u) == FALSE]
@@ -465,6 +465,39 @@
   } # end y
   return(bma)
 }
+#' Calculate flow direction
+.flowdir <- function(md) {
+  fd<-md*0
+  md2<-array(NA,dim=c(dim(md)[1]+2,dim(md)[2]+2))
+  md2[2:(dim(md)[1]+1),2:(dim(md)[2]+1)]<-md
+  v<-c(1:length(md))
+  v<-v[is.na(md) == F]
+  x<-arrayInd(v,dim(md))[,1]
+  y<-arrayInd(v,dim(md))[,2]
+  for (i in 1:length(x)) {
+    md9<-md2[x[i]:(x[i]+2),y[i]:(y[i]+2)]
+    fd[x[i],y[i]]<-round(mean(which(md9==min(md9,na.rm=TRUE))),0)
+  }
+  fd
+}
+#' Calculate cold-air drainage potential (spatial)
+.cadpotential <- function(dtm, basins = NA, refhgt = 2) {
+  if (class(basins) == "logical") basins<-basindelin(dtm,refhgt)
+  fa<-flowacc(dtm, basins) - 1
+  # Calculate basin size
+  fre<-freq(basins)
+  b<-.is(basins)
+  bsize<-b*0
+  for (i in 1:length(fre$value))  {
+    s<-which(b==fre$value[i])
+    bsize[s]<-fre$count[i]
+  }
+  cadfr<-.is(fa)/bsize
+  cadfr<-.rast(cadfr,dtm)
+  cadfr[cadfr>1]<-1
+  return(cadfr)
+}
+
 # ** Following is a bit of a code dump. We won't need it all:
 # NB:
 #  ** (1) For several of these functions we'll need to add the appropriate imports

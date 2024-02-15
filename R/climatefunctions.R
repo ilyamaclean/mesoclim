@@ -76,7 +76,47 @@ basindelin_big<-function(dtm, boundary = 0, tilesize = 100, plotprogress = FALSE
   }
   return(bma)
 }
-
+#' Calculates accumulated flow
+#'
+#' @description
+#' `flowacc` calculates accumulated flow(used to model cold air drainage)
+#'
+#' @param dtm a SpatRast elevations (m).
+#' @param basins optionally a SpatRast of basins numbered as integers (see details).
+#'
+#' @return a SpatRast of accumulated flow (number of cells)
+#' @details Accumulated flow is expressed in terms of number of cells. If `basins`
+#' is provided, accumulated flow to any cell within a basin can only occur from
+#' other cells within that basin.
+#' @import terra
+#' @export
+#'
+#' @examples
+#' library(terra)
+#' fa <- flowacc(rast(dtmf))
+#' plot(fa, main = 'Accumulated flow')
+flowacc <- function (dtm, basins = NA) {
+  dm<-.is(dtm)
+  fd<-.flowdir(dm)
+  fa<-fd*0+1
+  if (class(basins) != "logical") ba<-.is(basins)
+  o<-order(dm,decreasing=T,na.last=NA)
+  for (i in 1:length(o)) {
+    x<-arrayInd(o[i],dim(dm))[1]
+    y<-arrayInd(o[i],dim(dm))[2]
+    f<-fd[x,y]
+    x2<-x+(f-1)%%3-1
+    y2<-y+(f-1)%/%3-1
+    # If basin file provided only add flow accumulation of from same basin
+    if (class(basins) != "logical") {
+      b1<-b[x,y]
+      b2<-ba[x2,y2]
+      if (b1==b2 & x2>0 & x2<dim(dm)[1] & y2>0 & y2<dim(dm)[2]) fa[x2,y2]<-fa[x,y]+1
+    } else if (x2>0 & x2<dim(dm)[1] & y2>0 & y2<dim(dm)[2]) fa[x2,y2]<-fa[x,y]+1
+  }
+  fa<-.rast(fa,dtm)
+  return(fa)
+}
 
 # ====================================================================== #
 # ~~~~~~~~ Useful functions for processing climate data that we likely

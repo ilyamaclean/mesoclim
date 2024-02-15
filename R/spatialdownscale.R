@@ -49,6 +49,70 @@ tempelev <- function(tc, dtmf, dtmc = NA, rh = NA, pk = NA) {
   tcf<-suppressWarnings(stc-.rast(lrf,dtmf))
   return(tcf)
 }
+#' @title Downscale temperature with cold air drainage effects
+#' @description Downscales an array of temperature data adjusting for cold-air drainage
+#' @param climdata a model object containing climate data of the same format as `era5climdata`
+#' @param dtmf a fine-resolution SpatRast of elevations. Temperatures down-scaled
+#' to resolution of `dtmf`.
+#' @param basins optionally, a fine-resolution SpatRast of basins matching the
+#' coordinate reference system and extent of `dtmf`. Calculated if not supplied.
+#' @param dtmc optionally, height of weather measurements in `climdata` (default 2m)
+#' @return a SpatRast of temperature differences owing to cold-air drainage (deg C).
+#' @rdname tempcad
+#' @import terra
+#' @export
+#' @details Cold air drainage is calaculated by delineating hydrological basins and
+#' calculating flow accumulation and the elevation difference from the highest point of the basin.
+#' Cold-air drainage is assumed to occur when atmospheric stability is high, namely when
+#' the radiation balance is negative and wind speeds are low,
+tempcad<-function(climdata, dtmf, basins = NA, refhgt = 2) {
+  # Calculate elevation difference between basin height point and pixel
+  if (class(basins) == "logical") basins<-basindelin(dtmf,refhgt)
+  b<-.is(basins)
+  d<-.is(dtmf)
+  u<-unique(b)
+  u<-u[is.na(u)==FALSE]
+  bmx<-b*0
+  for (i in 1:length(u)) {
+    s<-which(b==u[i])
+    mx<-max(d[s],na.rm=TRUE)
+    bmx[s]<-mx
+  }
+  edif<-bmx-.is(dtmf)
+  edif<-.rast(edif,dtmf)
+  # Calculate lapse-rate multiplication factor
+  mu<-edif*.cadpotential(dtmf,basins,refhgt)
+  # extract climate variables
+  relhum<-climdata$climarray$relhum
+  pk<-climdata$climarray$pres
+  dtmc<-rast(climdata$dtmc)
+  # Calculate lapse rate
+  ea<-.satvap(tc)*(relhum/100)
+  lr<-lapserate(tc, ea, pk)
+  lr<-.rast(lr,dtmc)
+  if (crs(lr) != crs(dtmf)) lr<-project(lr,crs(dtmf))
+  lr<-resample(lr,dtmf)
+  n<-dim(lr)[3]
+  cad<-.is(lr)*-.rta(mu,n)
+  # determine whether cold-air drainage conditions exist
+  d<-0.65*0.12
+  zm<-0.1*0.12
+  # Extract additional ccimate variables
+  u2<-climdata$climarray$windspeed
+  swrad<-climdata$climarray$swrad
+  lwrad<-climdata$climarray$lwrad
+  uf<-(0.4*u2)/log((refhgt-d)/zm)
+  H<-(swrad+lwrad-(5.67*10^-8*0.97*(tc+273.15)^4))*0.5
+  st<- -(0.4*9.81*(refhgt-d)*H)/(1241*(tc+273.15)*uf^3)
+  st<-.rast(st,dtmc)
+  if (crs(st) != crs(dtmf)) st<-project(st,crs(dtmf))
+  st<-resample(st,dtmf)
+  st<-.is(st)
+  st[st>1]<-1
+  st[st<1]<-0
+  ce<-.rast(cad*st,dtmf)
+  return(ce)
+}
 #' @title Downscale pressure with elevation effects
 #' @description Downscales an array of pressure data applying elevation effects
 #' @param pk a SpatRast or array of atmospheric pressures (kPa). If an array dtmc must
@@ -451,56 +515,7 @@ coastalNCEP <- function(landsea, ncephourly, steps = 8, use.raster = T, zmin = 0
   }
   cad
 }
-#' Internal function used to calculate flow direction
-#' @export
-.flowdir <- function(md) {
-  fd <- md * 0
-  md2 <- array(NA, dim = c(dim(md)[1] + 2, dim(md)[2] + 2))
-  md2[2:(dim(md)[1] + 1), 2:(dim(md)[2] + 1)] <- md
-  v <- c(1:length(md))
-  v <- v[is.na(md) == F]
-  x <- arrayInd(v, dim(md))[, 1]
-  y <- arrayInd(v, dim(md))[, 2]
-  for (i in 1:length(x)) {
-    md9 <- md2[x[i]:(x[i] + 2), y[i]:(y[i] + 2)]
-    fd[x[i], y[i]] <- round(mean(which(md9 == min(md9, na.rm = T))), 0)
-  }
-  fd
-}
 
-#' Calculates accumulated flow
-#'
-#' @description
-#' `flowacc` is used by [pcad()] to calculate accumulated flow to each cold air drainage
-#' basin
-#'
-#' @param dem a raster object, two-dimensional array or matrix of elevations.
-#'
-#' @return a raster object, two-dimensional array or matrix of accumulated flow.
-#' @details Accumulated flow is expressed in terms of number of cells.
-#' @export
-#'
-#' @examples
-#' library(raster)
-#' fa <- flowacc(dtm100m)
-#' plot(fa, main = 'Accumulated flow')
-flowacc <- function (dem)
-{
-  dm <- is_raster(dem)
-  fd <- .flowdir(dm)
-  fa <- fd * 0 + 1
-  o <- order(dm, decreasing = T, na.last = NA)
-  for (i in 1:length(o)) {
-    x <- arrayInd(o[i], dim(dm))[1]
-    y <- arrayInd(o[i], dim(dm))[2]
-    f <- fd[x, y]
-    x2 <- x + (f - 1)%%3 - 1
-    y2 <- y + (f - 1)%/%3 - 1
-    if (x2 > 0 & x2 < dim(dm)[1] & y2 > 0 & y2 < dim(dm)[2])
-      fa[x2, y2] <- fa[x, y] + 1
-  }
-  if_raster(fa, dem)
-}
 
 
 
