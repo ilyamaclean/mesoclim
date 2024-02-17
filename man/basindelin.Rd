@@ -30,7 +30,7 @@ surrounding cells calculated. If the height difference is less than \code{bounda
 are merged and the basins renumbered sequentially.
 }
 \examples{
-bsn<-basindelin(rast(dtmf)) # Takes ~30 seconds to run
+bsn<-basindelin(rast(dtmf))
 plot(bsn)
 }
 \seealso{

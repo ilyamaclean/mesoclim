@@ -135,8 +135,25 @@
   r<-resample(r,dtmf)
   return(r)
 }
-
-# basin code
+# ============================================================================ #
+# ~~~~~~~~~ Basin delineation worker functions here  ~~~~~~~~~~~~~~~~~~~~~~~~~ #
+# ============================================================================ #
+#' Wrapper function for Rcpp code
+#' @importFrom Rcpp sourceCpp
+#' @useDynLib mesoclim, .registration = TRUE
+.basindelinCpp<-function(dtm) {
+  dm<-as.matrix(dtm,wide=TRUE)
+  dm2<-array(9999,dim=c(dim(dm)[1]+2,dim(dm)[2]+2))
+  dm2[2:(dim(dm)[1]+1),2:(dim(dm)[2]+1)]<-dm
+  # (2) create blank basin file
+  bsn<-dm2*NA
+  dun<-array(0,dim=dim(bsn))
+  bsn<-basinCpp(dm2, bsn, dun)
+  dd<-dim(bsn)
+  bsn<-bsn[2:(dd[1]-1),2:(dd[2]-1)]
+  r<-.rast(bsn,dtm)
+  return(r)
+}
 # function to identify which basin edge cells are less or equal to boundary
 .edge<-function(v) {
   o<-0
@@ -167,69 +184,6 @@
   if (is.na(v[8])==FALSE & v[8] > 0)  b3[3,1]<-b3[2,2]
   if (is.na(v[9])==FALSE & v[9] > 0)  b3[3,3]<-b3[2,2]
   b3
-}
-# ============================================================================ #
-# ~~~~~~~~~ Basin delineation worker functions here  ~~~~~~~~~~~~~~~~~~~~~~~~~ #
-# ============================================================================ #
-.basindelin<-function(dtm) {
-  # (1) stick buffer around dtm
-  dm<-as.matrix(dtm,wide=TRUE)
-  dm2<-array(NA,dim=c(dim(dm)[1]+2,dim(dm)[2]+2))
-  dm2[2:(dim(dm)[1]+1),2:(dim(dm)[2]+1)]<-dm
-  # (2) create blank basin file
-  bsn<-dm2*NA
-  dun<-array(1,dim=dim(bsn))
-  # Iterate to delineate all basins
-  tsta<-1
-  bn<-1 # basin number
-  while (tsta == 1) {
-    # First iteration
-    mu<-bsn*NA
-    mu[is.na(bsn)]<-1
-    s<-suppressWarnings(which(dm2*mu*dun==min(dm2*mu*dun,na.rm=T),arr.ind=T))
-    if (length(s) > 0) {
-      rw<-as.numeric(s[1,1])
-      cl<-as.numeric(s[1,2])
-      bsn[rw,cl]<-bn
-      dun[rw,cl]<-NA
-      # (4) select 3 x 3 matrix around grid cell
-      m3<-dm2[(c(rw-1):(rw+1)),(c(cl-1):(cl+1))]
-      b3<-bsn[(c(rw-1):(rw+1)),(c(cl-1):(cl+1))]
-      # (5) identify  which grid cells in 3 x 3 undone and higher and assign to basin i
-      sb<-which(m3>m3[2,2])
-      b3[sb]<-bn
-      bsn[(c(rw-1):(rw+1)),(c(cl-1):(cl+1))]<-b3
-    } else tsta<-0
-    # Subsequent iterations
-    if (tsta > 0) {
-      tst<-1
-      while (tst == 1) {
-        mu<-bsn*NA
-        mu[bsn==bn]<-1
-        s<-suppressWarnings(which(dm2*mu*dun==min(dm2*mu*dun,na.rm=T),arr.ind=T))
-        if (length(s) > 0) {
-          rw<-as.numeric(s[1,1])
-          cl<-as.numeric(s[1,2])
-          bsn[rw,cl]<-bn
-          dun[rw,cl]<-NA
-          # (4) select 3 x 3 matrix around grid cell
-          d3<-dun[(c(rw-1):(rw+1)),(c(cl-1):(cl+1))]
-          m3<-dm2[(c(rw-1):(rw+1)),(c(cl-1):(cl+1))]*d3
-          b3<-bsn[(c(rw-1):(rw+1)),(c(cl-1):(cl+1))]
-          m3[2,2]<-dm2[rw,cl]
-          # (5) identify  which grid cells in 3 x 3 undone and higher and assign to basin bn
-          sb<-which(m3>m3[2,2])
-          b3[sb]<-bn
-          bsn[(c(rw-1):(rw+1)),(c(cl-1):(cl+1))]<-b3
-        } else tst<-0
-      }
-      bn<-bn+1  # go on to next basin
-    }
-  }
-  dd<-dim(bsn)
-  bsn<-bsn[2:(dd[1]-1),2:(dd[2]-1)]
-  r<-.rast(bsn,dtm)
-  return(r)
 }
 #' Merge basins based on specified boundary
 .basinmerge<-function(dtm,bsn,boundary=0.25) {
@@ -288,6 +242,31 @@
   dd<-dim(bm3)
   bsn<-bm3[2:(dd[1]-1),2:(dd[2]-1)]
   r<-.rast(bsn,dtm)
+}
+#' Internal basin delineation function with option to merge by boundary
+.basindelin<-function(dtm, boundary = 0) {
+  # Delineate basins
+  dm<-dim(dtm)
+  me<-mean(as.vector(dtm),na.rm=TRUE)
+  if (is.na(me) == FALSE) {
+    bsn<-.basindelinCpp(dtm)
+    # Merge basins if boundary > 0
+    if (boundary > 0) {
+      mx<-max(as.vector(bsn),na.rm=T)
+      tst<-1
+      while (tst == 1) {
+        bsn<-.basinmerge(dtm,bsn,boundary)
+        u<-unique(as.vector(bsn))
+        u<-u[is.na(u) == F]
+        if (length(u) == 1) tst<-0
+        mx2<-max(as.vector(bsn),na.rm=T)
+        if (mx2 ==  mx) {
+          tst<-0
+        } else mx<-mx2
+      } # end while
+    } # end if boundary
+  } else bsn<-dtm # end if boundary
+  return(bsn)
 }
 #' Mosaic tiled basins merging common joins
 .basinmosaic<-function(b1,b2) {
@@ -438,7 +417,7 @@
 .docolumn<-function(dtm,tilesize,boundary,x) {
   e<-ext(dtm)
   reso<-res(dtm)
-  ymxs<-as.numeric(ceiling((e$ymax-e$ymin)/reso[2]/100))-1
+  ymxs<-as.numeric(ceiling((e$ymax-e$ymin)/reso[2]/tilesize))-1
   xmn<-as.numeric(e$xmin)+reso[1]*tilesize*x
   xmx<-xmn+reso[1]*tilesize
   ymn<-as.numeric(e$ymin)+reso[2]*tilesize*0
@@ -450,10 +429,10 @@
   bma<-basindelin(dc,boundary)
   # delineate basins for columns
   for (y in 1:ymxs) {
-    xmn<-as.numeric(e$xmin)+reso[1]*100*x
-    xmx<-xmn+reso[1]*100
-    ymn<-as.numeric(e$ymin)+reso[2]*100*y
-    ymx<-ymn+reso[2]*100
+    xmn<-as.numeric(e$xmin)+reso[1]*tilesize*x
+    xmx<-xmn+reso[1]*tilesize
+    ymn<-as.numeric(e$ymin)+reso[2]*tilesize*y
+    ymx<-ymn+reso[2]*tilesize
     if (xmx > e$xmax) xmx<-e$xmax
     if (ymx > e$ymax) ymx<-e$ymax
     ec<-ext(xmn,xmx,ymn,ymx)
@@ -463,6 +442,22 @@
     bo<-basindelin(dc,boundary)+ta
     bma<-.basinmosaic(bma,bo)
   } # end y
+  return(bma)
+}
+#' Function used for delineating basins with big dtms
+.basindelin_big<-function(dtm, boundary = 0, tilesize = 100, plotprogress = FALSE) {
+  # chop into tiles
+  e<-ext(dtm)
+  reso<-res(dtm)
+  xmxs<-as.numeric(ceiling((e$xmax-e$xmin)/reso[1]/tilesize))-1
+  bma<-.docolumn(dtm,tilesize,boundary,0)
+  for (x in 1:xmxs) {
+    ta<-suppressWarnings(max(as.vector(bma),na.rm=T))
+    if (is.infinite(ta)) ta<-0
+    bo<-.docolumn(dtm,tilesize,boundary,x)+ta
+    bma<-.basinmosaic(bma,bo)
+    if (plotprogress) plot(bma,main=x)
+  }
   return(bma)
 }
 #' Calculate flow direction
