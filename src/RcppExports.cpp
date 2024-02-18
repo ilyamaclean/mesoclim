@@ -11,21 +11,34 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // basinCpp
-IntegerMatrix basinCpp(NumericMatrix dm2, IntegerMatrix bsn, IntegerMatrix dun);
+IntegerMatrix basinCpp(NumericMatrix& dm2, IntegerMatrix& bsn, IntegerMatrix& dun);
 RcppExport SEXP _mesoclim_basinCpp(SEXP dm2SEXP, SEXP bsnSEXP, SEXP dunSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericMatrix >::type dm2(dm2SEXP);
-    Rcpp::traits::input_parameter< IntegerMatrix >::type bsn(bsnSEXP);
-    Rcpp::traits::input_parameter< IntegerMatrix >::type dun(dunSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix& >::type dm2(dm2SEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix& >::type bsn(bsnSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix& >::type dun(dunSEXP);
     rcpp_result_gen = Rcpp::wrap(basinCpp(dm2, bsn, dun));
+    return rcpp_result_gen;
+END_RCPP
+}
+// renumberbasin
+IntegerVector renumberbasin(IntegerVector& m, IntegerVector u);
+RcppExport SEXP _mesoclim_renumberbasin(SEXP mSEXP, SEXP uSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< IntegerVector& >::type m(mSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type u(uSEXP);
+    rcpp_result_gen = Rcpp::wrap(renumberbasin(m, u));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
     {"_mesoclim_basinCpp", (DL_FUNC) &_mesoclim_basinCpp, 3},
+    {"_mesoclim_renumberbasin", (DL_FUNC) &_mesoclim_renumberbasin, 2},
     {NULL, NULL, 0}
 };
 

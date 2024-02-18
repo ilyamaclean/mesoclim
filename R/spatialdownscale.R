@@ -1038,8 +1038,6 @@ waterbodyeffects <- function(tme, temperature, windspeed, winddir, wst, demf, de
 #' compared to those obtained using simple raster resampling using bilinear interpolation.
 #' The correction factor can then be applied to e.g. daily rainfall.
 #'
-#' @importFrom rgcvpack fitTps
-#' @importFrom rgcvpack predict.Tps
 #' @export
 #'
 #' @examples

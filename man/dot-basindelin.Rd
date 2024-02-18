@@ -2,10 +2,10 @@
 % Please edit documentation in R/workerfunctions.R
 \name{.basindelin}
 \alias{.basindelin}
-\title{Internal basin delineation function with option to merge by boundary}
+\title{Internal function for delineating basins with option for boundary > 0}
 \usage{
 .basindelin(dtm, boundary = 0)
 }
 \description{
-Internal basin delineation function with option to merge by boundary
+Internal function for delineating basins with option for boundary > 0
 }

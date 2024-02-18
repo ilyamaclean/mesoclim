@@ -20,6 +20,10 @@ Imports:
     zoo,
     ncdf4,
     gstat,
+    raster,
+    rnoaa,
+    sf,
+    sp,
     Rcpp
 RoxygenNote: 7.2.3
 Roxygen: list(markdown = TRUE) 

@@ -5,3 +5,7 @@ basinCpp <- function(dm2, bsn, dun) {
     .Call(`_mesoclim_basinCpp`, dm2, bsn, dun)
 }
 
+renumberbasin <- function(m, u) {
+    .Call(`_mesoclim_renumberbasin`, m, u)
+}
+

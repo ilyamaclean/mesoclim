@@ -15,7 +15,6 @@
 #' are merged and the basins renumbered sequentially.
 #' @import terra
 #' @export
-#' @seealso [basindelin_big()]
 #' @examples
 #' bsn<-basindelin(rast(dtmf))
 #' plot(bsn)

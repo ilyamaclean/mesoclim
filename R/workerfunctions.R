@@ -138,11 +138,12 @@
 # ============================================================================ #
 # ~~~~~~~~~ Basin delineation worker functions here  ~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
-#' Wrapper function for Rcpp code
+#' Wrapper for C++ function
 #' @importFrom Rcpp sourceCpp
 #' @useDynLib mesoclim, .registration = TRUE
 .basindelinCpp<-function(dtm) {
-  dm<-as.matrix(dtm,wide=TRUE)
+  dm<-.is(dtm)
+  dm[is.na(dm)]<-9999
   dm2<-array(9999,dim=c(dim(dm)[1]+2,dim(dm)[2]+2))
   dm2[2:(dim(dm)[1]+1),2:(dim(dm)[2]+1)]<-dm
   # (2) create blank basin file
@@ -154,6 +155,43 @@
   r<-.rast(bsn,dtm)
   return(r)
 }
+#' Internal function for delineating basins with option for boundary > 0
+.basindelin<-function(dtm, boundary = 0) {
+  # Delineate basins
+  dm<-dim(dtm)
+  me<-mean(as.vector(dtm),na.rm=TRUE)
+  if (is.na(me) == FALSE) {
+    bsn<-.basindelinCpp(dtm)
+    # Merge basins if boundary > 0
+    if (boundary > 0) {
+      mx<-max(as.vector(bsn),na.rm=T)
+      tst<-1
+      while (tst == 1) {
+        u<-unique(as.vector(bsn))
+        u<-u[is.na(u) == F]
+        if (length(u) > 1) {
+          bsn<-.basinmerge(dtm,bsn,boundary)
+          u<-unique(as.vector(bsn))
+          u<-u[is.na(u) == F]
+          if (length(u) > 1) {
+            bsn<-.basinmerge(dtm,bsn,boundary)
+            u<-unique(as.vector(bsn))
+            u<-u[is.na(u) == F]
+          }
+          u<-unique(as.vector(bsn))
+          u<-u[is.na(u) == F]
+        }
+        if (length(u) == 1) tst<-0
+        mx2<-max(as.vector(bsn),na.rm=T)
+        if (mx2 ==  mx) {
+          tst<-0
+        } else mx<-mx2
+      } # end while
+    } # end if boundary
+  } else bsn<-dtm # end if boundary
+  return(bsn)
+}
+
 # function to identify which basin edge cells are less or equal to boundary
 .edge<-function(v) {
   o<-0
@@ -243,31 +281,7 @@
   bsn<-bm3[2:(dd[1]-1),2:(dd[2]-1)]
   r<-.rast(bsn,dtm)
 }
-#' Internal basin delineation function with option to merge by boundary
-.basindelin<-function(dtm, boundary = 0) {
-  # Delineate basins
-  dm<-dim(dtm)
-  me<-mean(as.vector(dtm),na.rm=TRUE)
-  if (is.na(me) == FALSE) {
-    bsn<-.basindelinCpp(dtm)
-    # Merge basins if boundary > 0
-    if (boundary > 0) {
-      mx<-max(as.vector(bsn),na.rm=T)
-      tst<-1
-      while (tst == 1) {
-        bsn<-.basinmerge(dtm,bsn,boundary)
-        u<-unique(as.vector(bsn))
-        u<-u[is.na(u) == F]
-        if (length(u) == 1) tst<-0
-        mx2<-max(as.vector(bsn),na.rm=T)
-        if (mx2 ==  mx) {
-          tst<-0
-        } else mx<-mx2
-      } # end while
-    } # end if boundary
-  } else bsn<-dtm # end if boundary
-  return(bsn)
-}
+
 #' Mosaic tiled basins merging common joins
 .basinmosaic<-function(b1,b2) {
   e1<-ext(b1)
@@ -402,15 +416,8 @@
       b2n<-.rast(m1,b2)
     }
   }
-  # ********************** Mosaic and renumber ******************************* #
+  # ********************************** Mosaic ******************************* #
   bout<-mosaic(b1n,b2n)
-  m<-.is(bout)
-  # renumber basins
-  u<-unique(as.vector(m))
-  u<-u[is.na(u) == FALSE]
-  u<-u[order(u)]
-  for (i in 1:length(u)) m[m==u[i]]<-i
-  bout<-.rast(m,bout)
   return(bout)
 }
 #' Do an entire column of tiled basins
@@ -445,6 +452,8 @@
   return(bma)
 }
 #' Function used for delineating basins with big dtms
+#' @importFrom Rcpp sourceCpp
+#' @useDynLib mesoclim, .registration = TRUE
 .basindelin_big<-function(dtm, boundary = 0, tilesize = 100, plotprogress = FALSE) {
   # chop into tiles
   e<-ext(dtm)
@@ -455,9 +464,17 @@
     ta<-suppressWarnings(max(as.vector(bma),na.rm=T))
     if (is.infinite(ta)) ta<-0
     bo<-.docolumn(dtm,tilesize,boundary,x)+ta
+    ed<-Sys.time()
     bma<-.basinmosaic(bma,bo)
     if (plotprogress) plot(bma,main=x)
   }
+  m<-.is(bma)
+  # renumber basins
+  u<-unique(as.vector(m))
+  u<-u[is.na(u) == FALSE]
+  u<-u[order(u)]
+  m<-array(renumberbasin(m,u),dim=dim(m))
+  bout<-.rast(m,bout)
   return(bma)
 }
 #' Calculate flow direction

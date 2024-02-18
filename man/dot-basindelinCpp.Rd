@@ -2,10 +2,10 @@
 % Please edit documentation in R/workerfunctions.R
 \name{.basindelinCpp}
 \alias{.basindelinCpp}
-\title{Wrapper function for Rcpp code}
+\title{Wrapper for C++ function}
 \usage{
 .basindelinCpp(dtm)
 }
 \description{
-Wrapper function for Rcpp code
+Wrapper for C++ function
 }
