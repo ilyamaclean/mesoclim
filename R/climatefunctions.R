@@ -81,7 +81,7 @@ flowacc <- function (dtm, basins = NA) {
 #' all values within a day as sea-surface temperatures tend to fluctuate slowly.
 #' @import terra, zoo
 #' @export
-#' @rdname SSTinterpolat
+#' @rdname SSTinterpolate
 SSTinterpolate<-function(SST, tmein, tmeout) {
   if (length(tmein) != dim(SST)[3]) stop("length of tmein must match dim 3 of SST")
   if (tmeout[1] < tmein[1] | tmeout[length(tmeout)] > tmein[length(tmein)]) {

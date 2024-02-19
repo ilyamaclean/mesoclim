@@ -3,6 +3,7 @@
 export("#")
 export(.get_sst)
 export(.invls.auto)
+export(SSTinterpolate)
 export(add)
 export(basindelin)
 export(clearskyrad)
