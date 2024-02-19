@@ -15,6 +15,7 @@
 #' are merged and the basins renumbered sequentially.
 #' @import terra
 #' @export
+#' @rdname basindelin
 #' @examples
 #' bsn<-basindelin(rast(dtmf))
 #' plot(bsn)
@@ -39,7 +40,7 @@ basindelin<-function(dtm, boundary = 0) {
 #' other cells within that basin.
 #' @import terra
 #' @export
-#'
+#' @rdname flowacc
 #' @examples
 #' library(terra)
 #' fa <- flowacc(rast(dtmf))
@@ -65,6 +66,113 @@ flowacc <- function (dtm, basins = NA) {
   }
   fa<-.rast(fa,dtm)
   return(fa)
+}
+#' @title temporally interpolate sea-surface temperature data to hourly
+#' @description The function `SSTinterpolate` spatially infills missing spatial spatial
+#' sea-surface temperature data and then temporally interpolates data to hourly if not
+#' already hourly.
+#' @param SST a SpatRast of hourly, daily or e.g. monthly sea-surface tmeperature data
+#' @param tmein POSIXlt object of times corresponding to each layer of `SST`
+#' @param tmeout POSIXlt object of times for which output sea-surface temperature data are needed (hourly)
+#' @return a SpatRast of sea-surface temperature data wiht the same units as `SST` (usually deg C).
+#' @details Missing grid cells are interpolated using zoo::na.approx. Output sea-surface
+#' temperature data are temporally interpolated to daily values, so the duration of
+#' `tmeout` must be at least that of `tmeout`. Hourly values are returned by replicating
+#' all values within a day as sea-surface temperatures tend to fluctuate slowly.
+#' @import terra, zoo
+#' @export
+#' @rdname SSTinterpolat
+SSTinterpolate<-function(SST, tmein, tmeout) {
+  if (length(tmein) != dim(SST)[3]) stop("length of tmein must match dim 3 of SST")
+  if (tmeout[1] < tmein[1] | tmeout[length(tmeout)] > tmein[length(tmein)]) {
+    stop ("tmeout extends beyond time start and/or end of tmein")
+  }
+  tostep<-as.numeric(tmeout[2]) - as.numeric(tmeout[2])
+  if (tostep != 3600 | tostep != (3600*24)) stop("tmeout must be hourly or daily")
+  # ==================================== #
+  # Spatially interpolate missing values #
+  # ==================================== #
+  me<-as.vector(SST)
+  n<-which(is.na(me))
+  SSTn<-SST
+  crs(SSTn)<-crs(SST) # prevents superflious warning
+  if (length(n) > 0) {
+    for (i in 1:dim(SST)[3]) {
+      m<-.is(SST[[i]])
+      m1<-m
+      m10<-.is(resample(aggregate(dtm,10,na.rm=TRUE),dtm))
+      m100<-.is(resample(aggregate(dtm,100,na.rm=TRUE),dtm))
+      ma<-array(mean(as.vector(dtm),na.rm=TRUE),dim=dim(dtm)[1:2])
+      s<-which(is.na(m1))
+      m1[s]<-m10[s]
+      s<-which(is.na(m1))
+      m1[s]<-m100[s]
+      s<-which(is.na(m1))
+      m1[s]<-ma[s]
+      d<-dim(m1)
+      m1[2:(d[1]-1),2:(d[2]-1)]<-m[2:(d[1]-1),2:(d[2]-1)]
+      m1a<-na.approx(m1)
+      m1b<-t(na.approx(t(m1)))
+      m<-(m1a+m1b)/2
+      SSTn[[i]]<-suppressWarnings(.rast(m,SST))
+    } # end for
+  } # end if
+  # ==================================== #
+  # Temporally interpolate to hourly     #
+  # ==================================== #
+  if (n == 1) {
+    SSTn<-.rta(SSTn,length(tmeout)) # replicate all values if SST is a single layer
+  } else { # Temporally interpolate
+    tstep<-as.numeric(tmein[2])-as.numeric(tmein[1])
+    if (tstep > 86400) {  # checks whether step isn't hourly or daily'
+      # Convert tmeout to daily if hourly
+      if ((as.numeric(tmeout[2])-as.numeric(tmeout[1])) == 3600) {
+        st<-substr(tmeout[1],1,11)
+        n<-length(tmeout)/24
+        tmed<-as.POSIXlt(c(0:n)*24*3600,origin=st,tz="UTC")
+      } else tmed<-tmein
+      # Calculate weights matrix
+      # ** time difference tmein and tmeout
+      wgts<-matrix(NA,nrow=length(tmed),ncol=length(tmein))
+      for (i in 1:length(tmed)) wgts[i,]<-abs((as.numeric(tmed[i])-as.numeric(tmein))/3600)
+      # Select only the two lowest and set others to NA
+      for (i in 1:length(tmed)) {
+        v<-wgts[i,]
+        co<-v[order(v)][2]
+        v[v>co]<-NA
+        wgts[i,]<-v
+      }
+      # Calculate weights
+      for (i in 1:length(tmed)) {
+        v<-wgts[i,]
+        wgts[i,]<-1-v/sum(v,na.rm=T)
+      }
+      wgts[is.na(wgts)]<-0
+      # Convert SST to array
+      a<-as.array(SSTn)
+      ao<-array(NA,dim=c(dim(a)[1:2],length(tmed)))
+      for (i in 1:length(tmed)) {
+        ats<-.vta(wgts[i,],SSTn[[1]])*.is(SSTn)
+        ao[,,i]<-apply(ats,c(1,2),sum)
+      }
+      ao<-.ehr(ao) # convert daily to hourly
+      # Select only those values within tmeout
+      tmih<-seq(as.numeric(tmein[1]),as.numeric(tmein[length(tmein)]),3600)
+      tmih<-as.POSIXlt(round(tmih/3600,0)*3600,origin="1970-01-01 00:00",tz="UTC")
+      s<-which(tmih>=tmeout[1] & tmoh<=tmeout[length(tmeout)])
+      ao<-ao[,,s]
+      SSTn<-.rast(ao,SSTn)
+    } else { # if tstep<= daily or hourly
+      # check whether it is daily oor hourly and stop if not
+      if (tstep!=3600 | tstep!=(3600*24)) stop("tmein must have hourly, daily or >daily time increments")
+      if (tstep > 3600) { # if daily
+        ao<-as.array(SSTn)
+        ao<-.ehr(ao)
+        SSTn<-.rast(ao,SSTn)
+      }
+    } # end else tstep daily or hourly
+  } # end temporal interpolation
+  return(SSTn)
 }
 
 # ====================================================================== #
