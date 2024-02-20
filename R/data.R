@@ -16,8 +16,6 @@
 #' @format A PackedSpatRaster object with 100 rows and 100 columns
 #' @source \url{http://www.tellusgb.ac.uk/}
 "dtmm"
-
-
 #' A list of ERA5 climate data
 #'
 #' A list of hourly ERA5 climata data for May 2018 for Cornwall, UK (lat, long boundary) as
@@ -41,4 +39,23 @@
 #' }
 #' @source \url{https://cds.climate.copernicus.eu//}
 "era5data"
+#' A 0.25 degree grid resolution dataset of sea-surface temperature data
+#'
+#' A spatial dataset of hourly sea-surface temperatures for May 2018 for sea around
+#' West Cornwall, UK, covering the area bounded by  -6.125, -4.125, 49.125, 51.125
+#' (xmin, xmax, ymin, ymax) with the WGS84 lat long coordinate reference system (EPSG:4326)
+#'
+#' @format A PackedSpatRaster object with 8 rows, 8 columns and 744 layers
+#' @source \urlhttps://cds.climate.copernicus.eu//}
+"era5sst"
+#' A 100m grid resolution landsea mask
+#'
+#' A spatial landsea mask for West Cornwall, UK, covering the area bounded by  145000,
+#' 195000, -9000, 41000 (xmin, xmax, ymin, ymax) with the with the coordinate reference
+#' system OSGB36 / British National Grid (EPSG:27700)
+#'
+#' @format A PackedSpatRaster object with 500 rows and 500 columns
+#' @source \url{https://cds.climate.copernicus.eu//}
+"landsea"
+
 

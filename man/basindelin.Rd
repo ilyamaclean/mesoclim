@@ -30,6 +30,7 @@ surrounding cells calculated. If the height difference is less than \code{bounda
 are merged and the basins renumbered sequentially.
 }
 \examples{
+library(terra)
 bsn<-basindelin(rast(dtmf))
 plot(bsn)
 }

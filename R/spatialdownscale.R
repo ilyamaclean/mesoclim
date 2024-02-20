@@ -226,7 +226,7 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchiness = 0) {
 #' extend at least one `dtmc` grid cell beyond `dtmf`. Elevations must be in metres.
 #' The coordinate reference system of `dtmf` must be such that x and y are also in metres.
 #' `dtmm` and `dtmc` are reprojected to match the coordinate reference system of `dtmf`.
-#' To enhance computational efficiency, Wind direction is averaged over the extent of
+#' To enhance computational efficiency, Wind direction is assumed constant over the extent of
 #' `dtmf`.
 #' @import terra
 #' @export

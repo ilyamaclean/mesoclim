@@ -9,3 +9,12 @@ renumberbasin <- function(m, u) {
     .Call(`_mesoclim_renumberbasin`, m, u)
 }
 
+#'
+#' This function returns a numeric matrix identifying
+#' matching values from a raster that intersect with
+#' a set of points
+#' @export
+invls_calc <- function(lsm, resolution, xmin, ymax, s, direction, slr, slr_xmin, slr_xmax, slr_ymin, slr_ymax) {
+    .Call(`_mesoclim_invls_calc`, lsm, resolution, xmin, ymax, s, direction, slr, slr_xmin, slr_xmax, slr_ymin, slr_ymax)
+}
+

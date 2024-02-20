@@ -14,9 +14,11 @@
 #' surrounding cells calculated. If the height difference is less than `boundary`, basins
 #' are merged and the basins renumbered sequentially.
 #' @import terra
+#' @importFrom Rcpp sourceCpp
 #' @export
 #' @rdname basindelin
 #' @examples
+#' library(terra)
 #' bsn<-basindelin(rast(dtmf))
 #' plot(bsn)
 basindelin<-function(dtm, boundary = 0) {
@@ -231,7 +233,52 @@ windelev <- function(dtmf, dtmm, dtmc, wdir, uz = 2) {
   wc<-suppressWarnings(mask(wc,dtmf))
   return(wc)
 }
-
+#' Calculates land to sea ratio in upwind direction
+#'
+#' @description The function `coastalexposure` is used to calculate an inverse
+#' distance^2 weighted ratio of land to sea in a specified upwind direction.
+#'
+#' @param landsea A SpatRast with NAs (representing sea) or any non-NA value (representing land). The object should have a larger extent than that for which land-sea ratio values are needed, as the calculation requires land / sea coverage to be assessed upwind outside the target area.
+#' @param e a terra::ext object indicating the region for which land-sea ratios are required.
+#' @param wdir an optional single numeric value specifying the direction (decimal degrees) from which the wind is blowing.
+#' @return a SpatRast of representing values ranging between zero
+#' (all upwind pixels sea) to one (all upwind pixels land).
+#' @details This function calculates a coefficient of the ratio of land to
+#' sea pixels in a specified upwind direction, across all elements of a
+#' SpatRast, weighted using an inverse distance squared function,
+#' such that nearby pixels have a greater influence on the coefficient.
+#'
+#' @import terra
+#' @importFrom Rcpp sourceCpp
+#' @useDynLib mesoclim, .registration = TRUE
+#' @export
+#'
+#' @examples
+#' library(terra)
+#' e<-ext(rast(dtmf))
+#' ce1 <- coastalexposure(rast(landsea), e, 180)
+#' ce2 <- coastalexposure(rast(landsea), e, 270)
+#' par(mfrow=c(2,1))
+#' plot(ce1, main = "Land to sea weighting, southerly wind")
+#' plot(ce2, main = "Land to sea weighting, westerly wind")
+coastalexposure <- function(landsea, e, wdir) {
+  # Calculate sample distances
+  e2<-ext(landsea)
+  maxdist<-sqrt(xres(landsea)*(e2$xmax-e2$xmin)+yres(landsea)*(e2$ymax-e2$ymin))
+  reso<-xres(landsea)
+  slr<-landsea*0+1
+  slr[is.na(slr)]<-0
+  s<-c(0,(8:1000)/8)^2*reso
+  s<-s[s<=maxdist]
+  if (e2 != e) {
+    lss<-crop(slr,e,snap='out')
+  } else lss<-slr
+  lsm<-.is(lss)
+  es<-ext(slr)
+  lsr<-invls_calc(lsm,reso,e$xmin,e$ymax,s,wdir,.is(slr),es$xmin,es$xmax,es$ymin,es$ymax)
+  lsr<-.rast(lsr,lss)
+  return(lsr)
+}
 
 # ====================================================================== #
 # ~~~~~~~~ Useful functions for processing climate data that we likely
