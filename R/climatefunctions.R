@@ -174,6 +174,64 @@ SSTinterpolate<-function(SST, tmein, tmeout) {
   } # end temporal interpolation
   return(SSTn)
 }
+#' @title derive wind terrain adjustment coefficient
+#' @description The function `windelev` is used to spatially downscale wind, and
+#' adjusts wind speed for elevation and applies a terrain shelter coefficient for
+#' a specified wind direction.
+#' @param dtmf a high-resolution SpatRast of elevations
+#' @param dtmm a medium-resolution SpatRast of elevations covering a larger area
+#' than dtmf (see details)
+#' @param dtmc a coarse-resolution SpatRast of elevations usually matching
+#' the resolution of climate data used for downscaling (see details)
+#' @param wdir wind direction (from, decimal degrees).
+#' @param uz height above ground (m) of wind speed measurement
+#' @return a SpatRast of wind adjustment coefficients matching the resoltuion,
+#' coordinate reference system and extent of `dtmf`.
+#' @details Elevation effects are derived by sampling the dtms at intervals in
+#' an upwind direction, determining the elevation difference form each focal cell and
+#' performing a standard wind-height adjustment. Terrain sheltering is computed
+#' from horizon angles following the method detailed in Maclean et al (2019) Methods
+#' Ecol Evol 10: 280-290. By supplying three dtms, the algorithm is able to account for
+#' elevation differences outside the boundaries of `dtmf`. The area covered by `dtmm` was
+#' extend at least one `dtmc` grid cell beyond `dtmf`. Elevations must be in metres.
+#' The coordinate reference system of `dtmf` must be such that x and y are also in metres.
+#' `dtmm` and `dtmc` are reprojected to match the coordinate reference system of `dtmf`.
+#' @import terra
+#' @export
+#' @seealso [winddownscale()]
+#' @rdname windelev
+#' @examples
+#' wc <- windelev(rast(dtmf), rast(dtmm), rast(era5data$dtmc), wdir = 0)
+#' plot(wc)
+windelev <- function(dtmf, dtmm, dtmc, wdir, uz = 2) {
+  # Reproject if necessary
+  if (crs(dtmm) != crs(dtmf)) dtmm<-project(dtmm,crs(dtmf))
+  if (crs(dtmc) != crs(dtmf)) dtmc<-project(dtmc,crs(dtmf))
+  # This bit will be wrapped into a function - this for dtmm
+  # Calculate wind adjustment 1
+  dtmr<-dtmm*0+1
+  dtmr[is.na(dtmr)]<-1
+  wc1<-.windz(dtmm,dtmc,dtmr,wdir)
+  # Calculate wind adjustment 2
+  wc1<-resample(wc1,dtmf)
+  wc2<-.windz(dtmf,dtmm,wc1,wdir)
+  # Average
+  wc<-(wc1+wc2)/2
+  # Calculate average for coarse grid cell
+  wcc<-resample(wc,dtmc,method="near")
+  wcc[is.na(wcc)]<-mean(as.vector(wcc),na.rm=TRUE)
+  wcc<-resample(wcc,wc)
+  wc<-wc/wcc
+  # Calculate terrain shelter coefficient
+  ws<-.windcoef(dtmm, wdir, hgt = uz)  # coarse
+  ws<-resample(ws,dtmf)
+  ws2<-.windcoef(dtmf, wdir, hgt = uz) # fine
+  ws<-.rast(pmin(.is(ws),.is(ws2)),dtmf)
+  wc<-ws*wc
+  wc<-suppressWarnings(mask(wc,dtmf))
+  return(wc)
+}
+
 
 # ====================================================================== #
 # ~~~~~~~~ Useful functions for processing climate data that we likely

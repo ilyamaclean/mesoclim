@@ -203,7 +203,70 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchiness = 0) {
   rad<-csr*csf
   return(rad)
 }
-
+#' @title Downscale wind speed accoutning for elevation and terrain sheltering effects
+#' @description The function `winddownscale` is used to spatially downscale windspeed,
+#' performing adjustments for elevation and terrain sheltering
+#' a specified wind direction.
+#' @param wspeed a coarse-resolution array of wind speeds (m/s)
+#' @param wdir a coarse-resolution array of wind directions (decimal degrees from north, from)
+#' @param dtmf a high-resolution SpatRast of elevations
+#' @param dtmm a medium-resolution SpatRast of elevations covering a larger area
+#' than dtmf (see details)
+#' @param dtmc a coarse-resolution SpatRast of elevations matching
+#' the resolution, extent and coordinate reference system of `wspeed`.
+#' @param uz height above ground (m) of wind speed measurement in `wspeed`.
+#' @return a stacked SpatRast of wind speeds matching the resolution,
+#' coordinate reference system and extent of `dtmf`.
+#' @details Elevation effects are derived by sampling the dtms at intervals in
+#' an upwind direction, determining the elevation difference form each focal cell and
+#' performing a standard wind-height adjustment. Terrain sheltering is computed
+#' from horizon angles following the method detailed in Maclean et al (2019) Methods
+#' Ecol Evol 10: 280-290. By supplying three dtms, the algorithm is able to account for
+#' elevation differences outside the boundaries of `dtmf`. The area covered by `dtmm` was
+#' extend at least one `dtmc` grid cell beyond `dtmf`. Elevations must be in metres.
+#' The coordinate reference system of `dtmf` must be such that x and y are also in metres.
+#' `dtmm` and `dtmc` are reprojected to match the coordinate reference system of `dtmf`.
+#' To enhance computational efficiency, Wind direction is averaged over the extent of
+#' `dtmf`.
+#' @import terra
+#' @export
+#' @rdname winddownscale
+#' @seealso [windelev()]
+#' @examples
+#' wspeed <- era5data$climarray$windspeed
+#' wdir <- era5data$climarray$winddir
+#' # Takes a few seconds to run
+#' wsfine <- winddownscale(wspeed, wdir, rast(dtmf), rast(dtmm), rast(era5data$dtmc))
+#' plot(wsfine[[1]])
+winddownscale <- function(wspeed, wdir, dtmf, dtmm, dtmc, uz = 2) {
+  # Calculate wind speed in each of 8 directions
+  wca<-array(NA,dim=c(dim(dtmf)[1:2],8))
+  for (i in 0:7) wca[,,i+1]<-.is(windelev(dtmf,dtmm,dtmc,i*45,uz))
+  # smooth results
+  wca2<-wca
+  for (i in 0:7) wca2[,,i+1]<-0.25*wca[,,(i-1)%%8+1]+0.5*wca[,,(i+1)%%8+1]+0.25*wca[,,i+1]
+  # Calculate wind direction of centre of study area
+  wdr<-.rast(wdir,dtmc)
+  ll<-.latlongfromrast(wdr)
+  xy<-data.frame(x=ll$long,y=ll$lat)
+  wdir<-as.numeric(xx<-extract(wdr,xy))[-1]
+  # Calculate array of shelter coefficients for every hour
+  i<-round(wdir/45)%%8
+  windmu<-wca2[,,i+1]
+  # Resample wind speeds
+  wsr<-.rast(wspeed,dtmc)
+  # adjust to 2 m if not 2m
+  if (uz !=2) wsr<-wsr*4.8699/log(67.8*uz-5.42)
+  if (crs(wsr) != crs(dtmf)) {
+    ws<-.is(project(wsr,dtmf))
+  } else ws<-.is(resample(wsr,dtmf))
+  # Calculate wind speed
+  ws<-ws*windmu
+  # adjust back to uz if not 2 m
+  if (uz !=2) ws<-ws*log(67.8*uz-5.42)/4.8699
+  ws<-.rast(ws,dtmf)
+  return(ws)
+}
 
 # ========================== NB - code dump from here ======================= #
 # * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ * #

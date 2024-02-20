@@ -7,6 +7,17 @@
 #' @format A PackedSpatRaster object with 197 rows and 214 columns
 #' @source \url{http://www.tellusgb.ac.uk/}
 "dtmf"
+#' A 1km grid resolution digital elevation dataset
+#'
+#' A spatial dataset of elevations in (m) for West COrnwall, UK,
+#' covering the area bounded by 20000, 220000, -34000, 66000  (xmin, xmax, ymin, ymax)
+#' with the coordinate reference system OSGB36 / British National Grid (EPSG:27700)
+#'
+#' @format A PackedSpatRaster object with 100 rows and 100 columns
+#' @source \url{http://www.tellusgb.ac.uk/}
+"dtmm"
+
+
 #' A list of ERA5 climate data
 #'
 #' A list of hourly ERA5 climata data for May 2018 for Cornwall, UK (lat, long boundary) as

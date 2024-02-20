@@ -135,6 +135,66 @@
   r<-resample(r,dtmf)
   return(r)
 }
+#' Calculates wind altitude coefficient in specified direction
+.windz<-function(dtm1,dtm2,dtmr,wdir) {
+  reso1<-res(dtm1)[1]
+  reso2<-res(dtm2)[2]
+  # Calculate shifts
+  # Generate sequence of numbers distances over which to sample
+  d<-exp(c(0:150)/10)
+  s<-which(d >= reso1 & d <= reso2)
+  d2<-d[s]
+  xshift<-round((sin(wdir*pi/180)*d2)/reso1)
+  yshift<-round((cos(wdir*pi/180)*d2)/reso1)
+  # Calculate unique shifts
+  df1<-data.frame(x=xshift,y=yshift)
+  df1<-unique(df1)
+  xshift<-df1$x
+  yshift<-df1$y
+  # Calculate buffer
+  bdist<-max(abs(yshift),abs(xshift))+1
+  # Create matrix with buffer
+  m2<-array(NA,dim=c(dim(dtm1)[1]+bdist*2,dim(dtm1)[2]+bdist*2))
+  m2[(bdist+1):(bdist+dim(dtm1)[1]),(bdist+1):(bdist+dim(dtm1)[2])]<-.is(dtm1)
+  wc<-array(1,dim=dim(dtm1)[1:2])
+  m<-.is(dtm1)
+  m3<-.is(dtmr) # replacement raster
+  for (i in 1:length(xshift)) {
+    # elevation difference
+    ed<-m-m2[(bdist+1-yshift[i]):(bdist-yshift[i]+dim(m)[1]),(bdist+1+xshift[i]):(bdist+xshift[i]+dim(m)[2])]
+    mu<-suppressWarnings(log(67.8*(ed+2)-5.42)/4.8699)
+    mu[ed<0]<-1
+    mu[mu<1]<-1
+    s<-which(is.na(mu))
+    mu[s]<-m3[s]
+    wc<-wc+mu
+  }
+  wc<-wc/length(xshift)
+  wc<-.rast(wc,dtm1)
+  return(wc)
+}
+#' Calculates wind shelter coefficient in specified direction
+.windcoef <- function(dtm, direction, hgt = 1) {
+  reso<-res(dtm)[1]
+  m<-.is(dtm)
+  m[is.na(m)]<-0
+  m<-m/reso
+  hgt<-hgt/reso
+  azi<-direction*(pi/180)
+  horizon <- array(0, dim(m))
+  m3 <- array(0, dim(m) + 200)
+  x <- dim(dtm)[1]
+  y <- dim(dtm)[2]
+  m3[101:(x + 100), 101:(y + 100)] <- m
+  for (step in 1:10) {
+    horizon[1:x,1:y]<-pmax(horizon[1:x,1:y],(m3[(101-cos(azi)*step^2):(x+100-cos(azi)*step^2),
+                                                (101+sin(azi)*step^2):(y+100+sin(azi)*step^2)]-m3[101:(x+100),101:(y+100)])/(step^2),na.rm=T)
+    horizon[1:x,1:y]<-ifelse(horizon[1:x,1:y]<(hgt/step^2),0,horizon[1:x,1:y])
+  }
+  index<-1-atan(0.17*100*horizon)/1.65
+  r<-.rast(index,dtm)
+  return(r)
+}
 # ============================================================================ #
 # ~~~~~~~~~ Basin delineation worker functions here  ~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
@@ -652,7 +712,16 @@
   fo<-paste0(path,varn,".tif")
   writeRaster(r,filename=fo,overwrite=TRUE)
 }
-
+#' Get latitude and longitude of centre of r
+.latlongfromrast<-function (r) {
+  e <- ext(r)
+  xy <- data.frame(x = (e$xmin + e$xmax)/2, y = (e$ymin + e$ymax)/2)
+  xy <- sf::st_as_sf(xy, coords = c("x", "y"),
+                     crs = crs(r))
+  ll <- sf::st_transform(xy, 4326)
+  ll <- data.frame(lat = sf::st_coordinates(ll)[2], long = sf::st_coordinates(ll)[1])
+  return(ll)
+}
 # ============================================================================ #
 # ~~~~~~~~~ Climate processing worker functions here ~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
