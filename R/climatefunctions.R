@@ -89,8 +89,8 @@ SSTinterpolate<-function(SST, tmein, tmeout) {
   if (tmeout[1] < tmein[1] | tmeout[length(tmeout)] > tmein[length(tmein)]) {
     stop ("tmeout extends beyond time start and/or end of tmein")
   }
-  tostep<-as.numeric(tmeout[2]) - as.numeric(tmeout[2])
-  if (tostep != 3600 | tostep != (3600*24)) stop("tmeout must be hourly or daily")
+  tostep<-as.numeric(tmeout[2]) - as.numeric(tmeout[1])
+  if (tostep != 3600 & tostep != (3600*24)) stop("tmeout must be hourly or daily")
   # ==================================== #
   # Spatially interpolate missing values #
   # ==================================== #
@@ -99,30 +99,37 @@ SSTinterpolate<-function(SST, tmein, tmeout) {
   SSTn<-SST
   crs(SSTn)<-crs(SST) # prevents superflious warning
   if (length(n) > 0) {
-    for (i in 1:dim(SST)[3]) {
-      m<-.is(SST[[i]])
-      m1<-m
-      m10<-.is(resample(aggregate(dtm,10,na.rm=TRUE),dtm))
-      m100<-.is(resample(aggregate(dtm,100,na.rm=TRUE),dtm))
-      ma<-array(mean(as.vector(dtm),na.rm=TRUE),dim=dim(dtm)[1:2])
+    dmx<-max(dim(SST)[1:2])
+    m1<-.is(SST)
+    m2<-.is(resample(aggregate(SST,2,na.rm=T),SST))
+    s<-which(is.na(m1))
+    m1[s]<-m2[s]
+    if (dmx >= 5) {
+      m2<-.is(resample(aggregate(SST,5,na.rm=T),SST))
+      m1[s]<-m2[s]
+    }
+    if (dmx >= 10) {
+      m2<-.is(resample(aggregate(SST,10,na.rm=T),SST))
       s<-which(is.na(m1))
-      m1[s]<-m10[s]
+      m1[s]<-m2[s]
+    }
+    if (dmx >= 100) {
+      m2<-.is(resample(aggregate(SST,100,na.rm=T),SST))
       s<-which(is.na(m1))
-      m1[s]<-m100[s]
-      s<-which(is.na(m1))
-      m1[s]<-ma[s]
-      d<-dim(m1)
-      m1[2:(d[1]-1),2:(d[2]-1)]<-m[2:(d[1]-1),2:(d[2]-1)]
-      m1a<-na.approx(m1)
-      m1b<-t(na.approx(t(m1)))
-      m<-(m1a+m1b)/2
-      SSTn[[i]]<-suppressWarnings(.rast(m,SST))
-    } # end for
-  } # end if
+      m1[s]<-m2[s]
+    }
+    s<-which(is.na(m1))
+    if (length(s) > 0) {
+      me<-apply(.is(SST),3,mean,na.rm=T)
+      m2<-.vta(me,SST[[1]])
+      m1[s]<-m2[s]
+    }
+    SSTn<-.rast(m1,SST)
+  }
   # ==================================== #
   # Temporally interpolate to hourly     #
   # ==================================== #
-  if (n == 1) {
+  if (dim(SST)[3] == 1) {
     SSTn<-.rta(SSTn,length(tmeout)) # replicate all values if SST is a single layer
   } else { # Temporally interpolate
     tstep<-as.numeric(tmein[2])-as.numeric(tmein[1])
@@ -166,7 +173,7 @@ SSTinterpolate<-function(SST, tmein, tmeout) {
       SSTn<-.rast(ao,SSTn)
     } else { # if tstep<= daily or hourly
       # check whether it is daily oor hourly and stop if not
-      if (tstep!=3600 | tstep!=(3600*24)) stop("tmein must have hourly, daily or >daily time increments")
+      if (tstep!=3600 & tstep!=(3600*24)) stop("tmein must have hourly, daily or >daily time increments")
       if (tstep > 3600) { # if daily
         ao<-as.array(SSTn)
         ao<-.ehr(ao)
