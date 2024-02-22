@@ -61,7 +61,7 @@ flowacc <- function (dtm, basins = NA) {
     y2<-y+(f-1)%/%3-1
     # If basin file provided only add flow accumulation of from same basin
     if (class(basins) != "logical") {
-      b1<-b[x,y]
+      b1<-ba[x,y]
       b2<-ba[x2,y2]
       if (b1==b2 & x2>0 & x2<dim(dm)[1] & y2>0 & y2<dim(dm)[2]) fa[x2,y2]<-fa[x,y]+1
     } else if (x2>0 & x2<dim(dm)[1] & y2>0 & y2<dim(dm)[2]) fa[x2,y2]<-fa[x,y]+1
@@ -228,7 +228,7 @@ windelev <- function(dtmf, dtmm, dtmc, wdir, uz = 2) {
   wc<-(wc1+wc2)/2
   # Calculate average for coarse grid cell
   wcc<-resample(wc,dtmc,method="near")
-  wcc[is.na(wcc)]<-mean(as.vector(wcc),na.rm=TRUE)
+  wcc[is.na(wcc)]<-mean(as.vector(wc),na.rm=TRUE)
   wcc<-resample(wcc,wc)
   wc<-wc/wcc
   # Calculate terrain shelter coefficient

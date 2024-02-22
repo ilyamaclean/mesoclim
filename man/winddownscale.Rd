@@ -2,7 +2,7 @@
 % Please edit documentation in R/spatialdownscale.R
 \name{winddownscale}
 \alias{winddownscale}
-\title{Downscale wind speed accoutning for elevation and terrain sheltering effects}
+\title{Downscale wind speed accounting for elevation and terrain sheltering effects}
 \usage{
 winddownscale(wspeed, wdir, dtmf, dtmm, dtmc, uz = 2)
 }

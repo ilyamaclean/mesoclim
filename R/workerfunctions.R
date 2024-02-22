@@ -251,7 +251,6 @@
   } else bsn<-dtm # end if boundary
   return(bsn)
 }
-
 # function to identify which basin edge cells are less or equal to boundary
 .edge<-function(v) {
   o<-0
@@ -552,6 +551,9 @@
   }
   fd
 }
+# ============================================================================ #
+# ~~~~~~~~~~~~~~ Spatial downscale worker functions here ~~~~~~~~~~~~~~~~~~~~~ #
+# ============================================================================ #
 #' Calculate cold-air drainage potential (spatial)
 .cadpotential <- function(dtm, basins = NA, refhgt = 2) {
   if (class(basins) == "logical") basins<-basindelin(dtm,refhgt)
@@ -569,6 +571,170 @@
   cadfr[cadfr>1]<-1
   return(cadfr)
 }
+#' function for applying correction factor to coastal effects to account for
+#' data resolution
+.correctcoastal<-function(r) {
+  reso<-res(r)[1]
+  am<- -6.74389+1.08141*log(reso)
+  ap<- -3.1163+0.4818*log(reso)
+  bm<- -0.6167+0.3197*log(reso)
+  bp<- 1.5842-0.7922*log(reso)+0.1104*log(reso)^2
+  m<-.is(r)
+  l<-log(m/(1-m))
+  sm<-which(m> 0 & m <= 0.5)
+  sp<-which(m< 1 & m > 0.5)
+  l[sm]<-am+bm*l[sm]
+  l[sp]<-ap+bp*l[sp]
+  pm<-1/(1+exp(-l))
+  s0<-which(m==0)
+  s1<-which(m==1)
+  pm[s0]<-0
+  pm[s1]<-1
+  rp<-.rast(pm,r)
+  af<-1000/reso
+  if (af > 1) {
+    rpa<-resample(aggregate(rp,af,na.rm=TRUE),rp)
+    rpa<-mask(rpa,rp)
+  } else rpa<-rp
+  return(rpa)
+}
+
+# Component temperature effect spatial downscale functions
+# ============================================================================ #
+# ~~~~~~~~~~~~ Temperature downscale ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+# ============================================================================ #
+#' Downscales temperature for elevation effects
+.tempelev <- function(tc, dtmf, dtmc = NA, rh = NA, pk = NA) {
+  if (class(dtmc)[1] == "logical")  dtmc<-resample(dtmf,tc)
+  if (class(tc)[1] == "array") tc<-.rast(tc,dtmc)
+  # Calculate lapse rate
+  n<-dim(tc)[3]
+  if (class(rh) == "logical") {
+    lrc<-.rta(0.005*.is(dtmc),n)
+    lrf<-.rta(0.005*.is(dtmf),n)
+  } else {
+    ea<-.satvap(.is(tc))*(.is(rh)/100)
+    lrc<-lapserate(.is(tc), ea, .is(pk))
+    lrc<-.rast(lrc,dtmc)
+    if (crs(lrc) != crs(dtmf)) {
+      lrcp<-project(lrc,crs(dtmf))
+      lrf<-resample(lrcp,dtmf)
+    } else lrf<-resample(lrc,dtmf)
+    lrc<-as.array(lrc)*.rta(dtmc,n)
+    lrf<-as.array(lrf)*.rta(dtmf,n)
+  }
+  # Sea-level temperature
+  stc<-.rast(.is(tc)+lrc,dtmc)
+  if (crs(dtmc) != crs(dtmf)) stc<-project(stc,crs(dtmf))
+  stc<-resample(stc,dtmf)
+  # Actual temperature
+  tcf<-suppressWarnings(stc-.rast(lrf,dtmf))
+  return(tcf)
+}
+#' Downscale temperature with cold air drainage effects
+.tempcad<-function(climdata, dtmf, basins = NA, refhgt = 2) {
+  # Calculate elevation difference between basin height point and pixel
+  if (class(basins) == "logical") basins<-basindelin(dtmf,refhgt)
+  b<-.is(basins)
+  d<-.is(dtmf)
+  u<-unique(b)
+  u<-u[is.na(u)==FALSE]
+  bmx<-b*0
+  for (i in 1:length(u)) {
+    s<-which(b==u[i])
+    mx<-max(d[s],na.rm=TRUE)
+    bmx[s]<-mx
+  }
+  edif<-bmx-.is(dtmf)
+  edif<-.rast(edif,dtmf)
+  # Calculate lapse-rate multiplication factor
+  mu<-edif*.cadpotential(dtmf,basins,refhgt)
+  # extract climate variables
+  relhum<-climdata$climarray$relhum
+  pk<-climdata$climarray$pres
+  tc<-climdata$climarray$temp
+  dtmc<-rast(climdata$dtmc)
+  # Calculate lapse rate
+  ea<-.satvap(tc)*(relhum/100)
+  lr<-lapserate(tc, ea, pk)
+  lr<-.rast(lr,dtmc)
+  if (crs(lr) != crs(dtmf)) lr<-project(lr,crs(dtmf))
+  lr<-resample(lr,dtmf)
+  n<-dim(lr)[3]
+  cad<-.is(lr)*-.rta(mu,n)
+  # determine whether cold-air drainage conditions exist
+  d<-0.65*0.12
+  zm<-0.1*0.12
+  # Extract additional ccimate variables
+  u2<-climdata$climarray$windspeed
+  swrad<-climdata$climarray$swrad
+  lwrad<-climdata$climarray$lwrad
+  uf<-(0.4*u2)/log((refhgt-d)/zm)
+  H<-(swrad+lwrad-(5.67*10^-8*0.97*(tc+273.15)^4))*0.5
+  st<- -(0.4*9.81*(refhgt-d)*H)/(1241*(tc+273.15)*uf^3)
+  st<-.rast(st,dtmc)
+  if (crs(st) != crs(dtmf)) st<-project(st,crs(dtmf))
+  st<-resample(st,dtmf)
+  st<-.is(st)
+  st[st>1]<-1
+  st[st<1]<-0
+  ce<-.rast(cad*st,dtmf)
+  return(ce)
+}
+.tempcoastal<-function(tc, SST, u2, wdir, dtmf, dtmm, dtmc) {
+  # produce land sea mask
+  if (crs(dtmm) != crs(dtmf)) dtmm<-project(dtmm,crs(dtmf))
+  if (crs(dtmc) != crs(dtmf)) dtmc<-project(dtmc,crs(dtmf))
+  if (crs(SST) != crs(dtmf)) SST<-project(SST,crs(dtmf))
+  dtmf[is.na(dtmf)]<-0
+  dtm<-extend(dtmf,ext(dtmm))
+  landsea<-resample(dtmm,dtm)
+  m<-.is(dtm)
+  m2<-.is(landsea)
+  s<-which(is.na(m))
+  m[s]<-m2[s]
+  landsea<-.rast(m,landsea)
+  landsea[landsea==0]<-NA
+  lsr<-array(NA,dim=c(dim(dtmf)[1:2],8))
+  for (i in 0:7) {
+    lsr[,,i+1]<-.is(coastalexposure(landsea, ext(dtmf), i%%8*45))
+  }
+  # smooth
+  lsr2<-lsr
+  for (i in 0:7) lsr2[,,i+1]<-0.25*lsr[,,(i-1)%%8+1]+0.5*lsr[,,i%%8+1]+0.25*lsr[,,(i+1)%%8+1]
+  lsm<-apply(lsr,c(1,2),mean)
+  # slot in wind speeds
+  wdr<-.rast(wdir,dtmf)
+  ll<-.latlongfromrast(wdr)
+  xy<-data.frame(x=ll$long,y=ll$lat)
+  wdir<-as.numeric(xx<-extract(wdr,xy))[-1]
+  if (is.na(wdir[1])) wdir<-apply(.is(wdr),3,mean,na.rm=TRUE)
+  # Calculate array land-sea ratios for every hour
+  i<-round(wdir/45)%%8
+  lsr<-lsr2[,,i+1]
+  # Calculate SST weigthing upwind
+  b1<-11.003*log(.is(u2))-9.357
+  d1<-(1-(1-lsr)+2)/3
+  mn<-(2/3)^b1
+  rge<-1-(2/3)^b1
+  wgt1<-1-(d1^b1-mn)/rge
+  # Calculate SST weigthing all directions
+  d2<-.mta((1-lsm+2)/3,dim(wgt1)[3])
+  b2<-0.6253*log(.is(u2))-3.5185
+  mn<-(2/3)^b2
+  rge<-1-(2/3)^b2
+  wgt2<-(d2^b2-mn)/rge
+  swgt<-0.5*wgt1+0.5*wgt2
+  if ((dim(tc)[1]*dim(tc)[2]) != (dim(dtmf)[1]*dim(dtmf)[2])) {
+    tc<-.rast(tc,dtmc)
+    tc<-resample(tc,dtmf)
+  }
+  if ((dim(SST)[1]*dim(SST)[2]) != (dim(dtmf)[1]*dim(dtmf)[2])) SST<-resample(SST,dtmf)
+  tcf<-swgt*.is(SST)+(1-swgt)*.is(tc)
+  tcf<-.rast(tcf,dtmf)
+  return(tcf)
+}
+
 
 # ** Following is a bit of a code dump. We won't need it all:
 # NB:
@@ -1074,6 +1240,23 @@
   writeCDF(r,fo,overwrite=TRUE,compression=9,varname=varn,
            longname=varl,unit=unit)
 }
-# ============================================================================ #
-# ~~~~~~~~~~~~~~ Spatial downscale worker functions here ~~~~~~~~~~~~~~~~~~~~~ #
-# ============================================================================ #
+#' terra version of microclima get_dem
+#' require(elevatr)
+get_dem<-function(r, zeroasna = TRUE) {
+  if (!curl::has_internet()) {
+    message("Please connect to the internet and try again.")
+    return(NULL)
+  }
+  reso<-min(res(r))
+  if (reso < 30) {
+    warning("Higher resolution data only available for some locations. DEM
+             may be derived by interpolation")
+  }
+  ll<-.latlongfromrast(r)
+  z<-ceiling(log((cos(ll$lat*pi/180)*2*pi*6378137)/(256*reso),2))
+  prj<-sf::st_crs(r)
+  dtm<-elevatr::get_aws_terrain(r,z,prj)
+  dtm<-resample(dtm,r)
+  if (zeroasna) dtm[dtm<=0]<-NA
+  return(dtm)
+}

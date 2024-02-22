@@ -1,200 +1,67 @@
-# ============================================================================ #
-# ~~~~~~~~~~~~ Temperature downscale ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-# ============================================================================ #
-#' @title Downscale temperature with elevation effects
-#' @description Downscales an array of temperature data applying elevation effects
-#' @param tc a SpatRast or array of temperatures (deg C). If an array dtmc must
-#' be provided.
-#' @param dtmf a fine-resolution SpatRast of elevations. Temperatures down-scaled
-#' to resolution of `dtmf`.
-#' @param dtmc optional SpatRast of elevations matching resolution of `tc`. If
-#' not supplied, `tc` must be a SpatRast and `dtmc` is derived by resampling `dtmf`
-#' to resolution of `tc` and extents must match.
-#' @param rh optional SpatRast or array of relative humidities (percentage). If
-#' supplied, a humidity-dependent lapse rate is calculated. If not supplied, a
-#' fixed lapse rate of -0.05 deg C/m is applied.
-#' @param pk optional SpatRast or array of atmospheric pressures (kPa). Needed if
-#' lapse-rate humidity dependent.
-#' @return a multi-layer SpatRast of elevation-corrected temperatures (deg C) matching
-#' the resolution, extent and crs of dtmf.
-#' @rdname tempelev
-#' @import terra
-#' @export
-#'
-#' # add example
-tempelev <- function(tc, dtmf, dtmc = NA, rh = NA, pk = NA) {
-  if (class(dtmc)[1] == "logical")  dtmc<-resample(dtmf,tc)
-  if (class(tc)[1] == "array") tc<-.rast(tc,dtmc)
-  # Calculate lapse rate
-  n<-dim(tc)[3]
-  if (class(rh) == "logical") {
-    lrc<-.rta(0.005*.is(dtmc),n)
-    lrf<-.rta(0.005*.is(dtmf),n)
-  } else {
-    ea<-.satvap(.is(tc))*(.is(rh)/100)
-    lrc<-lapserate(.is(tc), ea, .is(pk))
-    lrc<-.rast(lrc,dtmc)
-    if (crs(lrc) != crs(dtmf)) {
-      lrcp<-project(lrc,crs(dtmf))
-      lrf<-resample(lrcp,dtmf)
-    } else lrf<-resample(lrc,dtmf)
-    lrc<-as.array(lrc)*.rta(dtmc,n)
-    lrf<-as.array(lrf)*.rta(dtmf,n)
-  }
-  # Sea-level temperature
-  stc<-.rast(.is(tc)+lrc,dtmc)
-  if (crs(dtmc) != crs(dtmf)) stc<-project(stc,crs(dtmf))
-  stc<-resample(stc,dtmf)
-  # Actual temperature
-  tcf<-suppressWarnings(stc-.rast(lrf,dtmf))
-  return(tcf)
-}
-#' @title Downscale temperature with cold air drainage effects
-#' @description Downscales an array of temperature data adjusting for cold-air drainage
-#' @param climdata a model object containing climate data of the same format as `era5climdata`
-#' @param dtmf a fine-resolution SpatRast of elevations. Temperatures down-scaled
-#' to resolution of `dtmf`.
-#' @param basins optionally, a fine-resolution SpatRast of basins matching the
-#' coordinate reference system and extent of `dtmf`. Calculated if not supplied.
-#' @param dtmc optionally, height of weather measurements in `climdata` (default 2m)
-#' @return a SpatRast of temperature differences owing to cold-air drainage (deg C).
-#' @rdname tempcad
-#' @import terra
-#' @export
-#' @details Cold air drainage is calaculated by delineating hydrological basins and
-#' calculating flow accumulation and the elevation difference from the highest point of the basin.
-#' Cold-air drainage is assumed to occur when atmospheric stability is high, namely when
-#' the radiation balance is negative and wind speeds are low,
-tempcad<-function(climdata, dtmf, basins = NA, refhgt = 2) {
-  # Calculate elevation difference between basin height point and pixel
-  if (class(basins) == "logical") basins<-basindelin(dtmf,refhgt)
-  b<-.is(basins)
-  d<-.is(dtmf)
-  u<-unique(b)
-  u<-u[is.na(u)==FALSE]
-  bmx<-b*0
-  for (i in 1:length(u)) {
-    s<-which(b==u[i])
-    mx<-max(d[s],na.rm=TRUE)
-    bmx[s]<-mx
-  }
-  edif<-bmx-.is(dtmf)
-  edif<-.rast(edif,dtmf)
-  # Calculate lapse-rate multiplication factor
-  mu<-edif*.cadpotential(dtmf,basins,refhgt)
-  # extract climate variables
-  relhum<-climdata$climarray$relhum
-  pk<-climdata$climarray$pres
-  dtmc<-rast(climdata$dtmc)
-  # Calculate lapse rate
-  ea<-.satvap(tc)*(relhum/100)
-  lr<-lapserate(tc, ea, pk)
-  lr<-.rast(lr,dtmc)
-  if (crs(lr) != crs(dtmf)) lr<-project(lr,crs(dtmf))
-  lr<-resample(lr,dtmf)
-  n<-dim(lr)[3]
-  cad<-.is(lr)*-.rta(mu,n)
-  # determine whether cold-air drainage conditions exist
-  d<-0.65*0.12
-  zm<-0.1*0.12
-  # Extract additional ccimate variables
-  u2<-climdata$climarray$windspeed
-  swrad<-climdata$climarray$swrad
-  lwrad<-climdata$climarray$lwrad
-  uf<-(0.4*u2)/log((refhgt-d)/zm)
-  H<-(swrad+lwrad-(5.67*10^-8*0.97*(tc+273.15)^4))*0.5
-  st<- -(0.4*9.81*(refhgt-d)*H)/(1241*(tc+273.15)*uf^3)
-  st<-.rast(st,dtmc)
-  if (crs(st) != crs(dtmf)) st<-project(st,crs(dtmf))
-  st<-resample(st,dtmf)
-  st<-.is(st)
-  st[st>1]<-1
-  st[st<1]<-0
-  ce<-.rast(cad*st,dtmf)
-  return(ce)
-}
-#' @title Downscale temperature with coastal effects
-#' @description Downscales an array of temperature data adjusting for coastal effects
-#' @param tc an array of hourly temperature data in deg C (either coarse-resolution,
-#' matching `dtmc` or fine-scale matching `dtmf`)
-#' @param SST a SpatRast of hourly sea-surface temperature data (deg C) with no NAs, as
+#' @title Downscale temperature
+#' @description Downscales coarse-resolution temperature data accounting for elevation
+#' effects and optionally cold air drainage and coastal effects
+#' @param climdata a `climdata` model object containing climate data of the same format as `era5climdata`
+#' @param SST a coarse resolution SpatRast of hourly sea-surface temperature data (deg C) with no NAs, as
 #' returned by [SSTinterpolate()]
-#' @param u2 a SpatRast of high-resolution wind speeds 2 m above ground as returned
-#' by [winddownscale()]
 #' @param dtmf a high-resolution SpatRast of elevations
 #' @param dtmm a medium-resolution SpatRast of elevations covering a larger area
-#' than dtmf (see details)
-#' @param dtmc a coarse-resolution SpatRast of elevations matching
-#' the resolution, extent and coordinate reference system of `wspeed`.
-#' @return a SpatRast of temperature differences owing to cold-air drainage (deg C).
-#' @rdname tempcoastal
+#' than dtmf (only needed for coastal effects - see details).
+#' @param basins optionally, a fine-resolution SpatRast of basins as returned by [basindelin()]
+#' matching the coordinate reference system and extent of `dtmf`. Calculated if
+#' not supplied.
+#' @param u2 optionally, a SpatRast of high resolution wind speeds as returned by [windownscale()].
+#' Calculated if not supplied.
+#' @param cad optional logical indicating whether to calculate cold-air drainage effects
+#' @param coastal optional logical indicating whether to calculate coastal effects
+#' @param refhgt height above ground of temperature measurements in `climdata`.
+#' @param uhgt height above gorund of wind speed measurements in `climdata`
+#' to resolution of `dtmf`.
+#' @return a multi-layer SpatRast of downscaled temperatures (deg C) matching the
+#' resolution of dtmf.
+#' @details Cold air drainage is calculated by delineating hydrological basins and
+#' calculating flow accumulation and the elevation difference from the highest point of the basin.
+#' Cold-air drainage is assumed to occur when atmospheric stability is high, namely when
+#' the radiation balance is negative and wind speeds are low. Coastal effects are
+#' calculated by determining the ratio of land to sea pixels in an upwind direction.
+#' The provision of `dtmm` allows this ratio to be derived accoutning for land and
+#' sea outside the boundaries of the study area.
+#' @rdname tempdownscale
 #' @import terra
 #' @export
 #' @examples
-#' tc<-era5data$climarray$temp
-#' tme<-as.POSIXlt(era5data$tme,tz="UTC")
-#' SST<-SSTinterpolate(rast(era5sst),tme,tme)
-#' wspeed<-era5data$climarray$windspeed
-#' wdir<-era5data$climarray$winddir
-#' dtmc<-rast(era5data$dtmc)
-#' # Downscale wind - takes a few seconds
-#' u2<-winddownscale(wspeed, wdir, rast(dtmf), rast(dtmm), dtmc, uz = 2)
-#' # Apply coastal effects (takes a few seconds)
-#' tcf<-tempcoastal(tc,SST,u2,wdir,rast(dtmf),rast(dtmm),dtmc)
-#' par(mfrow=c(2,1))
-#' plot(tcf[[1]])
-#' plot(tcf[[12]])
-tempcoastal<-function(tc, SST, u2, wdir, dtmf, dtmm, dtmc) {
-  # produce land sea mask
-  if (crs(dtmm) != crs(dtmf)) dtmm<-project(dtmm,crs(dtmf))
-  if (crs(dtmc) != crs(dtmf)) dtmc<-project(dtmc,crs(dtmf))
-  if (crs(SST) != crs(dtmf)) SST<-project(SST,crs(dtmf))
-  dtmf[is.na(dtmf)]<-0
-  dtm<-extend(dtmf,ext(dtmm))
-  landsea<-resample(dtmm,dtm)
-  m<-.is(dtm)
-  m2<-.is(landsea)
-  s<-which(is.na(m))
-  m[s]<-m2[s]
-  landsea<-.rast(m,landsea)
-  landsea[landsea==0]<-NA
-  lsr<-array(NA,dim=c(dim(dtmf)[1:2],8))
-  for (i in 0:7) {
-    lsr[,,i+1]<-.is(coastalexposure(landsea, ext(dtmf), i%%8*45))
+#' # Takes ~40 seconds to run
+#' tmf <- tempdownscale(era5data, rast(era5sst), rast(dtmf), rast(dtmm))
+#' plot(tmf[[1]])
+tempdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, u2 = NA,
+                        cad = TRUE, coastal = TRUE, refhgt = 2, uhgt = 2) {
+  if (class(dtmm) == "logical" & coastal) stop("dtmm needed for calaculating coastal effects")
+  # Calculate elevation effects
+  dtmc<-rast(climdata$dtmc)
+  tc<-climdata$climarray$temp
+  rh<-climdata$climarray$relhum
+  pk<-climdata$climarray$pres
+  tcf<-.rast(tc,dtmc)
+  if (crs(tcf) != crs(dtmf)) tcf<-project(tcf,crs(dtmf))
+  # Calculate resampled coarse-res temp
+  tcc<-resample(tcf,dtmf)
+  # Calculate elevation effects
+  tcf<-.tempelev(tc,dtmf,dtmc,rh,pk)
+  if (cad) {
+    tcad<-.tempcad(climdata,dtmf,basins,refhgt)
+    tcf<-tcf+tcad
   }
-  # smooth
-  lsr2<-lsr
-  for (i in 0:7) lsr2[,,i+1]<-0.25*lsr[,,(i-1)%%8+1]+0.5*lsr[,,i%%8+1]+0.25*lsr[,,(i+1)%%8+1]
-  lsm<-apply(lsr,c(1,2),mean)
-  # slot in wind speeds
-  wdr<-.rast(wdir,dtmf)
-  ll<-.latlongfromrast(wdr)
-  xy<-data.frame(x=ll$long,y=ll$lat)
-  wdir<-as.numeric(xx<-extract(wdr,xy))[-1]
-  if (is.na(wdir[1])) wdir<-apply(.is(wdr),3,mean,na.rm=TRUE)
-  # Calculate array land-sea ratios for every hour
-  i<-round(wdir/45)%%8
-  lsr<-lsr2[,,i+1]
-  # Calculate SST weigthing upwind
-  b1<-11.003*log(.is(u2))-9.357
-  d1<-(1-(1-lsr)+2)/3
-  mn<-(2/3)^b1
-  rge<-1-(2/3)^b1
-  wgt1<-1-(d1^b1-mn)/rge
-  # Calculate SST weigthing all directions
-  d2<-.mta((1-lsm+2)/3,dim(wgt1)[3])
-  b2<-0.6253*log(.is(u2))-3.5185
-  mn<-(2/3)^b2
-  rge<-1-(2/3)^b2
-  wgt2<-(d2^b2-mn)/rge
-  swgt<-0.5*wgt1+0.5*wgt2
-  if ((dim(tc)[1]*dim(tc)[2]) != (dim(dtmf)[1]*dim(dtmf)[2])) {
-    tc<-.rast(tc,dtmc)
-    tc<-resample(tc,dtmf)
+  if (coastal) {
+    te<-mean(.is(SST))
+    if (is.na(te)) {
+      SST<-SSTinterpolate(SST,climdata$tme,climdata$tme)
+    }
+    wspeed<-climdata$climarray$windspeed
+    wdir<-climdata$climarray$winddir
+    u2<-winddownscale(wspeed,wdir,dtmf,dtmm,dtmc,uhgt)
+    tca<-.tempcoastal(tc,SST,u2,wdir,dtmf,dtmm,dtmc)-tcc
+    tcf<-tcf+tca
   }
-  if ((dim(SST)[1]*dim(SST)[2]) != (dim(dtmf)[1]*dim(dtmf)[2])) SST<-resample(SST,dtmf)
-  tcf<-swgt*.is(SST)+(1-swgt)*.is(tc)
-  tcf<-.rast(tcf,dtmf)
   return(tcf)
 }
 #' @title Downscale pressure with elevation effects
