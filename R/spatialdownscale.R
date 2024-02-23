@@ -30,9 +30,9 @@
 #' @import terra
 #' @export
 #' @examples
-#' # Takes ~40 seconds to run
+#' # Takes ~90 seconds to run
 #' tmf <- tempdownscale(era5data, rast(era5sst), rast(dtmf), rast(dtmm))
-#' plot(tmf[[1]])
+#' plot(tmf[[5]]) # Coldest temperature
 tempdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, u2 = NA,
                         cad = TRUE, coastal = TRUE, refhgt = 2, uhgt = 2) {
   if (class(dtmm) == "logical" & coastal) stop("dtmm needed for calaculating coastal effects")
@@ -56,11 +56,12 @@ tempdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, u2 = NA,
     if (is.na(te)) {
       SST<-SSTinterpolate(SST,climdata$tme,climdata$tme)
     }
+    if (crs(SST) != crs(dtmf)) SST<-project(SST,crs(dtmf))
+    SST<-resample(SST,dtmf)
     wspeed<-climdata$climarray$windspeed
     wdir<-climdata$climarray$winddir
     u2<-winddownscale(wspeed,wdir,dtmf,dtmm,dtmc,uhgt)
-    tca<-.tempcoastal(tc,SST,u2,wdir,dtmf,dtmm,dtmc)-tcc
-    tcf<-tcf+tca
+    tcf<-.tempcoastal(tcf,SST,u2,wdir,dtmf,dtmm,dtmc)
   }
   return(tcf)
 }
@@ -79,8 +80,9 @@ tempdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, u2 = NA,
 #' @rdname presdownscale
 #' @import terra
 #' @export
-#'
-#' # add example
+#' @examples
+#' pk <- presdownscale(era5data$climarray$pres, rast(dtmf), rast(era5data$dtmc))
+#' plot(pk[[1]])
 presdownscale<-function(pk, dtmf, dtmc, sealevel = TRUE) {
   if (class(pk)[1] == "array") pk<-.rast(pk,dtmc)
   if (class(dtmc)[1] == "logical")  dtmc<-resample(dtmf,pk)

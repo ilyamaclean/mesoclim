@@ -62,7 +62,7 @@ The provision of \code{dtmm} allows this ratio to be derived accoutning for land
 sea outside the boundaries of the study area.
 }
 \examples{
-# Takes ~40 seconds to run
+# Takes ~90 seconds to run
 tmf <- tempdownscale(era5data, rast(era5sst), rast(dtmf), rast(dtmm))
-plot(tmf[[1]])
+plot(tmf[[5]]) # Coldest temperature
 }

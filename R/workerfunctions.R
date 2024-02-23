@@ -697,42 +697,41 @@
   landsea[landsea==0]<-NA
   lsr<-array(NA,dim=c(dim(dtmf)[1:2],8))
   for (i in 0:7) {
-    lsr[,,i+1]<-.is(coastalexposure(landsea, ext(dtmf), i%%8*45))
+    r<-coastalexposure(landsea, ext(dtmf), i%%8*45)
+    r<-.correctcoastal(r)
+    lsr[,,i+1]<-.is(r)
   }
   # smooth
   lsr2<-lsr
   for (i in 0:7) lsr2[,,i+1]<-0.25*lsr[,,(i-1)%%8+1]+0.5*lsr[,,i%%8+1]+0.25*lsr[,,(i+1)%%8+1]
   lsm<-apply(lsr,c(1,2),mean)
   # slot in wind speeds
-  wdr<-.rast(wdir,dtmf)
+  wdr<-.rast(wdir,dtmc)
   ll<-.latlongfromrast(wdr)
   xy<-data.frame(x=ll$long,y=ll$lat)
   wdir<-as.numeric(xx<-extract(wdr,xy))[-1]
-  if (is.na(wdir[1])) wdir<-apply(.is(wdr),3,mean,na.rm=TRUE)
+  if (is.na(wdir[1])) wdir<-apply(.is(wdr),3,median,na.rm=TRUE)
   # Calculate array land-sea ratios for every hour
   i<-round(wdir/45)%%8
   lsr<-lsr2[,,i+1]
-  # Calculate SST weigthing upwind
-  b1<-11.003*log(.is(u2))-9.357
-  d1<-(1-(1-lsr)+2)/3
-  mn<-(2/3)^b1
-  rge<-1-(2/3)^b1
-  wgt1<-1-(d1^b1-mn)/rge
-  # Calculate SST weigthing all directions
-  d2<-.mta((1-lsm+2)/3,dim(wgt1)[3])
-  b2<-0.6253*log(.is(u2))-3.5185
-  mn<-(2/3)^b2
-  rge<-1-(2/3)^b2
-  wgt2<-(d2^b2-mn)/rge
-  swgt<-0.5*wgt1+0.5*wgt2
-  if ((dim(tc)[1]*dim(tc)[2]) != (dim(dtmf)[1]*dim(dtmf)[2])) {
-    tc<-.rast(tc,dtmc)
-    tc<-resample(tc,dtmf)
-  }
-  if ((dim(SST)[1]*dim(SST)[2]) != (dim(dtmf)[1]*dim(dtmf)[2])) SST<-resample(SST,dtmf)
-  tcf<-swgt*.is(SST)+(1-swgt)*.is(tc)
-  tcf<-.rast(tcf,dtmf)
-  return(tcf)
+  # Calculate SST weighting upwind
+  # derive power scaling coefficient from wind speed
+  p2<-0.10573*log(.is(u2))-0.17478
+  # calculate logit lsr and lsm
+  llsr<-log(lsr/(1-lsr))
+  llsm<-.rta(log(lsm/(1-lsm)),dim(lsr)[3])
+  # Calculate mins and maxes
+  s<-which(is.na(lsr) == FALSE & lsr > 0 & lsr < 1)
+  llsr[lsr==0]<-log(min(lsr[s])/(1-min(lsr[s])))
+  llsr[lsr==1]<-log(max(lsr[s])/(1-max(lsr[s])))
+  s<-which(is.na(lsm) == FALSE & lsm > 0 & lsm < 1)
+  llsm[lsm==0]<-log(min(lsm[s])/(1-min(lsm[s])))
+  llsm[lsm==1]<-log(max(lsm[s])/(1-max(lsm[s])))
+  # predict logit swgt
+  lswgt<- -0.8729502+p2*llsr-0.6903705*llsm
+  swgt<-.rast(1/(1+exp(-lswgt)),tc)
+  tcp<-swgt*SST+(1-swgt)*tc
+  return(tcp)
 }
 
 

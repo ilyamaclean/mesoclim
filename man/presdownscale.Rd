@@ -26,3 +26,7 @@ resolution of dtmf.
 \description{
 Downscales an array of pressure data applying elevation effects
 }
+\examples{
+pk <- presdownscale(era5data$climarray$pres, rast(dtmf), rast(era5data$dtmc))
+plot(pk[[1]])
+}
