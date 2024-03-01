@@ -1,4 +1,5 @@
 #include <Rcpp.h>
+#include <algorithm>
 using namespace Rcpp;
 // ============================================================================================= #
 // ~~~~~~~~~~~~~~~~~~~~~~~~~ Functions used for delineating basins ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
@@ -240,4 +241,89 @@ NumericMatrix invls_calc(NumericMatrix lsm, double resolution,
         }
     }
     return lsw;
+}
+// ============================================================================================= #
+// ~~~~~~~~~~~~~~~~~~~~~~~~~ Functions used for adjusting rainfall ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+// ============================================================================================= #
+// [[Rcpp::export]]
+std::vector<double> rainadjustv(std::vector<double> rain, std::vector<double> rrain, double rfrac, double rtot)
+{
+    // Calculate expected rianfall days/hours
+    if (!std::isnan(rain[0])) {
+        double pr = rfrac * rain.size();
+        int prd = std::round(pr);
+        int ard = 0;
+        // Calculate actual rainfall days/hours
+        for (size_t i = 0; i < rain.size(); ++i) if (rain[i] > 0) ard++;
+        // if actual rain days/hours < predicted rain days/hours give some random no rain days a small amount of rain
+        if (ard < prd) {
+            // Calculate number of zero days/hours to assign rain to
+            int rta = prd - ard;
+            // Calculate minimum none-zero in rain
+            double nz = 5001;
+            for (size_t i = 0; i < rain.size(); ++i) if (rain[i] > 0 && rain[i] < nz) nz = rain[i];
+            // Create a vector of indices corresponding to zeros in rain
+            std::vector<int> zeroIndices;
+            for (int i = 0; i < rain.size(); ++i) {
+                if (rain[i] == 0) {
+                    zeroIndices.push_back(i);
+                }
+            }
+            // Sort zeroIndices based on corresponding values in rrain
+            std::sort(zeroIndices.begin(), zeroIndices.end(), [&rrain](int i, int j) { return rrain[i] < rrain[j]; });
+            // Assign the lowest rta indices a value nz
+            for (int i = 0; i < rta && i < zeroIndices.size(); ++i) {
+                rain[zeroIndices[i]] = nz; // or any desired non-zero value
+            }
+        }
+        // if actual rain days > predicted rain days give lowest rainfall days zero rain
+        if (ard > prd) {
+            // Find number of days/hours that should be zero
+            int nrd = rain.size() - prd;
+            // Create a vector of indices ordered by the values in rain
+            std::vector<size_t> indices(rain.size());
+            std::iota(indices.begin(), indices.end(), 0);
+            std::sort(indices.begin(), indices.end(), [&rain](size_t i, size_t j) { return rain[i] < rain[j]; });
+            // Assign 0 to the lowest nrd elements
+            for (int i = 0; i < nrd && i < rain.size(); ++i) {
+                rain[indices[i]] = 0;
+            }
+        }
+        // adjust rainfall to match total
+        double rsum = rain[0];
+        for (size_t i = 1; i < rain.size(); ++i) rsum = rsum + rain[i];
+        double mu = rtot / rsum;
+        for (size_t i = 0; i < rain.size(); ++i) rain[i] = rain[i] * mu;
+    }
+    return rain;
+}
+std::vector<std::vector<double>> convertoCppmatrix(NumericMatrix mat) {
+    std::vector<std::vector<double>> result(mat.nrow(), std::vector<double>(mat.ncol()));
+    for (int i = 0; i < mat.nrow(); ++i) {
+        for (int j = 0; j < mat.ncol(); ++j) {
+            result[i][j] = mat(i, j);
+        }
+    }
+    return result;
+}
+NumericMatrix convertoRmatrix(std::vector<std::vector<double>>& mat) {
+    int nrow = mat.size();
+    int ncol = mat[0].size(); // Assuming all inner vectors have the same size
+    NumericMatrix mat2(nrow, ncol);
+    for (int i = 0; i < nrow; ++i) {
+        for (int j = 0; j < ncol; ++j) {
+            mat2(i, j) = mat[i][j];
+        }
+    }
+    return mat2;
+}
+// [[Rcpp::export]]
+NumericMatrix rainadjustm(NumericMatrix rainm, std::vector<double> rrain, std::vector<double> rfrac, std::vector<double> rtot)
+{
+    std::vector<std::vector<double>> rainc = convertoCppmatrix(rainm);
+    for (size_t i = 0; i < rainc.size(); ++i) {
+        rainc[i] = rainadjustv(rainc[i], rrain, rfrac[i], rtot[i]);
+    }
+    rainm = convertoRmatrix(rainc);
+    return rainm;
 }

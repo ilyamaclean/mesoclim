@@ -286,6 +286,74 @@ coastalexposure <- function(landsea, e, wdir) {
   lsr<-.rast(lsr,lss)
   return(lsr)
 }
+#' Performs thin-plate spline downscaling
+#'
+#' @description The function `Tpsdownscale` is a thin plate spline model, typically
+#' with elevation as a covariate to downscale data.
+#'
+#' @param r a single layer SpatRast dataset to be downscaled.
+#' @param dtmc a coarse resolution SpatRast of elevations matching the resolution, coordinate reference
+#' system and extent of `r`.
+#' @param dtmf a fine-resolution SpatRast of elevations.
+#' @param method one of `normal`, `log` or `logit` (see details)
+#' @param fast optional logical indicating whether to use [fields::fastTps()] (faster but
+#' less accurate)
+#' @return a SpatRast of `r` downscaled to match `dtmf`.
+#' @details if `method = "log"` data are log-transformed prior to performing the downscale,
+#' and then back-transformed. Use this method if input and output data must always be non-negative.
+#' if `method = "logit"` data are logit-transformed prior to performing the downscale,
+#' and then back-transformed. Use this method if input and output data must always be
+#' bounded by 0 and 1. In both instances, the spacial case where input data are 0 or 1 is handled.
+#' If `method = "normal"` no transformation is applied.
+#' @import fields
+#' @export
+Tpsdownscale<-function(r, dtmc, dtmf, method = "normal", fast = TRUE) {
+  # Extract values data.frame
+  if (crs(dtmc) != crs(dtmf)) dtmc<-project(dtmc,crs(dtmf))
+  if (crs(r) != crs(r)) r<-project(dtmc,crs(dtmf))
+  xy<-data.frame(xyFromCell(dtmc, 1:ncell(dtmc)))
+  z<-as.vector(extract(dtmc,xy)[,2])
+  xyz <- cbind(xy,z)
+  v<-as.vector(extract(r,xy)[,2])
+  if (method == "log") {
+    v2<-suppressWarnings(log(v))
+    s<-which(v==0)
+    if (length(s) > 0) v2[s]<-min(v2[-s],na.rm=TRUE)
+    v<-v2
+    v2<-NULL
+  }
+  if (method == "logit") {
+    v2<-suppressWarnings(log(v/(1-v)))
+    s<-which(v==0)
+    s2<-which(is.infinite(v2)==FALSE)
+    if (length(s) > 0) v2[s]<-min(v2[s2],na.rm=T)
+    s<-which(v==1)
+    if (length(s) > 0) v2[s]<-max(v2[s2],na.rm=T)
+    v<-v2
+    v2<-NULL
+  }
+  s<-which(is.na(xyz$z)==FALSE & is.na(v) == FALSE)
+  xyz<-xyz[s,]
+  v<-v[s]
+  # Fit tps model
+  if (fast) {
+    tps<-suppressWarnings(fastTps(xyz,v,m=2,aRange=res(r)[1]*5))
+  }  else {
+    tps<-Tps(xyz,v,m=2)
+  }
+  # Apply Tps model
+  xy<-data.frame(xyFromCell(dtmf,1:ncell(dtmf)))
+  z<-as.vector(extract(dtmf,xy)[,2])
+  xyz<-cbind(xy,z)
+  s<-which(is.na(z)==FALSE)
+  xy$z<-NA
+  xy$z[s] <- predict(tps,xyz[s,])
+  if (method == "log") xy$z<-exp(xy$z)
+  if (method == "logit") xy$z<-1/(1+exp(-xy$z))
+  rfn<-rast(xy,type="xyz")
+  return(rfn)
+}
+
 
 # ====================================================================== #
 # ~~~~~~~~ Useful functions for processing climate data that we likely

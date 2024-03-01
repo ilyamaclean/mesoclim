@@ -56,11 +56,41 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rainadjustv
+std::vector<double> rainadjustv(std::vector<double> rain, std::vector<double> rrain, double rfrac, double rtot);
+RcppExport SEXP _mesoclim_rainadjustv(SEXP rainSEXP, SEXP rrainSEXP, SEXP rfracSEXP, SEXP rtotSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::vector<double> >::type rain(rainSEXP);
+    Rcpp::traits::input_parameter< std::vector<double> >::type rrain(rrainSEXP);
+    Rcpp::traits::input_parameter< double >::type rfrac(rfracSEXP);
+    Rcpp::traits::input_parameter< double >::type rtot(rtotSEXP);
+    rcpp_result_gen = Rcpp::wrap(rainadjustv(rain, rrain, rfrac, rtot));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rainadjustm
+NumericMatrix rainadjustm(NumericMatrix rainm, std::vector<double> rrain, std::vector<double> rfrac, std::vector<double> rtot);
+RcppExport SEXP _mesoclim_rainadjustm(SEXP rainmSEXP, SEXP rrainSEXP, SEXP rfracSEXP, SEXP rtotSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type rainm(rainmSEXP);
+    Rcpp::traits::input_parameter< std::vector<double> >::type rrain(rrainSEXP);
+    Rcpp::traits::input_parameter< std::vector<double> >::type rfrac(rfracSEXP);
+    Rcpp::traits::input_parameter< std::vector<double> >::type rtot(rtotSEXP);
+    rcpp_result_gen = Rcpp::wrap(rainadjustm(rainm, rrain, rfrac, rtot));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_mesoclim_basinCpp", (DL_FUNC) &_mesoclim_basinCpp, 3},
     {"_mesoclim_renumberbasin", (DL_FUNC) &_mesoclim_renumberbasin, 2},
     {"_mesoclim_invls_calc", (DL_FUNC) &_mesoclim_invls_calc, 11},
+    {"_mesoclim_rainadjustv", (DL_FUNC) &_mesoclim_rainadjustv, 4},
+    {"_mesoclim_rainadjustm", (DL_FUNC) &_mesoclim_rainadjustm, 4},
     {NULL, NULL, 0}
 };
 

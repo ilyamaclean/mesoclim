@@ -221,6 +221,127 @@ winddownscale <- function(wspeed, wdir, dtmf, dtmm, dtmc, uz = 2) {
   ws<-.rast(ws,dtmf)
   return(ws)
 }
+#' @title Downscale precipitation accounting for elevation effects
+#' @description The function `precipdownscale` is used to spatially downscale precipitation,
+#' performing adjustments for elevation using one of two methods
+#' @param prec a coarse-resolution array of precipitation (mm)
+#' @param dtmf a high-resolution SpatRast of elevations
+#' @param dtmc a coarse-resolution SpatRast of elevations matching
+#' the resolution, extent and coordinate reference system of `prec`.
+#' @param method One of `Tps` or `Elev` (see details).
+#' @param fast optional logical indicating whether to do a faster but less accurate
+#' Thin-plate spline downscaling. Ignored if `method = "Elev"`
+#' @param noraincut optional single numeric value indicating rainfall amounts that should
+#' be considered as no rain (see details).
+#' @return a stacked SpatRast of precipitation values matching the resolution,
+#' coordinate reference system and extent of `dtmf`.
+#' @details Precipitation is downscaled by computing the total rainfall amount and
+#' fraction of rain days and then adjusting these variables to account for elevation
+#' using either a Thin-plate-spine model (`method = "Tps"`) or by performing an
+#' empirical adjustment calibrated to UK precipitation data (`method = "Elev"`).
+#' If method is set to `Tps` users have the option to specify whether to perform
+#' a fast, but slightly less accurate Thin-plate spline using [fields::fastTps()] instead
+#' of [fields::Tps()]. One totals have been derived, precipitation for each day is adjusted
+#' to ensure that the total amount and number of precipitation days match that expected
+#' by a small amount of precipitation on no precipitation days that are the wettest regionally, or
+#' by setting precipitation days with little rain to zero as required. To accommodate that some
+#' precipitation datasets erroneously include small amounts precipitation (<0.01 mm/day)
+#' on no precipitation days, users have the option to set a cut-off via `noraincut`.
+#' @importFrom Rcpp sourceCpp
+#' @useDynLib mesoclim, .registration = TRUE
+#' @import terra, fields
+#' @export
+precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, noraincut = 0) {
+  prec<-.rast(prec,dtmc)
+  # check how many non NA cells
+  if (method != "Tps" & method != "Elev") stop("method must be one of Tps or Elev")
+  v<-as.vector(prec[[1]])
+  v<-v[is.na(v) == FALSE]
+  if (method == "Tps" & length(v) < 100) {
+    warning("Not enough non NA cells for sensible thin-plate spline downscale. Changing method to Elev")
+    method <- "Elev"
+  }
+  # Fill gaps in prec
+  p2<-resample(aggregate(prec,2,na.rm=TRUE),prec)
+  p5<-resample(aggregate(prec,5,na.rm=TRUE),prec)
+  a1<-.is(prec)
+  a2<-.is(p2)
+  a5<-.is(p5)
+  s<-which(is.na(a1))
+  a1[s]<-a2[s]
+  s<-which(is.na(a1))
+  a1[s]<-a5[s]
+  prec<-.rast(a1,prec)
+  if (crs(prec) != crs(dtmf)) prec<-project(prec,crs(dtmf))
+  if (crs(dtmc) != crs(dtmf)) dtmc<-project(dtmc,crs(dtmf))
+  # Crop prec to area not too far around dtmf
+  e<-ext(dtmf)
+  ro<-res(prec)[1]
+  e$xmin<-e$xmin-10*ro
+  e$xmax<-e$xmax+10*ro
+  e$ymin<-e$ymin-10*ro
+  e$ymax<-e$ymax+10*ro
+  prec<-crop(prec,e)
+  dtmc<-crop(dtmc,e)
+  # Fill in final gaps
+  a1<-.is(prec)
+  v<-apply(a1,3,median,na.rm=T)
+  aa<-.vta(v,prec)
+  s<-which(is.na(a1))
+  a1[s]<-aa[s]
+  prec<-.rast(a1,prec)
+  # Calculate total rainfall
+  m<-.is(prec)
+  m1<-apply(m,c(1,2),sum)
+  r1<-.rast(m1,prec)
+  # Calculate rain day fraction
+  m2<-m
+  m2[m>=noraincut]<-1
+  m2[m<noraincut]<-0
+  m2<-apply(m2,c(1,2),sum)/dim(m2)[3]
+  r2<-.rast(m2,prec)
+  # Calculate wettest days regionally to enable sensible assignment of rain
+  # to no rain days as needed
+  rrain<-apply(.is(prec),3,sum,na.rm=TRUE)
+  rr2<-as.numeric(.mav(rrain,10))
+  s<-which(rrain==0)
+  rrain[s]<-rr2[s]
+  s<-which(rrain==0)
+  rrain[s]<-0.1
+  # Calculate resampled rain
+  rf3<-resample(prec,dtmf)
+  rf3<-mask(rf3,dtmf)
+  if (method == "Tps") {
+    # Downscaled rain total
+    rf1<-Tpsdownscale(r1, dtmc, dtmf, method = "log", fast)  # Total rain
+    # Downscaled rain day fraction
+    rf2<-Tpsdownscale(r2, dtmc, dtmf, method = "logit", fast) # Rain day fraction
+  } else {
+    # Downscaled rain total
+    dtmcf<-resample(dtmc,dtmf)
+    edif<-dtmf-dtmcf
+    prat<-9.039606e-03+1.818067e-03*edif-2.923351e-04*dtmf-6.471352e-07*dtmf*edif
+    rtmc<-resample(r1,dtmf)
+    rf1<-rtmc*exp(prat)
+    # Downscaled rain day fraction
+    prat<- -2.787208e-03+-2.787208e-03*edif-2.787208e-03*dtmf-4.503742e-07*dtmf*edif
+    rdmc<-resample(r2,dtmf)
+    rf2<-rdmc*exp(prat)
+    rf2[rf2<0]<-0
+    rf2[rf2>1]<-1
+  }
+  # Correct resampled rain for predicted rain total and rain days using Cpp function
+  a<-as.array(rf3)
+  mm<-matrix(as.vector(a),nrow=dim(a)[1]*dim(a)[2],ncol=dim(a)[3])
+  rtot<-as.vector(t(rf1))
+  rfrac<-as.vector(t(rf2))
+  mm<-rainadjustm(mm,rrain,rfrac,rtot)
+  a2<-array(mm,dim=dim(a))
+  # Convert to raster
+  precf<-.rast(a2,dtmf)
+  return(precf)
+}
+
 # ============================================================================ #
 # ~~~~~~~~~~~~~~~~ Relative humidity ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
@@ -233,62 +354,7 @@ winddownscale <- function(wspeed, wdir, dtmf, dtmm, dtmc, uz = 2) {
 # ============================================================================ #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Precipitation downscale  ~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
-# ~~ * Method probably needs to fit a thin-plate spline to e.g. monthly rainfall
-# ~~   to derive a simple multiplication factor. Complexity is handing zero-inflation
-# ~~   Probably something clever that can be done with Bartless-Lewis rectangular pulse
-# ~~   model. Alternative is to model rain day fraction as function of elevation too
-#' Calculates elevation correction factor to apply to fine-resolution rainfall data
-#'
-#' @description
-#' `raincorrect` Calculates an altitudinal correction factor for application to fine-resolution e.g.
-#' daily rainfall derived using bilinear interpolation.
-#'
-#' @param demc a coarse-resolution raster of digital elevation data
-#' @param demf a fine-resolution raster of digital elevation data for the region for which correction factors are required
-#' @param rainc a coarse-resolution raster of e.g. monthly or annual rainfall covering the same extent
-#' as `demc`
-#' @param rainf a fine-resolution raster of e.g. monthly or annual rainfall derived by resampling
-#' coarse-resolution rainfall data, covering the same extent as `demf`.
 
-#' @return a raster of correction factors
-#'
-#' @details Fine-scale e.g. daily or hourly ainfall data derived by resampling or interpolating
-#' coarse-resolution data fails to adequately capture elevation effects on rainfall. This
-#' function fits a thin plate spline model fitted to coarse-resolution rainfall data with
-#' elevation as a predictor. The model is then applied to fine-resolution data and the results
-#' compared to those obtained using simple raster resampling using bilinear interpolation.
-#' The correction factor can then be applied to e.g. daily rainfall.
-#'
-#' @export
-#'
-#' @examples
-#' rainf <- resample(cornwallrain, dtm100m)
-#' plot(mask(rainf, dtm100m)) # rainfall derived using bilinear interpolation
-#' cf <- raincorrect(dtm1km, dtm100m, cornwallrain, rainf) # takes ~ 20 seconds to run
-#' plot(rainf * cf) # rainfall with correction factor applied
-#'
-raincorrect <- function(demc, demf, rainc, rainf) {
-  xy <- data.frame(xyFromCell(demc, 1:ncell(demc)))
-  z <- extract(demc, xy)
-  xyz <- cbind(xy, z)
-  v <- extract(rainc, xy)
-  sel <- which(is.na(v) == F)
-  v <- v[is.na(v) == F]
-  xyz <- xyz[sel, ]
-  tps <- fitTps(xyz, v, m = 2)
-  xy <- data.frame(xyFromCell(demf, 1:ncell(demf)))
-  z <- extract(demf, xy)
-  xyz <- cbind(xy, z)
-  v <- extract(demf, xy)
-  sel <- which(is.na(v) == F)
-  v <- v[is.na(v) == F]
-  xyz <- xyz[sel, ]
-  xy$z <- NA
-  xy$z[sel] <- predict.Tps(tps, xyz)
-  rf2 <- rasterFromXYZ(xy)
-  cf <- rf2 / rainf
-  cf
-}
 # ============================================================================ #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Downscale all ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #

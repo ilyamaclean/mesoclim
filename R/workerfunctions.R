@@ -49,6 +49,11 @@
   ah<-array(ah,dim=c(dim(a)[1:2],dim(a)[3]*24))
   ah
 }
+#' Calculate moving average
+.mav <- function(x, n = 5) {
+  y <- stats::filter(x, rep(1 / n, n), circular = TRUE, sides = 1)
+  y
+}
 # Produces a matrix of latitudes form a terra::SpatRaster object
 # Inputs:
 # r - a terra::SpatRaster object

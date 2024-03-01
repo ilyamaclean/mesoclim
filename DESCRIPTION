@@ -21,7 +21,8 @@ Imports:
     ncdf4,
     gstat,
     sf,
-    Rcpp
+    Rcpp,
+    fields
 RoxygenNote: 7.2.3
 Roxygen: list(markdown = TRUE) 
 Suggests: knitr,

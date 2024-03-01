@@ -18,3 +18,11 @@ invls_calc <- function(lsm, resolution, xmin, ymax, s, direction, slr, slr_xmin,
     .Call(`_mesoclim_invls_calc`, lsm, resolution, xmin, ymax, s, direction, slr, slr_xmin, slr_xmax, slr_ymin, slr_ymax)
 }
 
+rainadjustv <- function(rain, rrain, rfrac, rtot) {
+    .Call(`_mesoclim_rainadjustv`, rain, rrain, rfrac, rtot)
+}
+
+rainadjustm <- function(rainm, rrain, rfrac, rtot) {
+    .Call(`_mesoclim_rainadjustm`, rainm, rrain, rfrac, rtot)
+}
+
