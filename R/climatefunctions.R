@@ -353,8 +353,92 @@ Tpsdownscale<-function(r, dtmc, dtmf, method = "normal", fast = TRUE) {
   rfn<-rast(xy,type="xyz")
   return(rfn)
 }
-
-
+#' Calculates the diffuse fraction from incoming shortwave radiation
+#'
+#' @description `difprop` calculates proportion of incoming shortwave radiation that is diffuse radiation using the method of Skartveit et al. (1998) Solar Energy, 63: 173-183.
+#'
+#' @param rad a vector of incoming shortwave radiation values (W/m^2)
+#' @param julian the Julian day as returned by [julday()]
+#' @param localtime a single numeric value representing local time (decimal hour, 24 hour clock)
+#' @param lat a single numeric value representing the latitude of the location for which partitioned radiation is required (decimal degrees, -ve south of equator).
+#' @param long a single numeric value representing the longitude of the location for which partitioned radiation is required (decimal degrees, -ve west of Greenwich meridian).
+#' @param hourly specifies whether values of `rad` are hourly (see details).
+#' @param merid an optional numeric value representing the longitude (decimal degrees) of the local time zone meridian (0 for GMT).
+#' @param dst an optional numeric value representing the time difference from the timezone meridian (hours, e.g. +1 for BST if `merid` = 0).
+#'
+#' @return a vector of diffuse fractions (either \ifelse{html}{\out{MJ m<sup>-2</sup> hr<sup>-1</sup>}}{\eqn{MJ m^{-2} hr^{-1}}} or \ifelse{html}{\out{W m<sup>-2</sup>}}{\eqn{W m^{-2}}}).
+#' @export
+#'
+#' @details
+#' The method assumes the environment is snow free. Both overall cloud cover and heterogeneity in
+#' cloud cover affect the diffuse fraction. Breaks in an extensive cloud deck may primarily
+#' enhance the beam irradiance, whereas scattered clouds may enhance the diffuse irradiance and
+#' leave the beam irradiance unaffected.  In consequence, if hourly data are available, an index
+#' is applied to detect the presence of such variable/inhomogeneous clouds, based on variability
+#' in radiation for each hour in question and values in the preceding and deciding hour.  If
+#' hourly data are unavailable, an average variability is determined from radiation intensity.
+#'
+#' @examples
+#' rad <- c(1:1352) # typical values of radiation in W/m^2
+#' jd <- julday(2022, 6, 21) # julian day
+#' dfr <- difprop(rad, jd, 12, 50, -5)
+#' plot(dfr ~ rad, type = "l", lwd = 2,
+#' xlab = expression(paste("Incoming shortwave radiation (", W*M^-2, ")")),
+#' ylab = "Diffuse fraction")
+difprop <- function(rad, julian, localtime, lat, long, hourly = FALSE,
+                    merid = 0, dst = 0) {
+  z <- .solalt(localtime, lat, long, julian, merid, dst)
+  k1 <- 0.83 - 0.56 * exp(- 0.06 * (90 - z))
+  si <- cos(z * pi / 180)
+  si[si < 0] <- 0
+  k <- rad / (1352 * si)
+  k[is.na(k)] <- 0
+  k <- ifelse(k > k1, k1, k)
+  k[k < 0] <- 0
+  rho <- k / k1
+  if (hourly) {
+    rho <- c(rho[1], rho, rho[length(rho)])
+    sigma3  <- 0
+    for (i in 1:length(rad)) {
+      sigma3[i] <- (((rho[i + 1] - rho[i]) ^ 2 + (rho[i + 1] - rho[i + 2]) ^ 2)
+                    / 2) ^ 0.5
+    }
+  } else {
+    sigma3a <- 0.021 + 0.397 * rho - 0.231 * rho ^ 2 - 0.13 *
+      exp(-1 * (((rho - 0.931) / 0.134) ^ 2) ^ 0.834)
+    sigma3b <- 0.12 + 0.65 * (rho - 1.04)
+    sigma3 <- ifelse(rho <= 1.04, sigma3a, sigma3b)
+  }
+  k2 <- 0.95 * k1
+  d1 <- ifelse(z < 88.6, 0.07 + 0.046 * z / (93 - z), 1)
+  K <- 0.5 * (1 + sin(pi * (k - 0.22) / (k1 - 0.22) - pi / 2))
+  d2 <- 1 - ((1 - d1) * (0.11 * sqrt(K) + 0.15 * K + 0.74 * K ^ 2))
+  d3 <- (d2 * k2) * (1 - k) / (k * (1 - k2))
+  alpha <- (1 / cos(z * pi / 180)) ^ 0.6
+  kbmax <- 0.81 ^ alpha
+  kmax <- (kbmax + d2 * k2 / (1 - k2)) / (1 + d2 * k2 / (1 - k2))
+  dmax <- (d2 * k2) * (1 - kmax) / (kmax * (1 - k2))
+  d4 <- 1 - kmax * (1 - dmax) / k
+  d <- ifelse(k <= kmax, d3, d4)
+  d <- ifelse(k <= k2, d2, d)
+  d <- ifelse(k <= 0.22, 1, d)
+  kX <- 0.56 - 0.32 * exp(-0.06 * (90 - z))
+  kL <- (k - 0.14) / (kX - 0.14)
+  kR <- (k - kX) / 0.71
+  delta <- ifelse(k >= 0.14 & k < kX, -3 * kL ^ 2 *(1 - kL) * sigma3 ^ 1.3, 0)
+  delta <- ifelse(k >= kX & k < (kX + 0.71), 3 * kR * (1 - kR) ^ 2 * sigma3 ^
+                    0.6, delta)
+  d[sigma3 > 0.01] <- d[sigma3 > 0.01] + delta[sigma3 > 0.01]
+  d[rad == 0] <- 0.5
+  d[z > 90] <- 1
+  # apply correction
+  dif_val <- rad * d
+  d <- dif_val /rad
+  d[d > 1] <- 1
+  d[d < 0] <- 1
+  d[is.na(d)] <- 0.5
+  d
+}
 # ====================================================================== #
 # ~~~~~~~~ Useful functions for processing climate data that we likely
 # ~~~~~~~~ want to document.
@@ -529,92 +613,3 @@ lapserate <- function(tc, ea, pk) {
 }
 #' Calculates the diffuse fraction from incoming shortwave radiation
 #'
-#' @description `difprop` calculates proportion of incoming shortwave radiation that is diffuse radiation using the method of Skartveit et al. (1998) Solar Energy, 63: 173-183.
-#'
-#' @param rad a vector of incoming shortwave radiation values (either \ifelse{html}{\out{MJ m<sup>-2</sup> hr<sup>-1</sup>}}{\eqn{MJ m^{-2} hr^{-1}}} or \ifelse{html}{\out{W m<sup>-2</sup>}}{\eqn{W m^{-2}}})
-#' @param jd the Julian day as returned by [jday()]
-#' @param localtime a single numeric value representing local time (decimal hour, 24 hour clock)
-#' @param lat a single numeric value representing the latitude of the location for which partitioned radiation is required (decimal degrees, -ve south of equator).
-#' @param long a single numeric value representing the longitude of the location for which partitioned radiation is required (decimal degrees, -ve west of Greenwich meridian).
-#' @param hourly specifies whether values of `rad` are hourly (see details).
-#' @param watts a logical value indicating  whether the units of `rad` are \ifelse{html}{\out{W m<sup>-2</sup>}}{\eqn{W m^{-2}}} (TRUE) or \ifelse{html}{\out{MJ m<sup>-2</sup> hr<sup>-1</sup>}}{\eqn{MJ m^{-2} hr^{-1}}} (FALSE).
-#' @param merid an optional numeric value representing the longitude (decimal degrees) of the local time zone meridian (0 for GMT). Default is `round(long / 15, 0) * 15`
-#' @param dst an optional numeric value representing the time difference from the timezone meridian (hours, e.g. +1 for BST if `merid` = 0).
-#' @param corr an optional numeric value representing a correction to account for over- or under-estimated diffuse proportions. Values > 1 will apportion a greater ammount of total radiation as diffuse than originally calculated by the formula.
-#'
-#' @return a vector of diffuse fractions (either \ifelse{html}{\out{MJ m<sup>-2</sup> hr<sup>-1</sup>}}{\eqn{MJ m^{-2} hr^{-1}}} or \ifelse{html}{\out{W m<sup>-2</sup>}}{\eqn{W m^{-2}}}).
-#' @export
-#'
-#' @details
-#' The method assumes the environment is snow free. Both overall cloud cover and heterogeneity in
-#' cloud cover affect the diffuse fraction. Breaks in an extensive cloud deck may primarily
-#' enhance the beam irradiance, whereas scattered clouds may enhance the diffuse irradiance and
-#' leave the beam irradiance unaffected.  In consequence, if hourly data are available, an index
-#' is applied to detect the presence of such variable/inhomogeneous clouds, based on variability
-#' in radiation for each hour in question and values in the preceding and deciding hour.  If
-#' hourly data are unavailable, an average variability is determined from radiation intensity.
-#'
-#' @examples
-#' rad <- c(5:42) / 0.036 # typical values of radiation in W/m^2
-#' jd <- jday(2017, 6, 21) # julian day
-#' dfr <- difprop(rad, jd, 12, 50, -5)
-#' plot(dfr ~ rad, type = "l", lwd = 2, xlab = "Incoming shortwave radiation",
-#'      ylab = "Diffuse fraction")
-difprop <- function(rad, jd, localtime, lat, long, hourly = FALSE,
-                    watts = TRUE, merid = round(long / 15, 0) * 15, dst = 0,
-                    corr = 1) {
-  if (watts) rad <- rad * 0.0036
-  sa <- solalt(localtime, lat, long, jd, merid, dst)
-  alt <- sa * (pi / 180)
-  k1 <- 0.83 - 0.56 * exp(- 0.06 * sa)
-  si <- cos(pi / 2 - alt)
-  si[si < 0] <- 0
-  k <- rad / (4.87 * si)
-  k[!is.finite(k)] <- 0
-  k <- ifelse(k > k1, k1, k)
-  k[k < 0] <- 0
-  rho <- k / k1
-  if (hourly) {
-    rho <- c(rho[1], rho, rho[length(rho)])
-    sigma3  <- 0
-    for (i in 1:length(rad)) {
-      sigma3[i] <- (((rho[i + 1] - rho[i]) ^ 2 + (rho[i + 1] - rho[i + 2]) ^ 2)
-                    / 2) ^ 0.5
-    }
-  } else {
-    sigma3a <- 0.021 + 0.397 * rho - 0.231 * rho ^ 2 - 0.13 *
-      exp(-1 * (((rho - 0.931) / 0.134) ^ 2) ^ 0.834)
-    sigma3b <- 0.12 + 0.65 * (rho - 1.04)
-    sigma3 <- ifelse(rho <= 1.04, sigma3a, sigma3b)
-  }
-  k2 <- 0.95 * k1
-  d1 <- ifelse(sa > 1.4, 0.07 + 0.046 * (90 - sa) / (sa + 3), 1)
-  K <- 0.5 * (1 + sin(pi * (k - 0.22) / (k1 - 0.22) - pi / 2))
-  d2 <- 1 - ((1 - d1) * (0.11 * sqrt(K) + 0.15 * K + 0.74 * K ^ 2))
-  d3 <- (d2 * k2) * (1 - k) / (k * (1 - k2))
-  alpha <- (1 / sin(alt)) ^ 0.6
-  kbmax <- 0.81 ^ alpha
-  kmax <- (kbmax + d2 * k2 / (1 - k2)) / (1 + d2 * k2 / (1 - k2))
-  dmax <- (d2 * k2) * (1 - kmax) / (kmax * (1 - k2))
-  d4 <- 1 - kmax * (1 - dmax) / k
-  d <- ifelse(k <= kmax, d3, d4)
-  d <- ifelse(k <= k2, d2, d)
-  d <- ifelse(k <= 0.22, 1, d)
-  kX <- 0.56 - 0.32 * exp(-0.06 * sa)
-  kL <- (k - 0.14) / (kX - 0.14)
-  kR <- (k - kX) / 0.71
-  delta <- ifelse(k >= 0.14 & k < kX, -3 * kL ^ 2 *(1 - kL) * sigma3 ^ 1.3, 0)
-  delta <- ifelse(k >= kX & k < (kX + 0.71), 3 * kR * (1 - kR) ^ 2 * sigma3 ^
-                    0.6, delta)
-  d[sigma3 > 0.01] <- d[sigma3 > 0.01] + delta[sigma3 > 0.01]
-  d[rad == 0] <- 0.5
-  d[sa < 0] <- 1
-  # apply correction
-  dif_val <- rad * d
-  dif_val_adj <- dif_val * corr
-  d <- dif_val_adj /rad
-  d[d > 1] <- 1
-  d[d < 0] <- 1
-  d[!is.finite(d)] <- 0.5
-  d
-}

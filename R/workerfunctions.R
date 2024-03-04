@@ -54,26 +54,45 @@
   y <- stats::filter(x, rep(1 / n, n), circular = TRUE, sides = 1)
   y
 }
-# Produces a matrix of latitudes form a terra::SpatRaster object
-# Inputs:
-# r - a terra::SpatRaster object
-# Returns a matrix of latidues
+#' Produces a matrix of latitudes form a terra::SpatRaster object
+#' Inputs:
+#' r - a terra::SpatRaster object
+#' Returns a matrix of latidues
 .latsfromr <- function(r) {
   e <- ext(r)
   lts <- rep(seq(e$ymax - res(r)[2] / 2, e$ymin + res(r)[2] / 2, length.out = dim(r)[1]), dim(r)[2])
   lts <- array(lts, dim = dim(r)[1:2])
   lts
 }
-# Produces a matrix of longitudes form a terra::SpatRaster object
-# Inputs:
-# r - a terra::SpatRaster object
-# Returns a matrix of longitudes
+#' Produces a matrix of longitudes form a terra::SpatRaster object
+#' Inputs:
+#' r - a terra::SpatRaster object
+#' Returns a matrix of longitudes
 .lonsfromr <- function(r) {
   e <- ext(r)
   lns <- rep(seq(e$xmin + res(r)[1] / 2, e$xmax - res(r)[1] / 2, length.out = dim(r)[2]), dim(r)[1])
   lns <- lns[order(lns)]
   lns <- array(lns, dim = dim(r)[1:2])
   lns
+}
+#' @import terra
+.latslonsfromr <- function(r,mask = FALSE) {
+  lats<-.latsfromr(r)
+  lons<-.lonsfromr(r)
+  if (mask) {
+    lats<-.rast(lats,r)
+    lons<-.rast(lons,r)
+    lats<-.is(mask(lats,r))
+    lats<-.is(mask(lats,r))
+  }
+  xy<-data.frame(x=as.vector(lons),y=as.vector(lats))
+  xy <- sf::st_as_sf(xy, coords = c('x', 'y'), crs = crs(r))
+  ll <- sf::st_transform(xy, 4326)
+  ll <- data.frame(lat = sf::st_coordinates(ll)[,2],
+                   long = sf::st_coordinates(ll)[,1])
+  lons<-array(ll$long,dim=dim(lons))
+  lats<-array(ll$lat,dim=dim(lats))
+  return(list(lats=lats,lons=lons))
 }
 # ============================================================================ #
 # ~~~~~~~~~ Climate processing worker functions here ~~~~~~~~~~~~~~~~~~~~~~~~~ #
@@ -114,32 +133,70 @@
   sa<-(180*atan(sh/sqrt(1-sh^2)))/pi
   sa
 }
-#' Simulate cloud patchiness
-#' @import gstat
-.simpatch<-function(dtmf,n,mn=0.5,mx=2) {
-  reso<-res(dtmf)[1]
-  if (reso <= 10) dtmc<-aggregate(dtmf,100)
-  if (reso <= 100) dtmc<-aggregate(dtmf,10)
-  reso2<-res(dtmc)[1]
-  sill<-1000/reso2
-  rge<-sill
-  xy <- expand.grid(1:dim(dtmc)[2], 1:dim(dtmc)[1])
+#' Simulate cloud or rain patchiness
+#' @import gstat, terra
+.simpatch<-function(varf,af,n=dim(varf)[3],varn="precip") {
+  if (varn == "precip") {
+    varf<-log(varf+1)
+    sdr<- -0.14934+0.1777*log(af)
+    if (sdr> 1) sdr<-1
+  }
+  if (varn == "csfrac") {
+    af<-.is(af)
+    s0<-which(af==0)
+    s1<-which(af==1)
+    af<-suppressWarnings(log(af/(1-af)))
+    af[s0]<-min(af,na.rm=TRUE)
+    af[s1]<-max(af,na.rm=TRUE)
+    varf<-.rast(af,varf)
+    sdr<- -0.14934+0.1777*log(af) # likely needs changing
+  }
+  # Generate n simulations
+  xy <- expand.grid(1:dim(varf)[2], 1:dim(varf)[1])
   names(xy) <- c('x','y')
-  g1 <- gstat(formula=z~1, locations=~x+y, dummy=T, beta=0,
-              model=vgm(psill = sill, range = rge, nugget = 3, model='Sph'), nmax = 40)
-  yy1 <- predict(g1, newdata=xy, nsim=n)
-  r<-rast(yy1)
-  # adjust to required range
-  rge<-max(as.vector(r))-min(as.vector(r))
-  nrge<-log(mx)-log(mn)
-  mu<-nrge/rge
-  r<-r*mu
-  r<-exp(r-mean(r))
-  ext(r)<-ext(dtmc)
-  crs(r)<-crs(dtmc)
-  r<-resample(r,dtmf)
-  return(r)
+  g1<-gstat(formula=z~1, locations=~x+y, dummy=T, beta=0,
+            model=vgm(psill=1,
+                      range=af/2,
+                      nugget=0,
+                      model='Sph'), nmax = 40)
+  yy1 <- predict(g1,newdata=xy,nsim=n,debug.level=0)
+  anom<-.rast(yy1,varf[[1]])
+  anom<-resample(aggregate(anom,2),anom)
+  anom<-mask(anom,varf[[1]])
+  ni<-dim(varf)[3]
+  # if n not equal to ni generate ni anomoly layers by averaging
+  # allows for temporal autocorrelation in simulations
+  if (n != ni) {
+    hps<-round(ni/(n-1),0)
+    days<-ni/hps
+    ad<-.is(anom)
+    wgts<-c(0:(hps-1))/hps
+    am<-array(NA,dim=dim(varf))
+    ij<-1
+    for (i in 1:days) {
+      for (j in 1:hps) {
+        am[,,ij]<-(1-wgts[j])*ad[,,i]+wgts[j]*ad[,,i+1]
+        ij<-ij+1
+      }
+    }
+    anom<-.rast(am,anom[[1]])
+  }
+  # adjust to ensure anomoly centred on zero and with correct sd
+  me<-apply(.is(anom),3,mean,na.rm=T)
+  sds<-apply(.is(anom),3,sd,na.rm=T)
+  sda<-apply(.is(varf),3,sd,na.rm=T)
+  mu <- (sda*sdr)/sds
+  a<-.is(anom)
+  a<-(a-.vta(me,varf[[1]]))*.vta(mu,varf[[1]])
+  anom<-.rast(a,anom[[1]])
+  varnf<-varf+anom
+  if (varn == "precip") {
+    varnf<-exp(varnf)-1
+    varnf[varnf<0]<-0
+  }
+  return(varnf)
 }
+
 #' Calculates wind altitude coefficient in specified direction
 .windz<-function(dtm1,dtm2,dtmr,wdir) {
   reso1<-res(dtm1)[1]

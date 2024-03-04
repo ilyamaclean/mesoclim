@@ -7,15 +7,14 @@
 swdownscale(swrad, tme, dtmf, dtmc, patchiness = 0)
 }
 \arguments{
-\item{swrad}{a SpatRast or array of shortwave radiation (W/m^2). If an array dtmc must
-be provided.}
+\item{swrad}{an array of shortwave radiation (W/m^2).}
 
 \item{tme}{POSIXlt object of times corresponding to radiation values in \code{swrad}.}
 
 \item{dtmf}{a fine-resolution SpatRast of elevations. Temperatures down-scaled
 to resolution of \code{dtmf}.}
 
-\item{dtmc}{optional SpatRast of elevations matching resolution of \code{swrad}. If
+\item{dtmc}{SpatRast of elevations matching resolution of \code{swrad}. If
 not supplied, \code{swrad} must be a SpatRast and \code{dtmc} is derived by resampling \code{dtmf}
 to resolution of \code{swrad} and extents must match.}
 

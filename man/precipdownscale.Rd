@@ -4,7 +4,16 @@
 \alias{precipdownscale}
 \title{Downscale precipitation accounting for elevation effects}
 \usage{
-precipdownscale(prec, dtmf, dtmc, method = "Tps", fast = TRUE, noraincut = 0)
+precipdownscale(
+  prec,
+  dtmf,
+  dtmc,
+  method = "Tps",
+  fast = TRUE,
+  noraincut = 0,
+  patchsim = FALSE,
+  nsim = dim(prec)[3]
+)
 }
 \arguments{
 \item{prec}{a coarse-resolution array of precipitation (mm)}
@@ -21,6 +30,12 @@ Thin-plate spline downscaling. Ignored if \code{method = "Elev"}}
 
 \item{noraincut}{optional single numeric value indicating rainfall amounts that should
 be considered as no rain (see details).}
+
+\item{patchsim}{optional logical indicating whether to simulate rain patchiness during
+downscaling. More realistically captures intensity, but slower.}
+
+\item{nsim}{optionally the number of independent rain patchiness simulations to perform. Outputs
+are temporally interpolated (see details).}
 }
 \value{
 a stacked SpatRast of precipitation values matching the resolution,
@@ -42,5 +57,13 @@ to ensure that the total amount and number of precipitation days match that expe
 by a small amount of precipitation on no precipitation days that are the wettest regionally, or
 by setting precipitation days with little rain to zero as required. To accommodate that some
 precipitation datasets erroneously include small amounts precipitation (<0.01 mm/day)
-on no precipitation days, users have the option to set a cut-off via \code{noraincut}.
+on no precipitation days, users have the option to set a cut-off via \code{noraincut}. If
+\code{patchsim} is set to TRUE rainfall patchiness caused by e.g. localized rain showed
+is simulated the gstats package. The parameter \code{nsim} determines the number of
+independent simulations and hence the time intervals at which these simulations
+are performed. Simulated anomalies due to local precipitation events are
+then interpolated temporally between these periods. This ensures that, over shorter
+increments of say and hour, the location and magnitude of these local precipitation
+events within each hour retain a degree of inter-dependence more realistically
+simulating the trajectory of low pressure systems.
 }

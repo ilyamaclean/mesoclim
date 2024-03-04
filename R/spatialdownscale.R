@@ -101,12 +101,11 @@ presdownscale<-function(pk, dtmf, dtmc, sealevel = TRUE) {
 #' @title Downscale shortwave radiation
 #' @description Downscales an array of shortwave radiation data with option to
 #' simulate cloud patchiness
-#' @param swrad a SpatRast or array of shortwave radiation (W/m^2). If an array dtmc must
-#' be provided.
+#' @param swrad an array of shortwave radiation (W/m^2).
 #' @param tme POSIXlt object of times corresponding to radiation values in `swrad`.
 #' @param dtmf a fine-resolution SpatRast of elevations. Temperatures down-scaled
 #' to resolution of `dtmf`.
-#' @param dtmc optional SpatRast of elevations matching resolution of `swrad`. If
+#' @param dtmc SpatRast of elevations matching resolution of `swrad`. If
 #' not supplied, `swrad` must be a SpatRast and `dtmc` is derived by resampling `dtmf`
 #' to resolution of `swrad` and extents must match.
 #' @param patchiness one of 0 (not simulated), 1 (low patchiness), 2 (medium patchines)
@@ -221,6 +220,45 @@ winddownscale <- function(wspeed, wdir, dtmf, dtmm, dtmc, uz = 2) {
   ws<-.rast(ws,dtmf)
   return(ws)
 }
+#' @title Downscale relative humidity accounting for downscaled temperature
+#' @description The function `relhumdownscale` is used to spatially downscale relative
+#' @param rh a coarse-resolution array of relative humidities (percentage)
+#' @param tcc a coarse-resolution array of wind temperatures (deg C)
+#' @param tcf a fine-resolution SpatRast of temperatures (deg C) as returned by
+#' [tempdownscale()]
+#' @param dtmc a coarse-resolution SpatRast of elevations matching
+#' the resolution, extent and coordinate reference system of `rh` and `tc`.
+#' @param rhmin optional single numeric value indicating the minimum realistically
+#' attainable relative humidity within the study region (percentage).
+#' @return a stacked SpatRast of relative humidities (percentage) matching the
+#' resolution, coordinate reference system and extent of `tcf`.
+#' @import terra
+#' @export
+#' @rdname relhumdownscale
+#' @seealso [tempdownscale()]
+relhumdownscale<-function(rh, tcc, tcf, dtmc, rhmin = 0) {
+  eac<-.satvap(tcc)*rh/100
+  eac<-.rast(eac,dtmc)
+  if (crs(eac) != crs(tcf)) eac<-project(eac,crs(tcf))
+  eaf<-resample(eac,tcf[[1]])
+  rhf<-(.is(eaf)/.satvap(.is(tcf)))*100
+  rhf<-.rast(rhf,tcf[[1]])
+  rhf[rhf>100]<-100
+  rhf[rhf<rhmin]<-rhmin
+  return(rhf)
+}
+
+# ============================================================================ #
+# ~~~~~~~~~~~~~~~~ Relative humidity ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+# ============================================================================ #
+# ~~ * Functions would: (1) Convert coarse-res relative humidity to vapour pressure
+# ~~   (temperature needed as input), bilinearly interpolate vapour pressure then
+# ~~   back convert to temperature
+
+
+
+
+
 #' @title Downscale precipitation accounting for elevation effects
 #' @description The function `precipdownscale` is used to spatially downscale precipitation,
 #' performing adjustments for elevation using one of two methods
@@ -233,6 +271,10 @@ winddownscale <- function(wspeed, wdir, dtmf, dtmm, dtmc, uz = 2) {
 #' Thin-plate spline downscaling. Ignored if `method = "Elev"`
 #' @param noraincut optional single numeric value indicating rainfall amounts that should
 #' be considered as no rain (see details).
+#' @param patchsim optional logical indicating whether to simulate rain patchiness during
+#' downscaling. More realistically captures intensity, but slower.
+#' @param nsim optionally the number of independent rain patchiness simulations to perform. Outputs
+#' are temporally interpolated (see details).
 #' @return a stacked SpatRast of precipitation values matching the resolution,
 #' coordinate reference system and extent of `dtmf`.
 #' @details Precipitation is downscaled by computing the total rainfall amount and
@@ -246,12 +288,21 @@ winddownscale <- function(wspeed, wdir, dtmf, dtmm, dtmc, uz = 2) {
 #' by a small amount of precipitation on no precipitation days that are the wettest regionally, or
 #' by setting precipitation days with little rain to zero as required. To accommodate that some
 #' precipitation datasets erroneously include small amounts precipitation (<0.01 mm/day)
-#' on no precipitation days, users have the option to set a cut-off via `noraincut`.
+#' on no precipitation days, users have the option to set a cut-off via `noraincut`. If
+#' `patchsim` is set to TRUE rainfall patchiness caused by e.g. localized rain showed
+#' is simulated the gstats package. The parameter `nsim` determines the number of
+#' independent simulations and hence the time intervals at which these simulations
+#' are performed. Simulated anomalies due to local precipitation events are
+#' then interpolated temporally between these periods. This ensures that, over shorter
+#' increments of say and hour, the location and magnitude of these local precipitation
+#' events within each hour retain a degree of inter-dependence more realistically
+#' simulating the trajectory of low pressure systems.
+#'
 #' @importFrom Rcpp sourceCpp
 #' @useDynLib mesoclim, .registration = TRUE
-#' @import terra, fields
+#' @import terra, fields, gstat
 #' @export
-precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, noraincut = 0) {
+precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, noraincut = 0, patchsim = FALSE, nsim = dim(prec)[3]) {
   prec<-.rast(prec,dtmc)
   # check how many non NA cells
   if (method != "Tps" & method != "Elev") stop("method must be one of Tps or Elev")
@@ -330,6 +381,11 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
     rf2[rf2<0]<-0
     rf2[rf2>1]<-1
   }
+  # Simulate patchiness
+  if (patchsim) {
+    af<-(res(dtmc)/res(rf3))[1]
+    rf3<-.simpatch(rf3,af,nsim,varn="precip")
+  }
   # Correct resampled rain for predicted rain total and rain days using Cpp function
   a<-as.array(rf3)
   mm<-matrix(as.vector(a),nrow=dim(a)[1]*dim(a)[2],ncol=dim(a)[3])
@@ -341,19 +397,6 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
   precf<-.rast(a2,dtmf)
   return(precf)
 }
-
-# ============================================================================ #
-# ~~~~~~~~~~~~~~~~ Relative humidity ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-# ============================================================================ #
-# ~~ * Functions would: (1) Convert coarse-res relative humidity to vapour pressure
-# ~~   (temperature needed as input), bilinearly interpolate vapour pressure then
-# ~~   back convert to temperature
-
-
-# ========================== NB - code dump from here ======================= #
-# ============================================================================ #
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Precipitation downscale  ~~~~~~~~~~~~~~~~~~~~~ #
-# ============================================================================ #
 
 # ============================================================================ #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Downscale all ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #

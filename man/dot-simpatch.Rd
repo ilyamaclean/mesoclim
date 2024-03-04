@@ -2,10 +2,10 @@
 % Please edit documentation in R/workerfunctions.R
 \name{.simpatch}
 \alias{.simpatch}
-\title{Simulate cloud patchiness}
+\title{Simulate cloud or rain patchiness}
 \usage{
-.simpatch(dtmf, n, mn = 0.5, mx = 2)
+.simpatch(varf, af, n = dim(varf)[3], varn = "precip")
 }
 \description{
-Simulate cloud patchiness
+Simulate cloud or rain patchiness
 }

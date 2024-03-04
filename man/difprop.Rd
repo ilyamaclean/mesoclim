@@ -4,23 +4,12 @@
 \alias{difprop}
 \title{Calculates the diffuse fraction from incoming shortwave radiation}
 \usage{
-difprop(
-  rad,
-  jd,
-  localtime,
-  lat,
-  long,
-  hourly = FALSE,
-  watts = TRUE,
-  merid = round(long/15, 0) * 15,
-  dst = 0,
-  corr = 1
-)
+difprop(rad, julian, localtime, lat, long, hourly = FALSE, merid = 0, dst = 0)
 }
 \arguments{
-\item{rad}{a vector of incoming shortwave radiation values (either \ifelse{html}{\out{MJ m<sup>-2</sup> hr<sup>-1</sup>}}{\eqn{MJ m^{-2} hr^{-1}}} or \ifelse{html}{\out{W m<sup>-2</sup>}}{\eqn{W m^{-2}}})}
+\item{rad}{a vector of incoming shortwave radiation values (W/m^2)}
 
-\item{jd}{the Julian day as returned by \code{\link[=jday]{jday()}}}
+\item{julian}{the Julian day as returned by \code{\link[=julday]{julday()}}}
 
 \item{localtime}{a single numeric value representing local time (decimal hour, 24 hour clock)}
 
@@ -30,13 +19,9 @@ difprop(
 
 \item{hourly}{specifies whether values of \code{rad} are hourly (see details).}
 
-\item{watts}{a logical value indicating  whether the units of \code{rad} are \ifelse{html}{\out{W m<sup>-2</sup>}}{\eqn{W m^{-2}}} (TRUE) or \ifelse{html}{\out{MJ m<sup>-2</sup> hr<sup>-1</sup>}}{\eqn{MJ m^{-2} hr^{-1}}} (FALSE).}
-
-\item{merid}{an optional numeric value representing the longitude (decimal degrees) of the local time zone meridian (0 for GMT). Default is \code{round(long / 15, 0) * 15}}
+\item{merid}{an optional numeric value representing the longitude (decimal degrees) of the local time zone meridian (0 for GMT).}
 
 \item{dst}{an optional numeric value representing the time difference from the timezone meridian (hours, e.g. +1 for BST if \code{merid} = 0).}
-
-\item{corr}{an optional numeric value representing a correction to account for over- or under-estimated diffuse proportions. Values > 1 will apportion a greater ammount of total radiation as diffuse than originally calculated by the formula.}
 }
 \value{
 a vector of diffuse fractions (either \ifelse{html}{\out{MJ m<sup>-2</sup> hr<sup>-1</sup>}}{\eqn{MJ m^{-2} hr^{-1}}} or \ifelse{html}{\out{W m<sup>-2</sup>}}{\eqn{W m^{-2}}}).
@@ -54,9 +39,10 @@ in radiation for each hour in question and values in the preceding and deciding 
 hourly data are unavailable, an average variability is determined from radiation intensity.
 }
 \examples{
-rad <- c(5:42) / 0.036 # typical values of radiation in W/m^2
-jd <- jday(2017, 6, 21) # julian day
+rad <- c(1:1352) # typical values of radiation in W/m^2
+jd <- julday(2022, 6, 21) # julian day
 dfr <- difprop(rad, jd, 12, 50, -5)
-plot(dfr ~ rad, type = "l", lwd = 2, xlab = "Incoming shortwave radiation",
-     ylab = "Diffuse fraction")
+plot(dfr ~ rad, type = "l", lwd = 2,
+xlab = expression(paste("Incoming shortwave radiation (", W*M^-2, ")")),
+ylab = "Diffuse fraction")
 }
