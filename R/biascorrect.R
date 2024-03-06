@@ -15,10 +15,11 @@
 #' 1.1, values in any given grid cell of the returned dataset cannot exceed
 #' 1.1 times the range of values in the corresponding grid cell in `hist_obs`.
 #' If not supplied (the default), returned values are unbounded.
+#' @return if `hist_obs` is a SpatRast, a SpatRast of bias corrected data. If
+#' `hist_obs` is a 3D array, a 3D array of bias corrected data.
 #' @import terra, mgcv
 #' @export
 #' @rdname biascorrect
-#' @examples
 #' @seealso [precipcorrect()] for applying corrections to precipitation data.
 biascorrect <- function(hist_obs, hist_mod, fut_mod, rangelims = NA) {
   # Convert to arrays if not arrays
@@ -65,74 +66,155 @@ biascorrect <- function(hist_obs, hist_mod, fut_mod, rangelims = NA) {
   if (class(hist_obs)[1] == "SpatRaster") ao<-.rast(ao,hist_obs)
   return(ao)
 }
-
-
-# Adjust a vector of daily precipitation to ensure bias correction
-# v1 - era5 2018 data
-# v2 - ukcp 2018 data
-# v3 - ucp data to which correction is applied
-# returns a corrected vector of rainfall data of length mathcing v3
-rainadjust<-function(v1, v2, v3) {
-  raindays<-function(v) {
-    u<-v>0
-    length(u[u==TRUE])
+#' @title Applies bias correction to precipitation data
+#' @description The function `biascorrect` applies bias correction to spatial
+#' climate dataset
+#' @param hist_obs a stacked SpatRast of precipitation data.
+#' @param hist_mod a stacked SpatRast of modelled precipitation data for
+#' for the same period and spatial area as `hist_obs`. I.e `dim(hist_mod)` must equal
+#' `dim(hist_obs)`
+#' @param fut_mod a stacked SpatRast of modelled precipitation data for
+#' for e.g. a future period to which corrections are applied. Must have the same
+#' x and y dims as `hist_obs` and `hist_mod`, but can cover a shorter or
+#' longer time period.
+#' @param rangelim fractional amount above the maximum values of precipitation
+#' in `hist_obs` in any given cell by which values in the returned dataset can
+#' attain. I.e. if set to 2, values in any given grid cell of the returned dataset
+#' cannot exceed twice the maximum amount in the corresponding grid cell in
+#' `hist_obs`.If not supplied (the default), returned values are unbounded.
+#' @return a SpatRast of bias corrected precipitation.
+#' @import terra
+#' @importFrom Rcpp sourceCpp
+#' @useDynLib mesoclim, .registration = TRUE
+#' @export
+#' @rdname precipcorrect
+#' @seealso [biascorrect()] for applying corrections to other climate variables.
+precipcorrect <- function(hist_obs, hist_mod, fut_mod, rangelims = NA, rangelim = 2) {
+  # mask data
+  hist_mod<-mask(hist_mod,hist_obs)
+  # Calculate correct total and rain day fraction
+  rcount<-hist_obs
+  rcount[rcount > 0] <-1
+  rtot<-apply(.is(hist_obs),c(1,2),sum)
+  tfrac<-apply(.is(rcount),c(1,2),sum)/dim(rcount)[3]
+  # Calculate ratios between hist_mod and fut_mod
+  rcount<-hist_mod
+  rcount[rcount > 0] <-1
+  htot<-apply(.is(hist_mod),c(1,2),sum)
+  hfrac<-apply(.is(rcount),c(1,2),sum)/dim(rcount)[3]
+  rcount<-fut_mod
+  rcount[rcount > 0] <-1
+  ftot<-apply(.is(fut_mod),c(1,2),sum)
+  ffrac<-apply(.is(rcount),c(1,2),sum)/dim(rcount)[3]
+  mut<-ftot/htot
+  muf<-ffrac/hfrac
+  # What future rain would be expected to be
+  rtot<-rtot*mut
+  tfrac<-tfrac*muf
+  # Calculate regional rainfall
+  rrain<-apply(.is(hist_obs),3,sum,na.rm=TRUE)
+  rr2<-as.numeric(.mav(rrain,10))
+  s<-which(rrain==0)
+  rrain[s]<-rr2[s]
+  s<-which(rrain==0)
+  rrain[s]<-0.1
+  # Correct resampled rain for predicted rain total and rain days using Cpp function
+  rtot<-.rast(rtot,hist_obs)
+  rfrac<-.rast(tfrac,hist_obs)
+  a<-as.array(fut_mod)
+  mm<-matrix(as.vector(a),nrow=dim(a)[1]*dim(a)[2],ncol=dim(a)[3])
+  rtot<-as.vector(t(rtot))
+  rfrac<-as.vector(t(rfrac))
+  mm<-rainadjustm(mm,rrain,rfrac,rtot)
+  a2<-array(mm,dim=dim(a))
+  if (is.na(rangelim) == F) {
+    rmax<-apply(.is(hist_obs),c(1,2),max)
+    rmax<-.rta(rmax*rangelim,dim(a2)[3])
+    s<-which(a2>rmax)
+    a2[s]<-rmax[s]
   }
-  ma <- function(x){
-    y<-filter(x, rep(1 / 10, 10), sides = 2)
-    y[1:5]<-y[6]
-    n<-length(y)
-    y[(n-5):n]<-y[n-6]
-    y
-  }
-  v1[v1<0.01]<-0
-  v2[v2<0.01]<-0
-  v3[v3<0.01]<-0
-  rd1<-raindays(v1)
-  rd2<-raindays(v2)
-  rd3<-raindays(v3)
-  if (rd1 > rd2) {
-    # find out how many extra raindays need asigning
-    rdextra<-round(rd3*(rd1/rd2-1),0)
-    # find out which dry days are most like to have rain
-    rav<-ma(v3)
-    rav[v3==0]<-0
-    o<-order(rav,decreasing=TRUE)[1:rdextra]
-    v3[o]<-rav[o]
-  } else {
-    rdextra<-round(rd3*(rd2/rd1-1),0)
-    # get rid of driest rain days
-    sel<-which(v3>0)
-    o<-order(v3[sel])[1:rdextra]
-    v3[sel[o]]<-0
-  }
-  rt1<-sum(v1)
-  rt2<-sum(v2)
-  v3<-v3*(sum(v1)/sum(v2))
-  return(v3)
+  # convert to SpatRast
+  fut_mod<-.rast(a2,fut_mod)
+  return(fut_mod)
 }
-# Applies the rainadjust to SpatRaster arrays of data
-# rera - a SpatRaster object of era5 2018 data
-# rukcpf - a SpatRaster object of ukcp 2018 data
-# rukcpa - a SpatRaster object of ukcp data to which the correction is to be applied
-# returns a bias corrected SpatRaster object of rainfall
-precipcorrect<-function(rera, rukcpf, rukcpa) {
-  a1<-as.array(rera)
-  a2<-as.array(rukcpf)
-  a3<-as.array(rukcpa)
-  msk<-apply(a1,c(1,2),mean,na.rm=T)
-  ao<-array(NA,dim=dim(a3))
-  for (i in 1:dim(a1)[1]) {
-    for (j in 1:dim(a1)[2]) {
-      if (is.na(msk[i,j]) == F) {
-        ao[i,j,]<-rainadjust(a1[i,j,],a2[i,j,],a3[i,j,])
+#' @title Applies bias correction to UK era5 temperature data
+#' @description The function `correct_era5temps` applies automatic bias correction to era5
+#' temperature data data to correct for unaturally low diurnal temperature
+#' fluctuations in coastal grid cells.
+#' @param era5hourly a stacked SpatRast of hourly ERA5 temperature data for any part
+#' of the UK.
+#' @param era5correctmodels a list of model correction coefficients for neach UK
+#' grid cell. Available: https://universityofexeteruk-my.sharepoint.com/:f:/g/personal/i_m_d_maclean_exeter_ac_uk/EjxJdJq0MClFqUU3LATlcnEBo1cGFiUAxqLQALNNxvdZaw?e=wLR2Rf
+#' Zenodo link to be added dreckly.
+#' @return a SpatRast of bias corrected temperature data
+#' @details `era5correctmodels` was derived by applying [biascorrect()] to a 2018
+#' dataset of era5 temperature data, calibrating against Met office data
+#' @import terra, mgcv
+#' @export
+#' @rdname correct_era5temps
+correct_era5temps<-function(era5hourly,era5correctmodels) {
+  # Check whether in Kelvin or degrees
+  me<-mean(.is(era5hourly[[1]]),na.rm=TRUE)
+  if (me > 150) era5hourly<-era5hourly-273.15
+  # Calculate tmx, tmn and dtr
+  tmx_era5<-hourtodayCpp(.is(era5hourly), dim(era5hourly)[1], dim(era5hourly)[2], dim(era5hourly)[3], "max")
+  tmn_era5<-hourtodayCpp(.is(era5hourly), dim(era5hourly)[1], dim(era5hourly)[2], dim(era5hourly)[3], "min")
+  dtr_era5<-tmx_era5-tmn_era5
+  # Match cells in era5hourly to model list index
+  # get x & ys of model list index
+  rindex<-rast(era5correctmodels$indexr)
+  xy1<-data.frame(xyFromCell(rindex, 1:ncell(rindex)))
+  z<-as.vector(extract(rindex,xy1)[,2])
+  xyz1 <- cbind(xy1,z)
+  s<-which(is.na(z)==F)
+  xyz1<-xyz1[s,]
+  xyz1$x<-round(xyz1$x*4,0)/4
+  xyz1$y<-round(xyz1$y*4,0)/4
+  # get x & ys of model era5hourly grid cells
+  xy2<-data.frame(xyFromCell(era5hourly[[1]], 1:ncell(era5hourly[[1]])))
+  v<-c(1:(dim(xy2)[1]))
+  xyz2 <- cbind(xy2,v)
+  xyz2$x<-round(xyz2$x*4,0)/4
+  xyz2$y<-round(xyz2$y*4,0)/4
+  vindex<-rast(xyz2)
+  mindex<-.is(vindex)
+  # merge datasets
+  xy<-merge(xyz1,xyz2,by=c("x","y"),all=TRUE)
+  adtr<-array(NA,dim=dim(dtr_era5))
+  atmn<-adtr
+  for (i in 1:dim(adtr)[1]) {
+    for (j in 1:dim(adtr)[2]) {
+      v1<-dtr_era5[i,j,]
+      v2<-tmn_era5[i,j,]
+      # get model
+      v<-mindex[i,j]
+      s<-which(xy$v==v)
+      index<-xy$z[s]
+      if (is.na(index) == FALSE) {
+        mod1<-era5correctmodels$dtrmod[[index]]
+        mod2<-era5correctmodels$tmnmod[[index]]
+        adtr[i,j,] <- predict.gam(mod1, newdata = data.frame(v2 = v1))
+        atmn[i,j,] <- predict.gam(mod2, newdata = data.frame(v2 = v2))
       }
     }
   }
-  ro<-rast(ao)
-  ext(ro)<-ext(rukcpa)
-  crs(ro)<-crs(rukcpa)
-  return(ro)
+  # Apply dtr and min correction to original datasets
+  # ~~ Calculate hourly dtr fractions
+  dtr_era5h<-.ehr(dtr_era5)
+  tmn_era5h<-.ehr(tmn_era5)
+  tc<-.is(era5hourly)
+  tfrac<-(tc-tmn_era5h)/dtr_era5h
+  # Apply correct data
+  adtrh<-.ehr(adtr)
+  atmnh<-.ehr(atmn)
+  tcn<-(tfrac*adtrh)+atmnh
+  tcn<-.rast(tcn,era5hourly)
+  return(tcn)
 }
+
+# ================================================================= #
+# ~~~~~~~~~~~~~ Code dump from here - probably not needed ~~~~~~~~~ #
+# ================================================================= #
 # Saves a SpatRaster object as an nc file
 # r - a SpatRaster object
 # baseyear - used for adding time stamp to nc file (asumes daily)
