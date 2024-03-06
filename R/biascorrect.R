@@ -1,17 +1,40 @@
-# Applies bias correction to one variable
-# rera - a SpatRaster object of era5 data for 2018
-# rukcpf - a SpatRaster object of ukcp data for 2018
-# rukcpa   a SpatRaster object of ukcp data to which correction is to be applied - typically a decade's worth of data
-# - returns a bias corrected SpatRaster object
-# NB suggest including function call to rainadjust to make below properly generic (and
-# suggest calling it precipadjust).
-biascorrectukcpone <- function(rera, rukcpf, rukcpa, rangelims = NA) {
-  a1<-as.array(rera)
-  a2<-as.array(rukcpf)
-  a3<-as.array(rukcpa)
+#' @title Applies bias correction to one climate variable
+#' @description The function `biascorrect` applies bias correction to spatial
+#' climate dataset
+#' @param hist_obs a 3D array or stacked SpatRast of climate observations. If an
+#' array the the first two dimension must represent and the third time.
+#' @param hist_mod a 3D array or stacked SpatRast of modelled climate data for
+#' for the same period and spatial area as `hist_obs` `dim(hist_mod)` must equal
+#' `dim(hist_obs)`
+#' @param fut_mod a 3D array or SpatRast of modelled climate data for
+#' for e.g. a future period to which corrections are applied. Must have the same
+#' x and y dims as `hist_obs` and `hist_mod`, but can cover a shorter or
+#' longer time periods.
+#' @param rangelims fractional amount above or below the range of values in
+#' `hist_obs` by which values in the returned dataset can vary. I.e. if set to
+#' 1.1, values in any given grid cell of the returned dataset cannot exceed
+#' 1.1 times the range of values in the corresponding grid cell in `hist_obs`.
+#' If not supplied (the default), returned values are unbounded.
+#' @import terra, mgcv
+#' @export
+#' @rdname biascorrect
+#' @examples
+#' @seealso [precipcorrect()] for applying corrections to precipitation data.
+biascorrect <- function(hist_obs, hist_mod, fut_mod, rangelims = NA) {
+  # Convert to arrays if not arrays
+  a1<-.is(hist_obs)
+  a2<-.is(hist_mod)
+  a3<-.is(fut_mod)
+  # Mask out any cells that are missing
   msk1<-apply(a1,c(1,2),mean,na.rm=T)
   msk2<-apply(a2,c(1,2),mean,na.rm=T)
-  msk<-msk1*msk2
+  msk3<-apply(a3,c(1,2),mean,na.rm=T)
+  msk<-msk1*msk2*msk3
+  # Check whether dataset has more than 1000 entries per time-series and
+  # subset if it does
+  n<-dim(a1)[3]
+  if (n > 1000) s<-sample(0:n,998,replace = FALSE)  # 998 so min and max can be tagged on
+  # Create array for storing data
   ao<-array(NA,dim=dim(a3))
   for (i in 1:dim(a1)[1]) {
     for (j in 1:dim(a1)[2]) {
@@ -21,6 +44,11 @@ biascorrectukcpone <- function(rera, rukcpf, rukcpa, rangelims = NA) {
         v3<-a3[i,j,]
         v1 <- v1[order(v1)]
         v2 <- v2[order(v2)]
+        if (n > 1000) {
+          v1<-c(v1[1],v1[s],v1[length(v1)]) # tags on min and max value
+          v2<-c(v2[1],v2[s],v2[length(v2)]) # tags on min and max value
+        }
+        # Apply gam
         m1 <- gam(v1~s(v2))
         xx <- predict.gam(m1, newdata = data.frame(v2 = v3))
         if (is.na(rangelims) == F) {
@@ -34,11 +62,11 @@ biascorrectukcpone <- function(rera, rukcpf, rukcpa, rangelims = NA) {
       }
     }
   }
-  ro<-rast(ao)
-  ext(ro)<-ext(rukcpa)
-  crs(ro)<-crs(rukcpa)
-  return(ro)
+  if (class(hist_obs)[1] == "SpatRaster") ao<-.rast(ao,hist_obs)
+  return(ao)
 }
+
+
 # Adjust a vector of daily precipitation to ensure bias correction
 # v1 - era5 2018 data
 # v2 - ukcp 2018 data
