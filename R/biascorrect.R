@@ -213,7 +213,7 @@ correct_era5temps<-function(era5hourly,era5correctmodels) {
 }
 
 # ================================================================= #
-# ~~~~~~~~~~~~~ Code dump from here - probably not needed ~~~~~~~~~ #
+# ~~~~~~~~~~~~~ Code dump from here - probably not all needed ~~~~~~~~~ #
 # ================================================================= #
 # Saves a SpatRaster object as an nc file
 # r - a SpatRaster object

@@ -375,6 +375,9 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,
   names(clim_list$winddir)<-terra::time(clim_list$winddir)
 
   # Select and rename climate output rasts MIGHT NEED TO CHANGE THESE TO MATCH THOSE USED BY MESOCLIM FUNCTIONS
+  # *** Ilya comment - will need to integrate some conversion functons and change names
+  # mesclim names and variables are: temp, (or tmin / tmax), relhum, pres,swrad,     "difrad"    "lwrad"     "windspeed"
+  # winddir,  prec.
   clim_list<-clim_list[c("clt","hurs","huss","pr","psl","rls","rss","tasmax","tasmin", "windspeed","winddir")]
   names(clim_list)<-c('cloud','relhum','spechum','prec','pres','lwnet','swnet','tmax','tmin','windspeed','winddir')
 
