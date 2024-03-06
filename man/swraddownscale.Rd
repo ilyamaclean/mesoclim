@@ -4,7 +4,15 @@
 \alias{swdownscale}
 \title{Downscale shortwave radiation}
 \usage{
-swdownscale(swrad, tme, dtmf, dtmc, patchiness = 0)
+swdownscale(
+  swrad,
+  tme,
+  dtmf,
+  dtmc,
+  patchsim = FALSE,
+  nsim = dim(swrad)[3],
+  difr = FALSE
+)
 }
 \arguments{
 \item{swrad}{an array of shortwave radiation (W/m^2).}
@@ -14,18 +22,49 @@ swdownscale(swrad, tme, dtmf, dtmc, patchiness = 0)
 \item{dtmf}{a fine-resolution SpatRast of elevations. Temperatures down-scaled
 to resolution of \code{dtmf}.}
 
-\item{dtmc}{SpatRast of elevations matching resolution of \code{swrad}. If
-not supplied, \code{swrad} must be a SpatRast and \code{dtmc} is derived by resampling \code{dtmf}
-to resolution of \code{swrad} and extents must match.}
+\item{dtmc}{SpatRast of elevations matching the resolution, extend and coordinate
+reference system of of \code{swrad}.}
 
-\item{patchiness}{one of 0 (not simulated), 1 (low patchiness), 2 (medium patchines)
-or (3) high patchiness}
+\item{patchsim}{optional logical indicating whether to simulate cloud cover
+patchiness during downscaling. More realistically captures variation, but slower.}
+
+\item{nsim}{optionally the number of independent cloud cover patchiness simulations to perform. Outputs
+are temporally interpolated (see details).}
+
+\item{terrainshade}{optional logical indicating whether to adjust incoming radiation
+for terrain shading. If TRUE, total downward shortwave radiation is partioned into its
+direct and diffuse components, the latter adjusted by sky view and the former set
+to zero if the sun is below the horizon, which is computed explicitly.}
 }
 \value{
-a multi-layer SpatRast of shortwave radiation (W/m^2) matching the
-resolution of dtmf.
+if \code{terrainshade = FALSE} a multi-layer SpatRast of shortwave radiation
+(W/m^2) matching the resolution of dtmf. If if \code{terrainshade = TRUE} a list of wrapped multi-layer
+SpatRasts of (1) shortwave radiation (W/m^2) and (2) the diffuse fraction (range 0-1).
 }
 \description{
 Downscales an array of shortwave radiation data with option to
-simulate cloud patchiness
+simulate cloud patchiness and calculate diffuse radiation
+}
+\details{
+radiation is downscaled by computing average fraction of clear-sky radiation
+and then adjusting this variable to account for elevation using an emprical
+adjustment calibrated against 0.05 degree data for the UK. If
+\code{patchsim} is set to TRUE cloud cover patchiness is simulated the gstats package.
+The parameter \code{nsim} determines the number of independent simulations and hence
+the time intervals at which these simulations are performed. Simulated anomalies
+due to local cloud patchiness are then interpolated temporally between these
+periods. This ensures that, over shorter increments of say and hour, the location
+clouds within each hour retain a degree of inter-dependence more realistically
+simulating the trajectory of cloud as they move across the landscape.
+}
+\examples{
+# Extract model inputs form inbuilt datasets
+swrad <- mesoclim::era5data$climarray$swrad
+tme <- as.POSIXlt(era5data$tme, tz = "UTC")
+dtmc <- rast(mesoclim::era5data$dtmc)
+dtmf <- rast(mesoclim::dtmf)
+# Run with default options
+swradf<-swdownscale(swrad, tme, dtmf, dtmc)
+# plot output
+plot(swradf[[13]], main = as.character(tme)[13])
 }

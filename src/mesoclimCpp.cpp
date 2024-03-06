@@ -1,6 +1,311 @@
 #include <Rcpp.h>
 #include <algorithm>
+#include <vector>
+#include <cmath>
 using namespace Rcpp;
+// ============================================================================================ = #
+// ~~~~~~~~~~~~~~~~~~~ Functions used for converting between R and C++ matrices ~~~~~~~~~~~~~~~~~ #
+// ============================================================================================== #
+// ** Convert R matrix to C++ matrix ** //
+std::vector<std::vector<double>> convertoCppmatrix(NumericMatrix mat) {
+    std::vector<std::vector<double>> result(mat.nrow(), std::vector<double>(mat.ncol()));
+    for (int i = 0; i < mat.nrow(); ++i) {
+        for (int j = 0; j < mat.ncol(); ++j) {
+            result[i][j] = mat(i, j);
+        }
+    }
+    return result;
+}
+// ** Convert C++ matrix to R matrix ** //
+NumericMatrix convertoRmatrix(std::vector<std::vector<double>>& mat) {
+    int nrow = mat.size();
+    int ncol = mat[0].size(); // Assuming all inner vectors have the same size
+    NumericMatrix mat2(nrow, ncol);
+    for (int i = 0; i < nrow; ++i) {
+        for (int j = 0; j < ncol; ++j) {
+            mat2(i, j) = mat[i][j];
+        }
+    }
+    return mat2;
+}
+// ** Applies a specified function to an hourly 3D array to return daily data ** //
+// 'hourtodayCpp
+// @export
+// [[Rcpp::export]]
+NumericVector hourtodayCpp(NumericVector a, int dim1, int dim2, int dim3, std::string fun) {
+    int ndays = dim3 / 24; // Number of days
+    NumericVector daily(dim1 * dim2 * ndays, NA_REAL);
+    // Calculate daily mean, max, or min
+    for (int i = 0; i < dim1; ++i) {
+        for (int j = 0; j < dim2; ++j) {
+            double x = a[j * dim1 + i];
+            if (!std::isnan(x)) {
+                for (int day = 0; day < ndays; ++day) {
+                    double out = 0;
+                    if (fun == "mean" || fun == "sum") {
+                        for (int hr = 0; hr < 24; ++hr) {
+                            double v = a[hr * dim1 * dim2 + day * dim1 * dim2 * 24 + j * dim1 + i];
+                            out = out + v;
+                        }
+                    }
+                    else if (fun == "max") {
+                        out = a[day * dim1 * dim2 * 24 + j * dim1 + i];
+                        for (int hr = 1; hr < 24; ++hr) {
+                            double v = a[hr * dim1 * dim2 + day * dim1 * dim2 * 24 + j * dim1 + i];
+                            if (v > out) out = v;
+                        }
+                    }
+                    else if (fun == "min") {
+                        out = a[day * dim1 * dim2 * 24 + j * dim1 + i];
+                        for (int hr = 1; hr < 24; ++hr) {
+                            double v = a[hr * dim1 * dim2 + day * dim1 * dim2 * 24 + j * dim1 + i];
+                            if (v < out) out = v;
+                        }
+                    }
+                    if (fun == "mean") out = out / 24;
+                    daily[day * dim1 * dim2 + j * dim1 + i] = out;
+                }
+            }
+        }
+    }
+    // Reshape the 1D vector to a 3D array
+    daily.attr("dim") = IntegerVector::create(dim1, dim2, ndays);
+    return daily;
+}
+// ============================================================================================ = #
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Functions for calculating solar variables  ~~~~~~~~~~~~~~~~~ #
+// ============================================================================================== #
+int juldayCpp(int year, int month, int day)
+{
+    double dd = day + 0.5;
+    int madj = month + (month < 3) * 12;
+    int yadj = year + (month < 3) * -1;
+    double j = std::trunc(365.25 * (yadj + 4716)) + std::trunc(30.6001 * (madj + 1)) + dd - 1524.5;
+    int b = 2 - std::trunc(yadj / 100) + std::trunc(std::trunc(yadj / 100) / 4);
+    int jd = static_cast<int>(j + (j > 2299160) * b);
+    return jd;
+}
+// 'juldayvCpp
+// @export
+// [[Rcpp::export]]
+IntegerVector juldayvCpp(IntegerVector year, IntegerVector month, IntegerVector day)
+{
+    IntegerVector jd = clone(day);
+    for (int i = 0; i < jd.size(); ++i) {
+        jd[i] = juldayCpp(year[i], month[i], day[i]);
+    }
+    return jd;
+}
+// ** Calculates solar time ** //
+double soltimeCpp(int jd, double lt, double lon)
+{
+    double m = 6.24004077 + 0.01720197 * (jd - 2451545);
+    double eot = -7.659 * sin(m) + 9.863 * sin(2 * m + 3.5932);
+    double st = lt + (4 * lon + eot) / 60;
+    return st;
+}
+// ** Calculates solar zenith in radians ** //
+double solzenCpp(double jd, double st, double lat, double lon)
+{
+    double latr = lat * M_PI / 180;
+    double tt = 0.261799 * (st - 12);
+    double dec = (M_PI * 23.5 / 180) * cos(2 * M_PI * ((jd - 159.5) / 365.25));
+    double coh = sin(dec) * sin(latr) + cos(dec) * cos(latr) * cos(tt);
+    double z = acos(coh);
+    return z;
+}
+// ** Calculates solar azimuth in radians ** //
+double solaziCpp(double jd, double st, double lat, double lon)
+{
+    double latr = lat * M_PI / 180;
+    double tt = 0.261799 * (st - 12);
+    double dec = (M_PI * 23.5 / 180) * cos(2 * M_PI * ((jd - 159.5) / 365.25));
+    double sh = sin(dec) * sin(latr) + cos(dec) * cos(latr) * cos(tt);
+    double hh = atan(sh / sqrt(1 - sh * sh));
+    double sazi = cos(dec) * sin(tt) / cos(hh);
+    double cazi = (sin(latr) * cos(dec) * cos(tt) - cos(latr) * sin(dec)) /
+        sqrt(pow(cos(dec) * sin(tt), 2) + pow(sin(latr) * cos(dec) * cos(tt) - cos(latr) * sin(dec), 2));
+    double sqt = 1 - sazi * sazi;
+    if (sqt < 0) sqt = 0;
+    double azi = M_PI + atan(sazi / sqrt(sqt));
+    if (cazi < 0) {
+        if (sazi < 0) {
+            azi = M_PI - azi;
+        }
+        else {
+            azi = 3 * M_PI - azi;
+        }
+    }
+    return azi;
+}
+// ** Calculates clear sky radiation ** //
+double clearskyradCpp(int jd, double lt, double lat, double lon, double tc = 15.0, double rh = 80.0, double pk = 101.3)
+{
+    double st = soltimeCpp(jd, lt, lon);
+    double z = solzenCpp(jd, st, lat, lon);
+    double Ic = 0.0;
+    if (z <= M_PI / 2) {
+        double m = 35 * cos(z) * pow(1224 * cos(z) * cos(z) + 1, -0.5);
+        double TrTpg = 1.021 - 0.084 * sqrt(m * 0.00949 * pk + 0.051);
+        double xx = log(rh / 100) + ((17.27 * tc) / (237.3 + tc));
+        double Td = (237.3 * xx) / (17.27 - xx);
+        double u = exp(0.1133 - log(3.78) + 0.0393 * Td);
+        double Tw = 1 - 0.077 * pow(u * m, 0.3);
+        double Ta = 0.935 * m;
+        double od = TrTpg * Tw * Ta;
+        Ic = 1352.778 * cos(z) * od;
+    }
+    return Ic;
+}
+// ** Calculates diffuse fraction ** //
+double difpropCpp(double swrad, int jd, double lt, double lat, double lon)
+{
+    double d = 1.0;
+    if (swrad > 0) {
+        double st = soltimeCpp(jd, lt, lon);
+        double z = solzenCpp(jd, st, lat, lon);
+        if (z < M_PI / 2) {
+            double zd = z * 180 / M_PI;
+            double k1 = 0.83 - 0.56 * exp(-0.06 * (90 - zd));
+            double si = 0.0;
+            if (z <= M_PI / 2) si = cos(z);
+            double k = 0.0;
+            if (si > 0) k = swrad / (1352 * si);
+            if (k > k1) k = k1;
+            if (k < 0) k = 0;
+            double rho = k / k1;
+            double sigma3 = 0;
+            if (rho > 1.04) {
+                sigma3 = 0.12 + 0.65 * (rho - 1.04);
+            }
+            else {
+                sigma3 = 0.021 + 0.397 * rho - 0.231 * pow(rho, 2) - 0.13 * exp(-1 * pow((rho - 0.931) / 0.134, 2) * 0.834);
+            }
+            double k2 = 0.95 * k1;
+            double d1 = 1.0;
+            if (zd < 88.6) d1 = 0.07 + 0.046 * zd / (93 - zd);
+            double K = 0.5 * (1 + sin(M_PI * (k - 0.22) / (k1 - 0.22) - M_PI / 2));
+            double d2 = 1 - ((1 - d1) * (0.11 * sqrt(K) + 0.15 * K + 0.74 * K * K));
+            double d3 = (d2 * k2) * (1 - k) / (k * (1 - k2));
+            double alpha = pow(1 / cos(z), 0.6);
+            double kbmax = pow(0.81, alpha);
+            double kmax = (kbmax + d2 * k2 / (1 - k2)) / (1 + d2 * k2 / (1 - k2));
+            double dmax = (d2 * k2) * (1 - kmax) / (kmax * (1 - k2));
+            d = 1 - kmax * (1 - dmax) / k;
+            if (k <= kmax) d = d3;
+            if (k <= k2) d = d2;
+            if (k <= 0.22) d = 1;
+            double kX = 0.56 - 0.32 * exp(-0.06 * (90 - zd));
+            double kL = (k - 0.14) / (kX - 0.14);
+            double kR = (k - kX) / 0.71;
+            double delta = (k >= 0.14 && k < kX) ? (-3 * pow(kL, 2) * (1 - kL) * pow(sigma3, 1.3)) : 0;
+            if (k >= kX && k < (kX + 0.71)) delta = 3 * kR * pow((1 - kR), 2) * pow(sigma3, 0.6);
+            if (sigma3 > 0.01) d = d + delta;
+        }
+    }
+    return d;
+}
+// ** Calculates diffuse fraction on a vector of data ** //
+std::vector<double> difpropvCpp(std::vector<double> swrad, std::vector<int> jd, std::vector<double> lt, double lat, double lon)
+{
+    std::vector<double> d(lt.size());
+    for (size_t i = 0; i < d.size(); ++i) {
+        d[i] = difpropCpp(swrad[i], jd[i], lt[i], lat, lon);
+    }
+    return d;
+}
+// ** Calculates clear sky radiation for an hourly vector ** //
+std::vector<double> clearskyradhCpp(std::vector<int>& jd, std::vector<double>& lt, double lat, double lon)
+{
+    std::vector<double> Ic(lt.size());
+    for (size_t i = 0; i < Ic.size(); ++i) {
+        Ic[i] = clearskyradCpp(jd[i], lt[i], lat, lon, 15.0, 80.0, 101.3);
+    }
+    return Ic;
+}
+// ** Calculates clear sky radiation for a daily vector ** //
+std::vector<double> clearskyraddCpp(std::vector<int>& jd, double lat)
+{
+    std::vector<double> Ic(jd.size());
+    for (size_t i = 0; i < Ic.size(); ++i) {
+        Ic[i] = 0;
+        for (int j = 0; j < 1440; ++j) {
+            double lt = j / 60;
+            Ic[i] = Ic[i] + clearskyradCpp(jd[i], lt, lat, 0.0, 15.0, 80.0, 101.3);
+        }
+        Ic[i] = Ic[i] / 1440;
+    }
+    return Ic;
+}
+// Calculate clear sky radiation with matrices ** //
+// 'clearskyradmCpp
+// @export
+// [[Rcpp::export]]
+NumericMatrix clearskyradmCpp(std::vector<int> jd, std::vector<double> lt, std::vector<double> lat, std::vector<double> lon,
+    bool hourly = true) {
+    int rows = lat.size();
+    int cols = jd.size();
+    std::vector<std::vector<double>> Ic(rows, std::vector<double>(cols, std::nan("")));
+    for (size_t i = 0; i < lat.size(); ++i) {
+        if (!std::isnan(lat[i])) {
+            if (hourly) {
+                Ic[i] = clearskyradhCpp(jd, lt, lat[i], lon[i]);
+            }
+            else {
+                Ic[i] = clearskyraddCpp(jd, lat[i]);
+            }
+        }
+    }
+    NumericMatrix ICm = convertoRmatrix(Ic);
+    return ICm;
+}
+// ** Calculates diffuse fraction with matrices ** //
+// 'difpropmCpp
+// @export
+// [[Rcpp::export]]
+NumericMatrix difpropmCpp(NumericMatrix swrad, std::vector<int> jd, std::vector<double> lt, std::vector<double> lat, std::vector<double> lon)
+{
+    std::vector<std::vector<double>> swradc = convertoCppmatrix(swrad);
+    int rows = lat.size();
+    int cols = jd.size();
+    std::vector<std::vector<double>> d(rows, std::vector<double>(cols, std::nan("")));
+    for (size_t i = 0; i < lat.size(); ++i) {
+        if (!std::isnan(swradc[i][1])) {
+            d[i] = difpropvCpp(swradc[i], jd, lt, lat[i], lon[i]);
+        }
+    }
+    NumericMatrix dr = convertoRmatrix(d);
+    return dr;
+}
+// ** Calculates solar zenith for vector ** //
+std::vector<double> solzenvCpp(std::vector<int> jd, std::vector<double> lt, double lat, double lon)
+{
+    std::vector<double> z(lt.size());
+    for (size_t i = 0; i < z.size(); ++i) {
+        double st = soltimeCpp(jd[i], lt[i], lon);
+        z[i] = solzenCpp(jd[i], st, lat, lon);
+        z[i] = z[i] * 180 / M_PI;
+    }
+    return z;
+}
+// ** Calculates solar zenith for matrices ** //
+// 'solzenmCpp
+// @export
+// [[Rcpp::export]]
+NumericMatrix solzenmCpp(std::vector<int> jd, std::vector<double> lt, std::vector<double> lat, std::vector<double> lon)
+{
+    int nrow = lat.size();
+    int ncol = jd.size();
+    std::vector<std::vector<double>> z(nrow, std::vector<double>(ncol, std::nan("")));
+    for (size_t i = 0; i < lat.size(); ++i) {
+        if (!std::isnan(lat[i])) {
+            z[i] = solzenvCpp(jd, lt, lat[i], lon[i]);
+        }
+    }
+    NumericMatrix zd = convertoRmatrix(z);
+    return(zd);
+}
+
 // ============================================================================================= #
 // ~~~~~~~~~~~~~~~~~~~~~~~~~ Functions used for delineating basins ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 // ============================================================================================= #
@@ -296,26 +601,6 @@ std::vector<double> rainadjustv(std::vector<double> rain, std::vector<double> rr
         for (size_t i = 0; i < rain.size(); ++i) rain[i] = rain[i] * mu;
     }
     return rain;
-}
-std::vector<std::vector<double>> convertoCppmatrix(NumericMatrix mat) {
-    std::vector<std::vector<double>> result(mat.nrow(), std::vector<double>(mat.ncol()));
-    for (int i = 0; i < mat.nrow(); ++i) {
-        for (int j = 0; j < mat.ncol(); ++j) {
-            result[i][j] = mat(i, j);
-        }
-    }
-    return result;
-}
-NumericMatrix convertoRmatrix(std::vector<std::vector<double>>& mat) {
-    int nrow = mat.size();
-    int ncol = mat[0].size(); // Assuming all inner vectors have the same size
-    NumericMatrix mat2(nrow, ncol);
-    for (int i = 0; i < nrow; ++i) {
-        for (int j = 0; j < ncol; ++j) {
-            mat2(i, j) = mat[i][j];
-        }
-    }
-    return mat2;
 }
 // [[Rcpp::export]]
 NumericMatrix rainadjustm(NumericMatrix rainm, std::vector<double> rrain, std::vector<double> rfrac, std::vector<double> rtot)

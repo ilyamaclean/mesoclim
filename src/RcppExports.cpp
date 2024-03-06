@@ -10,6 +10,78 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// hourtodayCpp
+NumericVector hourtodayCpp(NumericVector a, int dim1, int dim2, int dim3, std::string fun);
+RcppExport SEXP _mesoclim_hourtodayCpp(SEXP aSEXP, SEXP dim1SEXP, SEXP dim2SEXP, SEXP dim3SEXP, SEXP funSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type a(aSEXP);
+    Rcpp::traits::input_parameter< int >::type dim1(dim1SEXP);
+    Rcpp::traits::input_parameter< int >::type dim2(dim2SEXP);
+    Rcpp::traits::input_parameter< int >::type dim3(dim3SEXP);
+    Rcpp::traits::input_parameter< std::string >::type fun(funSEXP);
+    rcpp_result_gen = Rcpp::wrap(hourtodayCpp(a, dim1, dim2, dim3, fun));
+    return rcpp_result_gen;
+END_RCPP
+}
+// juldayvCpp
+IntegerVector juldayvCpp(IntegerVector year, IntegerVector month, IntegerVector day);
+RcppExport SEXP _mesoclim_juldayvCpp(SEXP yearSEXP, SEXP monthSEXP, SEXP daySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< IntegerVector >::type year(yearSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type month(monthSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type day(daySEXP);
+    rcpp_result_gen = Rcpp::wrap(juldayvCpp(year, month, day));
+    return rcpp_result_gen;
+END_RCPP
+}
+// clearskyradmCpp
+NumericMatrix clearskyradmCpp(std::vector<int> jd, std::vector<double> lt, std::vector<double> lat, std::vector<double> lon, bool hourly);
+RcppExport SEXP _mesoclim_clearskyradmCpp(SEXP jdSEXP, SEXP ltSEXP, SEXP latSEXP, SEXP lonSEXP, SEXP hourlySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::vector<int> >::type jd(jdSEXP);
+    Rcpp::traits::input_parameter< std::vector<double> >::type lt(ltSEXP);
+    Rcpp::traits::input_parameter< std::vector<double> >::type lat(latSEXP);
+    Rcpp::traits::input_parameter< std::vector<double> >::type lon(lonSEXP);
+    Rcpp::traits::input_parameter< bool >::type hourly(hourlySEXP);
+    rcpp_result_gen = Rcpp::wrap(clearskyradmCpp(jd, lt, lat, lon, hourly));
+    return rcpp_result_gen;
+END_RCPP
+}
+// difpropmCpp
+NumericMatrix difpropmCpp(NumericMatrix swrad, std::vector<int> jd, std::vector<double> lt, std::vector<double> lat, std::vector<double> lon);
+RcppExport SEXP _mesoclim_difpropmCpp(SEXP swradSEXP, SEXP jdSEXP, SEXP ltSEXP, SEXP latSEXP, SEXP lonSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type swrad(swradSEXP);
+    Rcpp::traits::input_parameter< std::vector<int> >::type jd(jdSEXP);
+    Rcpp::traits::input_parameter< std::vector<double> >::type lt(ltSEXP);
+    Rcpp::traits::input_parameter< std::vector<double> >::type lat(latSEXP);
+    Rcpp::traits::input_parameter< std::vector<double> >::type lon(lonSEXP);
+    rcpp_result_gen = Rcpp::wrap(difpropmCpp(swrad, jd, lt, lat, lon));
+    return rcpp_result_gen;
+END_RCPP
+}
+// solzenmCpp
+NumericMatrix solzenmCpp(std::vector<int> jd, std::vector<double> lt, std::vector<double> lat, std::vector<double> lon);
+RcppExport SEXP _mesoclim_solzenmCpp(SEXP jdSEXP, SEXP ltSEXP, SEXP latSEXP, SEXP lonSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::vector<int> >::type jd(jdSEXP);
+    Rcpp::traits::input_parameter< std::vector<double> >::type lt(ltSEXP);
+    Rcpp::traits::input_parameter< std::vector<double> >::type lat(latSEXP);
+    Rcpp::traits::input_parameter< std::vector<double> >::type lon(lonSEXP);
+    rcpp_result_gen = Rcpp::wrap(solzenmCpp(jd, lt, lat, lon));
+    return rcpp_result_gen;
+END_RCPP
+}
 // basinCpp
 IntegerMatrix basinCpp(NumericMatrix& dm2, IntegerMatrix& bsn, IntegerMatrix& dun);
 RcppExport SEXP _mesoclim_basinCpp(SEXP dm2SEXP, SEXP bsnSEXP, SEXP dunSEXP) {
@@ -86,6 +158,11 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_mesoclim_hourtodayCpp", (DL_FUNC) &_mesoclim_hourtodayCpp, 5},
+    {"_mesoclim_juldayvCpp", (DL_FUNC) &_mesoclim_juldayvCpp, 3},
+    {"_mesoclim_clearskyradmCpp", (DL_FUNC) &_mesoclim_clearskyradmCpp, 5},
+    {"_mesoclim_difpropmCpp", (DL_FUNC) &_mesoclim_difpropmCpp, 5},
+    {"_mesoclim_solzenmCpp", (DL_FUNC) &_mesoclim_solzenmCpp, 4},
     {"_mesoclim_basinCpp", (DL_FUNC) &_mesoclim_basinCpp, 3},
     {"_mesoclim_renumberbasin", (DL_FUNC) &_mesoclim_renumberbasin, 2},
     {"_mesoclim_invls_calc", (DL_FUNC) &_mesoclim_invls_calc, 11},

@@ -76,15 +76,9 @@
   lns
 }
 #' @import terra
-.latslonsfromr <- function(r,mask = FALSE) {
+.latslonsfromr <- function(r) {
   lats<-.latsfromr(r)
   lons<-.lonsfromr(r)
-  if (mask) {
-    lats<-.rast(lats,r)
-    lons<-.rast(lons,r)
-    lats<-.is(mask(lats,r))
-    lats<-.is(mask(lats,r))
-  }
   xy<-data.frame(x=as.vector(lons),y=as.vector(lats))
   xy <- sf::st_as_sf(xy, coords = c('x', 'y'), crs = crs(r))
   ll <- sf::st_transform(xy, 4326)
@@ -133,6 +127,24 @@
   sa<-(180*atan(sh/sqrt(1-sh^2)))/pi
   sa
 }
+.solazi <- function(localtime, lat, long, jd, merid = 0, dst = 0) {
+  st<-.soltime(localtime,long,jd,merid,dst)
+  tt<-0.261799*(st-12)
+  d<-(pi*23.5/180)*cos(2*pi*((jd-159.5)/365.25))
+  sh<-sin(d)*sin(lat*pi/180)+cos(d)*cos(lat*pi/180)*cos(tt)
+  hh<-0.5*pi-acos(sh)
+  sazi<-cos(d)*sin(tt)/cos(hh)
+  cazi<-(sin(lat*pi/180)*cos(d)*cos(tt)-cos(lat*pi/180)*sin(d))/
+    sqrt((cos(d)*sin(tt))^2+(sin(lat*pi/180)*cos(d)*cos(tt)-cos(lat*pi/180)*sin(d))^2)
+  sqt <- 1-sazi^2
+  sqt[sqt<0]<-0
+  solz<-180+(180*atan(sazi/sqrt(sqt)))/pi
+  solz[cazi<0 & sazi<0]<-180-solz[cazi<0 & sazi<0]
+  solz[cazi<0 & sazi>=0]<-540-solz[cazi<0 & sazi>=0]
+  solz
+}
+
+
 #' Simulate cloud or rain patchiness
 #' @import gstat, terra
 .simpatch<-function(varf,af,n=dim(varf)[3],varn="precip") {
@@ -142,14 +154,16 @@
     if (sdr> 1) sdr<-1
   }
   if (varn == "csfrac") {
-    af<-.is(af)
-    s0<-which(af==0)
-    s1<-which(af==1)
-    af<-suppressWarnings(log(af/(1-af)))
-    af[s0]<-min(af,na.rm=TRUE)
-    af[s1]<-max(af,na.rm=TRUE)
-    varf<-.rast(af,varf)
-    sdr<- -0.14934+0.1777*log(af) # likely needs changing
+    vf<-.is(varf)
+    s0<-which(vf==0)
+    s1<-which(vf==1)
+    vf<-suppressWarnings(log(vf/(1-vf)))
+    vf[is.infinite(vf)]<-NA
+    vf[s0]<-min(vf,na.rm=TRUE)
+    vf[s1]<-max(vf,na.rm=TRUE)
+    varf<-.rast(vf,varf)
+    sdr<- 0.012950+0.175718*log(af)
+    if (sdr> 1) sdr<-1
   }
   # Generate n simulations
   xy <- expand.grid(1:dim(varf)[2], 1:dim(varf)[1])
@@ -159,7 +173,12 @@
                       range=af/2,
                       nugget=0,
                       model='Sph'), nmax = 40)
-  yy1 <- predict(g1,newdata=xy,nsim=n,debug.level=0)
+  ni<-dim(varf)[3]
+  hps<-round(ni/(n-1),0)
+  if (n != ni) {
+    days<-ni/hps
+  } else days <- ni-1
+  yy1 <- predict(g1,newdata=xy,nsim=days+1,debug.level=0)
   anom<-.rast(yy1,varf[[1]])
   anom<-resample(aggregate(anom,2),anom)
   anom<-mask(anom,varf[[1]])
@@ -167,8 +186,6 @@
   # if n not equal to ni generate ni anomoly layers by averaging
   # allows for temporal autocorrelation in simulations
   if (n != ni) {
-    hps<-round(ni/(n-1),0)
-    days<-ni/hps
     ad<-.is(anom)
     wgts<-c(0:(hps-1))/hps
     am<-array(NA,dim=dim(varf))
@@ -181,7 +198,7 @@
     }
     anom<-.rast(am,anom[[1]])
   }
-  # adjust to ensure anomoly centred on zero and with correct sd
+  # adjust to ensure anomaly centered on zero and with correct sd
   me<-apply(.is(anom),3,mean,na.rm=T)
   sds<-apply(.is(anom),3,sd,na.rm=T)
   sda<-apply(.is(varf),3,sd,na.rm=T)
@@ -194,9 +211,53 @@
     varnf<-exp(varnf)-1
     varnf[varnf<0]<-0
   }
+  if (varn == "csfrac") {
+    varnf<-1/(1+exp(-varnf))
+  }
   return(varnf)
 }
-
+#' Appply elevation adjustment to cloud fractional cover
+#' @import terra
+.cfcelev<-function(csfc,dtmf,dtmc) {
+  if (crs(dtmc) != crs(dtmf)) dtmc<-project(dtmc,crs(dtmf))
+  if (crs(csfc) != crs(dtmf)) csfc<-project(csfc,crs(dtmf))
+  # Calculate mean
+  ca<-.is(csfc)
+  cmean<-apply(ca,c(1,2),mean,na.rm=TRUE)
+  # logit transform
+  s0<-which(cmean==0)
+  s1<-which(cmean==1)
+  lc<-log(cmean/(1-cmean))
+  lc[is.infinite(lc)]<-NA
+  lc[s0]<-min(lc,na.rm=TRUE)
+  lc[s1]<-max(lc,na.rm=TRUE)
+  # resample
+  lc<-resample(.rast(lc,dtmc),dtmf)
+  # Apply elevation adjustment to mean
+  dc<-.is(resample(dtmc,dtmf))
+  ddif<-.is(dtmf)-dc
+  ldif<- -9.938e-03-6.550e-04*ddif+4.966e-05*dc+1.358e-06*dc*ddif
+  lcn<-.rast(.is(lc)+ldif,dtmf)
+  lcn<-mask(lcn,dtmf)
+  # Calculate difference in total between elevation adjusted and resampled / resampled
+  mu<-.is(lcn-lc)
+  mu<-.rta(mu,dim(csfc)[3])
+  # Calculated individual logit transoformed radiation
+  cf<-resample(csfc,dtmf)
+  cf<-.is(cf)
+  s0<-which(cf==0)
+  s1<-which(cf==1)
+  cf<-log((cf)/(1-cf))
+  cf[is.infinite(cf)]<-NA
+  cf[s0]<-min(cf,na.rm=TRUE)
+  cf[s1]<-max(cf,na.rm=TRUE)
+  cf<-cf+mu
+  # Back transform
+  cf<-1/(1+exp(-cf))
+  cf<-.rast(cf,dtmf)
+  cf<-mask(cf,dtmf)
+  return(cf)
+}
 #' Calculates wind altitude coefficient in specified direction
 .windz<-function(dtm1,dtm2,dtmr,wdir) {
   reso1<-res(dtm1)[1]
@@ -256,6 +317,38 @@
   index<-1-atan(0.17*100*horizon)/1.65
   r<-.rast(index,dtm)
   return(r)
+}
+# Calculates horizon angle
+.horizon <- function(dtm, azimuth) {
+  reso<-res(dtm)[1]
+  dtm<-.is(dtm)
+  dtm[is.na(dtm)]<-0
+  dtm<-dtm/reso
+  azi<-azimuth*pi/180
+  horizon<-array(0,dim(dtm))
+  dtm3<-array(0,dim(dtm)+200)
+  x<-dim(dtm)[1]
+  y<-dim(dtm)[2]
+  dtm3[101:(x+100),101:(y+100)]<-dtm
+  for (step in 1:10) {
+    horizon[1:x,1:y]<-pmax(horizon[1:x,1:y],(dtm3[(101-cos(azi)*step^2):(x+100-cos(azi)*step^2),
+                                                  (101+sin(azi)*step^2):(y+100+sin(azi)*step^2)]-dtm3[101:(x+100),101:(y+100)])/(step^2),na.rm=T)
+  }
+  horizon
+}
+.skyview<-function(dtm,steps=36) {
+  r<-dtm
+  dtm[is.na(dtm)]<-0
+  ha <- array(0, dim(dtm)[1:2])
+  for (s in 1:steps) {
+    ha<-ha+atan(.horizon(dtm,s*360/steps))
+  }
+  ha<-ha/steps
+  ha<-tan(ha)
+  svf<-0.5*cos(2*ha)+0.5
+  svf<-.rast(svf,dtm)
+  svf<-mask(svf,r)
+  return(svf)
 }
 # ============================================================================ #
 # ~~~~~~~~~ Basin delineation worker functions here  ~~~~~~~~~~~~~~~~~~~~~~~~~ #

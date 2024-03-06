@@ -35,7 +35,7 @@
 #' plot(tmf[[5]]) # Coldest temperature
 tempdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, u2 = NA,
                         cad = TRUE, coastal = TRUE, refhgt = 2, uhgt = 2) {
-  if (class(dtmm) == "logical" & coastal) stop("dtmm needed for calaculating coastal effects")
+  if (class(dtmm) == "logical" & coastal) stop("dtmm needed for calculating coastal effects")
   # Calculate elevation effects
   dtmc<-rast(climdata$dtmc)
   tc<-climdata$climarray$temp
@@ -96,64 +96,154 @@ presdownscale<-function(pk, dtmf, dtmc, sealevel = TRUE) {
   pkf<-.rast(pkf*((293-0.0065*.rta(dtmf,n))/293)^5.26,dtmf)
   return(pkf)
 }
-# NB function below still needs to be modified to account for elevation effects
-# Worth playing around with thresholds to simulate patchiness a bit better
 #' @title Downscale shortwave radiation
 #' @description Downscales an array of shortwave radiation data with option to
-#' simulate cloud patchiness
+#' simulate cloud patchiness and calculate diffuse radiation
 #' @param swrad an array of shortwave radiation (W/m^2).
 #' @param tme POSIXlt object of times corresponding to radiation values in `swrad`.
 #' @param dtmf a fine-resolution SpatRast of elevations. Temperatures down-scaled
 #' to resolution of `dtmf`.
-#' @param dtmc SpatRast of elevations matching resolution of `swrad`. If
-#' not supplied, `swrad` must be a SpatRast and `dtmc` is derived by resampling `dtmf`
-#' to resolution of `swrad` and extents must match.
-#' @param patchiness one of 0 (not simulated), 1 (low patchiness), 2 (medium patchines)
-#' or (3) high patchiness
-#' @return a multi-layer SpatRast of shortwave radiation (W/m^2) matching the
-#' resolution of dtmf.
+#' @param dtmc SpatRast of elevations matching the resolution, extend and coordinate
+#' reference system of of `swrad`.
+#' @param patchsim optional logical indicating whether to simulate cloud cover
+#' patchiness during downscaling. More realistically captures variation, but slower.
+#' @param nsim optionally the number of independent cloud cover patchiness simulations to perform. Outputs
+#' are temporally interpolated (see details).
+#' @param terrainshade optional logical indicating whether to adjust incoming radiation
+#' for terrain shading. If TRUE, total downward shortwave radiation is partioned into its
+#' direct and diffuse components, the latter adjusted by sky view and the former set
+#' to zero if the sun is below the horizon, which is computed explicitly.
+#' @return if `terrainshade = FALSE` a multi-layer SpatRast of shortwave radiation
+#' (W/m^2) matching the resolution of dtmf. If if `terrainshade = TRUE` a list of wrapped multi-layer
+#' SpatRasts of (1) shortwave radiation (W/m^2) and (2) the diffuse fraction (range 0-1).
+#' @details radiation is downscaled by computing average fraction of clear-sky radiation
+#' and then adjusting this variable to account for elevation using an emprical
+#' adjustment calibrated against 0.05 degree data for the UK. If
+#' `patchsim` is set to TRUE cloud cover patchiness is simulated the gstats package.
+#' The parameter `nsim` determines the number of independent simulations and hence
+#' the time intervals at which these simulations are performed. Simulated anomalies
+#' due to local cloud patchiness are then interpolated temporally between these
+#' periods. This ensures that, over shorter increments of say and hour, the location
+#' clouds within each hour retain a degree of inter-dependence more realistically
+#' simulating the trajectory of cloud as they move across the landscape.
 #' @rdname swraddownscale
-#' @import terra, gstat
+#' @importFrom Rcpp sourceCpp
+#' @useDynLib mesoclim, .registration = TRUE
+#' @import terra, fields, gstat
 #' @export
 #'
-#' # add example
-swdownscale<-function(swrad, tme, dtmf, dtmc, patchiness = 0) {
-  if (class(dtmc)[1] == "logical")  dtmc<-resample(dtmf,pk)
+#' @examples
+#' # Extract model inputs form inbuilt datasets
+#' swrad <- mesoclim::era5data$climarray$swrad
+#' tme <- as.POSIXlt(era5data$tme, tz = "UTC")
+#' dtmc <- rast(mesoclim::era5data$dtmc)
+#' dtmf <- rast(mesoclim::dtmf)
+#' # Run with default options
+#' swradf<-swdownscale(swrad, tme, dtmf, dtmc)
+#' # plot output
+#' plot(swradf[[13]], main = as.character(tme)[13])
+swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)[3],
+                      difr = FALSE) {
+  # Work out whether daily or not
+  ti<-round(as.numeric(tme[2])-as.numeric(tme[1]))
   # Calculate clear sky fraction
-  dtmc<-project(dtmc,"+proj=longlat +datum=WGS84")
-  # Compute coarse res clear-sky fraction
-  lats <- .latsfromr(dtmc)
-  lons <- .lonsfromr(dtmc)
-  n<-length(tme)
-  jd<-.jday(tme)
+  jd<-juldayvCpp(tme$year+1900, tme$mon+1, tme$mday)
   lt<-tme$hour+tme$min/60+tme$sec/3600
-  csr<-clearskyrad(.vta(jd,dtmc),.vta(lt,dtmc),.rta(lats,n),.rta(lons,n))
-  csf<-.is(swrad)/csr
-  csf[is.na(csf)]<-0.5
-  csf[is.infinite(csf)]<-0.5
-  # Resample clear-sky fraction
-  csf<-.rast(csf,dtmc)
-  if (crs(dtmf) != crs(dtmc)) csf<-project(csf,crs(dtmf))
-  csf<-resample(csf,dtmf)
-  if (patchiness > 0) {
-    lcsf<-log(csf/(1-csf))
-    if (patchiness == 1) mu<-.simpatch(dtmf,n,mn=0.6,mx=1.666667)
-    if (patchiness == 2) mu<-.simpatch(dtmf,n,mn=0.4,mx=2.5)
-    if (patchiness == 3) mu<-.simpatch(dtmf,n,mn=0.2,mx=5)
-    lcsf<-lcsf*mu
-    csf<-1/(1+exp(-lcsf))
+  ll<-.latslonsfromr(dtmc)
+  if (ti < 86400)  {  # Hourly
+    lats<-.rast(ll$lats,dtmc)
+    lons<-.rast(ll$lons,dtmc)
+    lats<-.is(mask(lats,dtmc))
+    lons<-.is(mask(lons,dtmc))
+    csr<-array(clearskyradmCpp(jd,lt,as.vector(lats),as.vector(lons)),dim=dim(swrad))
+  }  else {  # daily
+    lats<-as.vector(ll$lats[,1])
+    csr<-clearskyradmCpp(jd,rep(12,length(jd)),lats,rep(0,length(lats)),hourly=FALSE)
+    csr<-array(rep(csr,each=dim(swrad)[2]),dim(swrad))
   }
-  # Calculate fine-res clear sky rad
-  xy <- data.frame(xyFromCell(dtmf, 1:ncell(dtmf)))
-  xy <- sf::st_as_sf(xy, coords = c("x", "y"), crs = sf::st_crs(dtmf)$wkt)
-  ll <- sf::st_transform(xy, 4326)
-  xy<-data.frame(x=sf::st_coordinates(ll)[,1],y=sf::st_coordinates(ll)[,2])
-  lats<-matrix(xy$y,ncol=dim(dtmf)[2],byrow=T)
-  lons<-matrix(xy$x,ncol=dim(dtmf)[2],byrow=T)
-  csr<-clearskyrad(.vta(jd,dtmf),.vta(lt,dtmf),.rta(lats,n),.rta(lons,n))
-  csr<-.rast(csr,dtmf)
-  rad<-csr*csf
-  return(rad)
+  # Calculate clear-sky fraction and elevation adjust it
+  csfc<-.is(swrad)/csr
+  csfc[is.na(csfc)]<-0.5
+  csfc[csfc>1]<-1
+  csfc[csfc<0]<-0
+  csfc<-.rast(csfc,dtmc)
+  csf<-.cfcelev(csfc,dtmf,dtmc)
+  if (patchsim) {
+    if (crs(dtmc) != crs(dtmf)) {
+      dtmp<-project(dtmc,crs(dtmf))
+    } else dtmp<-dtmc
+    af<-res(dtmp)[1]/res(dtmf)[1]
+    csf<-.simpatch(csf,af,n=nsim,varn="csfrac")
+  }
+  # Calculate fine-res csf
+  ll<-.latslonsfromr(dtmf)
+  if (ti < 86400)  {  # Hourly
+    lats<-.rast(ll$lats,dtmf)
+    lons<-.rast(ll$lons,dtmf)
+    lats<-.is(mask(lats,dtmf))
+    lons<-.is(mask(lons,dtmf))
+    csrf<-array(clearskyradmCpp(jd,lt,as.vector(lats),as.vector(lons)),dim=c(dim(dtmf)[1:2],dim(swrad)[3]))
+  }  else {  # daily
+    lats<-as.vector(ll$lats[,1])
+    csrf<-clearskyradmCpp(jd,rep(12,length(jd)),lats,rep(0,length(lats)),hourly=FALSE)
+    csrf<-array(rep(csrf,each=dim(swrad)[2]),dim=c(dim(dtmf)[1:2],dim(swrad)[3]))
+  }
+  swradf<-.rast(csrf,dtmf)*csf
+  if (terrainshade) {
+    if (ti < 86400)  {  # Hourly
+      swf<-matrix(.is(swradf),ncol=dim(swradf)[3])
+      dp<-difpropmCpp(swf,jd,lt,as.vector(lats),as.vector(lons))
+      dp<-array(dp,dim=dim(swradf))
+      ze<-array(solzenmCpp(jd,lt,as.vector(lats),as.vector(lons)),dim=c(dim(dtmf)[1:2],dim(swrad)[3]))
+      azi<-.solazi(lt, mean(lats,na.rm=TRUE),mean(lons,na.rm=TRUE),jd)
+    } else {  # daily (expand to hour)
+      # replicate clear sky fraction 24 times
+      csrfh<-.ehr(csrf)
+      # Calculate clear sky radiation hourly
+      lth<-rep(c(0:23),dim(csrf)[3])
+      jdh<-rep(jd,each=24)
+      ll<-.latslonsfromr(dtmf)
+      lats<-.rast(ll$lats,dtmf)
+      lons<-.rast(ll$lons,dtmf)
+      lats<-.is(mask(lats,dtmf))
+      lons<-.is(mask(lons,dtmf))
+      cs<-array(clearskyradmCpp(jdh,lth,as.vector(lats),as.vector(lons)),dim=c(dim(dtmf)[1:2],length(jdh)))
+      rad<-cs*csrfh
+      swf<-matrix(rad,ncol=length(jdh))
+      dp<-difpropmCpp(swf,jdh,lth,as.vector(lats),as.vector(lons))
+      dp<-array(dp,dim=dim(csrfh))
+      ze<-array(solzenmCpp(jdh,lth,as.vector(lats),as.vector(lons)),dim=c(dim(dtmf)[1:2],dim(csrfh)[3]))
+      azi<-.solazi(lth, mean(lats,na.rm=TRUE),mean(lons,na.rm=TRUE),jdh)
+    }
+    # Calculate hirozon angle in 24 directions
+    hor<-array(NA,dim=c(dim(dtmf)[1:2],24))
+    for (i in 1:24) hor[,,i]<-.horizon(dtmf,(i-1)*15)
+    i<-round(azi/15)+1; i[i==25]<-1
+    hora<-hor[,,i]
+    # Calculate terrain shading
+    shadowmask<-hora*0+1
+    alt<-(90-ze)*pi/180
+    shadowmask[hora>tan(alt)]<-0
+    shadowmask[(90-ze)<0]<-0
+    # Calculate sky view
+    svf<-.rta(.skyview(dtmf),dim(swradf)[3])
+    # Adjust radiation to account for sky view factor
+    drf<-.rast(dp*svf*.is(swradf),dtmf)
+    swf<-(1-dp)*shadowmask*.is(swradf)+dp*svf*.is(swradf)
+    swf<-.rast(swf,dtmf)
+    if (ti == 86400) {  # daily average across days
+      swf<-hourtodayCpp(.is(swf),dim(swf)[1],dim(swf)[2],dim(swf)[3],"mean")
+      drf<-hourtodayCpp(.is(drf),dim(drf)[1],dim(drf)[2],dim(drf)[3],"mean")
+      swf<-.rast(swf,dtmf)
+      drf<-.rast(swf,dtmf)
+    }
+    swf<-wrap(swf)
+    drf<-wrap(drf)
+    out<-list(swf=swf,drf=drf)
+  } else {
+    out<-swradf
+  }
+  return(out)
 }
 #' @title Downscale wind speed accounting for elevation and terrain sheltering effects
 #' @description The function `winddownscale` is used to spatially downscale windspeed,
@@ -247,18 +337,6 @@ relhumdownscale<-function(rh, tcc, tcf, dtmc, rhmin = 0) {
   rhf[rhf<rhmin]<-rhmin
   return(rhf)
 }
-
-# ============================================================================ #
-# ~~~~~~~~~~~~~~~~ Relative humidity ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-# ============================================================================ #
-# ~~ * Functions would: (1) Convert coarse-res relative humidity to vapour pressure
-# ~~   (temperature needed as input), bilinearly interpolate vapour pressure then
-# ~~   back convert to temperature
-
-
-
-
-
 #' @title Downscale precipitation accounting for elevation effects
 #' @description The function `precipdownscale` is used to spatially downscale precipitation,
 #' performing adjustments for elevation using one of two methods
@@ -308,8 +386,8 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
   if (method != "Tps" & method != "Elev") stop("method must be one of Tps or Elev")
   v<-as.vector(prec[[1]])
   v<-v[is.na(v) == FALSE]
-  if (method == "Tps" & length(v) < 100) {
-    warning("Not enough non NA cells for sensible thin-plate spline downscale. Changing method to Elev")
+  if (method == "Tps" & length(v) < 500) {
+    warning("Not enough non NA cells for sensible thin-plate spline downscale. Changed method to Elev")
     method <- "Elev"
   }
   # Fill gaps in prec
@@ -397,9 +475,161 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
   precf<-.rast(a2,dtmf)
   return(precf)
 }
-
-# ============================================================================ #
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Downscale all ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-# ============================================================================ #
-# ~~ * Worth writing a wrapper function to combine all of above into a single
-# ~~   function
+#' @title Spatially downscale all climate variables
+#' @description Spatially downscales coarse-resolution climate data
+#' @param climdata a `climdata` model object containing climate data of the same format as `era5climdata`
+#' @param SST a coarse resolution SpatRast of hourly sea-surface temperature data (deg C) with no NAs, as
+#' returned by [SSTinterpolate()]
+#' @param dtmf a high-resolution SpatRast of elevations
+#' @param dtmm a medium-resolution SpatRast of elevations covering a larger area
+#' than dtmf (only needed for coastal effects - see details under [tempdownscale()]).
+#' @param basins optionally, a fine-resolution SpatRast of basins as returned by [basindelin()]
+#' matching the coordinate reference system and extent of `dtmf`. Calculated if
+#' not supplied.
+#' @param cad optional logical indicating whether to calculate cold-air drainage effects
+#' @param coastal optional logical indicating whether to calculate coastal effects
+#' @param refhgt height above ground of temperature measurements in `climdata`.
+#' @param uhgt height above gorund of wind speed measurements in `climdata`
+#' to resolution of `dtmf`.
+#' @param rhmin minimum relative humidity (set to avoid relative humidity dropping too low
+#' during down-scaling). Default 20 (percent).
+#' @param pksealevel optional logical indicating whether input pressure data represent
+#' sea-level pressure (default TRUE).
+#' @param pathsim optional logical indicating whether to simulate cloud cover and
+#' rainfall patchiness see details under [swdownscale()] and [precipdownscale()].
+#' @param difr optional logical indicating whether to return diffuse radiation (
+#' default TRUE).
+#' @param terrainshade optional logical indicating whether to account for terrain shading
+#' during shortwave radiation downscale.
+#' @param precipmethod One of `Tps` or `Elev` indicating whether to account for
+#' elevation effects using a Thin-plate spline model or en emprical adjustment
+#' (see details under [precipdownscale()])
+#' @param fast optional logical indicating whether to use fast Thin-plate spline
+#' down-scaling (see details under [precipdownscale()]).
+#' @param noraincut numeric value below which low precipitation amounts are set to
+#' zero (see details under [precipdownscale()]).
+#' @return a list of multi-layer SpatRast of downscaled climate variables as follows:
+#' \describe{
+#'    \item{temp}{Temperature (deg C)}
+#'    \item{relhum}{Relative humidity (Percentage)}
+#'    \item{pres}{Sea-level atmospheric pressure (kPa)}
+#'    \item{swrad}{Total downward shortwave radiation (W/m^2)}
+#'    \item{difrad}{Downward diffuse radiation (W / m^2)}
+#'    \item{lwrad}{Total downward longwave radiation (W/m^2)}
+#'    \item{windspeed at 2m (m/s)}
+#'    \item{winddir}{Wind direction (decimal degrees)}
+#'    \item{prec}{Precipitation (mm)}
+#'  }
+#'  If input data are hourly `temp` is replaced with `tmax` and `tmin` representing
+#'  daily maximum and minimum values. The variable `difrad` is not returned unless
+#'  `terrainshade = TRUE`.
+spatialdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, cad = TRUE,
+                           coastal = TRUE, refhgt = 2, uhgt = 2, rhmin = 20,
+                           pksealevel = TRUE, patchsim = TRUE, terrainshade = TRUE, precipmethod = "Elev",
+                           fast = TRUE, noraincut = 0) {
+  # Sort out SST
+  tme<-as.POSIXlt(climdata$tme,tz="UTC")
+  # Find out whether daily or hourly
+  tint<-as.numeric(tme[2])-as.numeric(tme[1])
+  hourly<-TRUE
+  if (abs(tint-86400) < 5) hourly=FALSE
+  SST<-SSTinterpolate(SST,tme,tme)
+  # Extract variables
+  dtmc<-rast(climdata$dtmc)
+  climarray<-climdata$climarray
+  if (hourly) {
+    tc<-climarray$temp
+  } else {
+    tmin<-climarray$tmin
+    tmax<-climarray$tmax
+  }
+  rh<-climarray$relhum
+  pk<-climarray$pres
+  wspeed<-climarray$windspeed
+  wdir<-climarray$winddir
+  swrad<-climarray$swrad
+  lwrad<-climarray$lwrad
+  prec<-climarray$prec
+  # ================== Downscale variables ===============================  #
+  # windspeed"
+  uzf<-winddownscale(wspeed,wdir,dtmf,dtmm,dtmc,uhgt)
+  if (uhgt!=2) {
+    u2<-.is(uzf)*4.8699/log(67.8*uhgt-5.42)
+    u2<-.rast(u2,dtmf)
+  } else u2<-uzf
+  # winddir"
+  uu<-.rast(wspeed*cos(wdir*pi/180),dtmc)
+  vv<-.rast(wspeed*sin(wdir*pi/180),dtmc)
+  if (crs(uu) != crs(dtmf)) uu<-project(uu,crs(dtmf))
+  if (crs(vv) != crs(dtmf)) vv<-project(vv,crs(dtmf))
+  uu<-resample(uu,dtmf)
+  vv<-resample(vv,dtmf)
+  wdf<-atan2(vv,uu)*180/pi
+  wdf<-.rast(.is(wdf)%%360,dtmf)
+  wdf<-mask(wdf,dtmf)
+  if (hourly) {
+    tcf<-tempdownscale(climdata,SST,dtmf,dtmm,basins,u2,cad,coastal,refhgt,uhgt)
+  } else {
+    climdata$climarray$temp<-tmin
+    tminf<-tempdownscale(climdata,SST,dtmf,dtmm,basins,u2,cad,coastal,refhgt,uhgt)
+    climdata$climarray$temp<-tmax
+    tmaxf<-tempdownscale(climdata,SST,dtmf,dtmm,basins,u2,cad,coastal,refhgt,uhgt)
+  }
+  # Relative humidity
+  if (hourly) {
+    rhf<-relhumdownscale(rh,tc,tcf,dtmc,rhmin)
+  } else {
+    rhf<-relhumdownscale(rh,(tmin+tmax)/2,(tminf+tmaxf)/2,dtmc,rhmin)
+  }
+  # Pressure
+  pkf<-presdownscale(pk,dtmf,dtmc,pksealevel)
+  # swrad
+  if (patchsim) {
+    # Calculate mean wind speed
+    mws<-mean(as.vector(uzf),na.rm=TRUE)
+    # Calculate distance traversed in one timestep
+    tstep<-as.numeric(tme[2])-as.numeric(tme[1])
+    dtr<-tstep*mws
+    # Calculate fraction of study area traversed in one time step
+    sze<-max(dim(dtmf)[1]*res(dtmf)[1],dim(dtmf)[2]*res(dtmf)[2])
+    nsim<-round((dtr/sze)*dim(swrad)[3])+1
+    if (nsim > dim(swrad)[3]) nsim<-dim(swrad)[3]
+  } else nsim<-dim(swrad)[3]
+  # Sw radiation
+  swf<-swdownscale(swrad,tme,dtmf,dtmc,patchsim,nsim,difr)
+  if (terrainshade) {
+    difrad<-rast(swf$dp)
+    swf<-rast(swf$swradf)
+    difrad<-difrad*swf
+  }  else difr = NA
+  # lwrad
+  lwf<-.rast(lwrad,dtmc)
+  if (crs(lwf) != crs(dtmf)) lwf<-project(lwf,crs(dtmf))
+  lwf<-resample(lwf,dtmf)
+  if (terrainshade) {
+    svf<-.rta(.skyview(dtmf),dim(lwf)[3])
+    lwf<-.rast(.is(lwf)*svf,dtmf)
+  }
+  # prech
+  precf<-precipdownscale(prec,dtmf,dtmc,precipmethod,fast,noraincut,patchsim,nsim)
+  # return values
+  if (hourly) {
+    tcf<-wrap(tcf)
+  } else {
+    tminf<-wrap(tminf)
+    tmaxf<-wrap(tmaxf)
+  }
+  rhf<-wrap(rhf)
+  pkf<-wrap(pkf)
+  swf<-wrap(swf)
+  if (difr) difrad<-wrap(difrad)
+  lwf<-wrap(lwf)
+  uzf<-wrap(uzf)
+  wdf<-wrap(wdf)
+  if (hourly) {
+    out<-return(list(temp=tcf,relhum=rhf,pres=pkf,swrad=swf,difrad=difrad,lwrad=lwf,windspeed=uzf,winddir=wdf,prec=precf))
+  } else {
+    out<-return(list(tmin=tminf,tmax=tmaxf,relhum=rhf,pres=pkf,swrad=swf,difrad=difrad,lwrad=lwf,windspeed=uzf,winddir=wdf,prec=precf))
+  }
+  return(out)
+}
