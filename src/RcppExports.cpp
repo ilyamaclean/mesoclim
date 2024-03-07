@@ -11,17 +11,14 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // hourtodayCpp
-NumericVector hourtodayCpp(NumericVector a, int dim1, int dim2, int dim3, std::string fun);
-RcppExport SEXP _mesoclim_hourtodayCpp(SEXP aSEXP, SEXP dim1SEXP, SEXP dim2SEXP, SEXP dim3SEXP, SEXP funSEXP) {
+NumericVector hourtodayCpp(NumericVector a, std::string fun);
+RcppExport SEXP _mesoclim_hourtodayCpp(SEXP aSEXP, SEXP funSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< NumericVector >::type a(aSEXP);
-    Rcpp::traits::input_parameter< int >::type dim1(dim1SEXP);
-    Rcpp::traits::input_parameter< int >::type dim2(dim2SEXP);
-    Rcpp::traits::input_parameter< int >::type dim3(dim3SEXP);
     Rcpp::traits::input_parameter< std::string >::type fun(funSEXP);
-    rcpp_result_gen = Rcpp::wrap(hourtodayCpp(a, dim1, dim2, dim3, fun));
+    rcpp_result_gen = Rcpp::wrap(hourtodayCpp(a, fun));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -79,6 +76,42 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< std::vector<double> >::type lat(latSEXP);
     Rcpp::traits::input_parameter< std::vector<double> >::type lon(lonSEXP);
     rcpp_result_gen = Rcpp::wrap(solzenmCpp(jd, lt, lat, lon));
+    return rcpp_result_gen;
+END_RCPP
+}
+// hourlytempv
+std::vector<double> hourlytempv(std::vector<double> tmn, std::vector<double> tmx, std::vector<int> year, std::vector<int> month, std::vector<int> day, double lat, double lon, double srte);
+RcppExport SEXP _mesoclim_hourlytempv(SEXP tmnSEXP, SEXP tmxSEXP, SEXP yearSEXP, SEXP monthSEXP, SEXP daySEXP, SEXP latSEXP, SEXP lonSEXP, SEXP srteSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::vector<double> >::type tmn(tmnSEXP);
+    Rcpp::traits::input_parameter< std::vector<double> >::type tmx(tmxSEXP);
+    Rcpp::traits::input_parameter< std::vector<int> >::type year(yearSEXP);
+    Rcpp::traits::input_parameter< std::vector<int> >::type month(monthSEXP);
+    Rcpp::traits::input_parameter< std::vector<int> >::type day(daySEXP);
+    Rcpp::traits::input_parameter< double >::type lat(latSEXP);
+    Rcpp::traits::input_parameter< double >::type lon(lonSEXP);
+    Rcpp::traits::input_parameter< double >::type srte(srteSEXP);
+    rcpp_result_gen = Rcpp::wrap(hourlytempv(tmn, tmx, year, month, day, lat, lon, srte));
+    return rcpp_result_gen;
+END_RCPP
+}
+// hourlytempm
+NumericMatrix hourlytempm(NumericMatrix tmn, NumericMatrix tmx, std::vector<int> year, std::vector<int> month, std::vector<int> day, std::vector<int> lat, std::vector<int> lon, double srte);
+RcppExport SEXP _mesoclim_hourlytempm(SEXP tmnSEXP, SEXP tmxSEXP, SEXP yearSEXP, SEXP monthSEXP, SEXP daySEXP, SEXP latSEXP, SEXP lonSEXP, SEXP srteSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type tmn(tmnSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type tmx(tmxSEXP);
+    Rcpp::traits::input_parameter< std::vector<int> >::type year(yearSEXP);
+    Rcpp::traits::input_parameter< std::vector<int> >::type month(monthSEXP);
+    Rcpp::traits::input_parameter< std::vector<int> >::type day(daySEXP);
+    Rcpp::traits::input_parameter< std::vector<int> >::type lat(latSEXP);
+    Rcpp::traits::input_parameter< std::vector<int> >::type lon(lonSEXP);
+    Rcpp::traits::input_parameter< double >::type srte(srteSEXP);
+    rcpp_result_gen = Rcpp::wrap(hourlytempm(tmn, tmx, year, month, day, lat, lon, srte));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -158,11 +191,13 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_mesoclim_hourtodayCpp", (DL_FUNC) &_mesoclim_hourtodayCpp, 5},
+    {"_mesoclim_hourtodayCpp", (DL_FUNC) &_mesoclim_hourtodayCpp, 2},
     {"_mesoclim_juldayvCpp", (DL_FUNC) &_mesoclim_juldayvCpp, 3},
     {"_mesoclim_clearskyradmCpp", (DL_FUNC) &_mesoclim_clearskyradmCpp, 5},
     {"_mesoclim_difpropmCpp", (DL_FUNC) &_mesoclim_difpropmCpp, 5},
     {"_mesoclim_solzenmCpp", (DL_FUNC) &_mesoclim_solzenmCpp, 4},
+    {"_mesoclim_hourlytempv", (DL_FUNC) &_mesoclim_hourlytempv, 8},
+    {"_mesoclim_hourlytempm", (DL_FUNC) &_mesoclim_hourlytempm, 8},
     {"_mesoclim_basinCpp", (DL_FUNC) &_mesoclim_basinCpp, 3},
     {"_mesoclim_renumberbasin", (DL_FUNC) &_mesoclim_renumberbasin, 2},
     {"_mesoclim_invls_calc", (DL_FUNC) &_mesoclim_invls_calc, 11},

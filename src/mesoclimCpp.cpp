@@ -32,7 +32,11 @@ NumericMatrix convertoRmatrix(std::vector<std::vector<double>>& mat) {
 // 'hourtodayCpp
 // @export
 // [[Rcpp::export]]
-NumericVector hourtodayCpp(NumericVector a, int dim1, int dim2, int dim3, std::string fun) {
+NumericVector hourtodayCpp(NumericVector a, std::string fun) {
+    IntegerVector dims = a.attr("dim");
+    int dim1 = dims[0];
+    int dim2 = dims[1];
+    int dim3 = dims[2];
     int ndays = dim3 / 24; // Number of days
     NumericVector daily(dim1 * dim2 * ndays, NA_REAL);
     // Calculate daily mean, max, or min
@@ -103,6 +107,26 @@ double soltimeCpp(int jd, double lt, double lon)
     double eot = -7.659 * sin(m) + 9.863 * sin(2 * m + 3.5932);
     double st = lt + (4 * lon + eot) / 60;
     return st;
+}
+// ** Calculates day length ** //
+double daylengthCpp(int jd, double lat) 
+{
+    double declin = (M_PI * 23.5 / 180) * cos(2 * M_PI * ((jd - 159.5) / 365.25));
+    double latr = lat * M_PI / 180;
+    double hc = -0.01453808 / (cos(latr) * cos(declin)) - tan(latr) * tan(declin);
+    double dl = 0;
+    if (hc < -1) {
+        dl = 24;
+    }
+    else if (hc < 1) {
+        double ha = (acos(hc)) * 180 / M_PI;
+        double m = 6.24004077 + 0.01720197 * (jd - 2451545);
+        double eot = -7.659 * sin(m) + 9.863 * sin(2 * m + 3.5932);
+        double sr = (720 - 4 * ha - eot) / 60;
+        double ss = (720 + 4 * ha - eot) / 60;
+        dl = ss - sr;
+    }
+    return(dl);
 }
 // ** Calculates solar zenith in radians ** //
 double solzenCpp(double jd, double st, double lat, double lon)
@@ -305,7 +329,123 @@ NumericMatrix solzenmCpp(std::vector<int> jd, std::vector<double> lt, std::vecto
     NumericMatrix zd = convertoRmatrix(z);
     return(zd);
 }
+// ** Calculates 24 hourly temperatures for daily data
+std::vector<double> tempintdayCpp(double tmn, double tmnn, double tmx, double dl, double stt, double lat, double lon, double srte = 0.09)
+{
+    // Calculate predicted night fraction
+    double ngtp = 0.04187957 * ((tmx - tmn) * (1 - dl / 24)) + 0.4372056;
+    if (ngtp < 0.01) ngtp = 0.01;
+    if (ngtp > 0.99) ngtp = 0.99;
+    // Calculate sunrise time
+    double sr = 12 - 0.5 * dl;
+    // Calculate solar time after sunrise
+    std::vector<double> thour(24);
+    for (int lt = 0; lt < 24; lt++) {
+        double st = lt + stt - sr; // solar time after sunrise
+        if (st < 0) st = st + 24;
+        if (st > 24) st = st - 24;
+        if (dl == 24) {
+            thour[lt] = (tmx - tmn) * sin((M_PI * st) / 28) + tmn;
+            double gr = (tmnn - tmn) * (st / 24);
+            thour[lt] = thour[lt] + gr;
+        }
+        else if (dl == 0) {
+            st = lt + stt; // solar time after sunrise
+            if (st < 0) st = st + 24;
+            if (st > 24) st = st - 24;
+            thour[lt] = (tmx - tmn) * sin((M_PI * st) / 24) + tmn;
+            double gr = (tmnn - tmn) * (st / 24);
+            thour[lt] = thour[lt] + gr;
+        }
+        else {
+            double k = -(24 - dl) / log(srte / ngtp);
+            double ph = -0.5 * dl * ((M_PI / (asin(ngtp) - M_PI)) + 1);
+            double rho = dl + 2 * ph;
+            if (st > dl) {
+                thour[lt] = ngtp * exp(-(st - dl) / k);
+            }
+            else {
+                thour[lt] = sin((M_PI * st) / rho);
+            }
+            // Adjust by tmax and tmin
+            thour[lt] = (tmx - tmn) * thour[lt] + tmn;
+            // Apply gradient to times after sunset as tmn is next day
+            if (lt + stt > dl) {
+                double gr = (tmnn - tmn) * (st - dl) / (24 - dl);
+                thour[lt] = thour[lt] + gr;    
+            }
+        }
+    }
+    // Adjust to ensure tmax and tmin match
+    double ptmx = thour[0];
+    double ptmn = thour[0];
+    for (int lt = 1; lt < 24; lt++) {
+        if (thour[lt] > ptmx) ptmx = thour[lt];
+        if (thour[lt] < ptmn) ptmn = thour[lt];
+    }
+    double b = (ptmx - ptmn) / (tmx - tmn);
+    double a = b * tmn - ptmn;
+    for (int lt = 0; lt < 24; lt++) thour[lt] = (thour[lt] + a) / b;
+    return(thour);
+}
+// ** Interpolates hourly temperature (vector) ** //
+// 'hourlytemp
+// @export
+// [[Rcpp::export]]
+std::vector<double> hourlytempv(std::vector<double> tmn, std::vector<double> tmx,
+    std::vector<int> year, std::vector<int> month, std::vector<int> day,
+    double lat, double lon, double srte = 0.09)
+{
+    int nrow = tmn.size();
+    std::vector<std::vector<double>> thour(nrow, std::vector<double>(24, 0.0));
+    for (int i = 0; i < nrow; ++i) {
+        // Calculate jd
+        int jd = juldayCpp(year[i], month[i], day[i]);
+        // Calculate sunrise time
+        double dl = daylengthCpp(jd, lat);
+        double stt = soltimeCpp(jd, 0, lon);
+        double sr = stt + 12 - 0.5 * dl;
+        if (sr > 0) { // Sunrise in current day
+            double tmnn = tmn[i+1];
+            if (i == (nrow - 1)) tmnn = tmn[nrow - 1];
+            thour[i] = tempintdayCpp(tmn[i], tmnn, tmx[i], dl, stt, lat, lon, srte);
+        }
+        else { // sunrise in previous day
+            double tmnp = tmn[0];
+            if (i > 0) tmnp = tmn[i - 1];
+            thour[i] = tempintdayCpp(tmnp, tmn[i], tmx[i], dl, stt, lat, lon, srte);
+        }
 
+    }
+    std::vector<double> thourv;
+    thourv.reserve(nrow * 24);
+    for (const auto& row : thour) {
+        thourv.insert(thourv.end(), row.begin(), row.end());
+    }
+    return thourv;
+}
+// ** Interpolates hourly temperature (matrix) ** //
+// 'hourlytemp
+// @export
+// [[Rcpp::export]]
+NumericMatrix hourlytempm(NumericMatrix tmn, NumericMatrix tmx, std::vector<int> year, std::vector<int> month, std::vector<int> day,
+    std::vector<int> lat, std::vector<int> lon, double srte = 0.09)
+{
+    int nrow = lat.size();
+    int ncol = year.size() * 24;
+    // Convert tmn and tmx to c++ type matrices
+    std::vector<std::vector<double>> tmnc = convertoCppmatrix(tmn);
+    std::vector<std::vector<double>> tmxc = convertoCppmatrix(tmx);
+    // Initalise output
+    std::vector<std::vector<double>> thour(nrow, std::vector<double>(ncol, std::nan("")));
+    for (int i = 0; i < nrow; ++i) {
+        if (!std::isnan(lat[i])) {
+            thour[i] = hourlytempv(tmnc[i], tmxc[i], year, month, day, lat[i], lon[i], srte);
+        }
+    }
+    NumericMatrix thourm = convertoRmatrix(thour);
+    return(thourm);
+}
 // ============================================================================================= #
 // ~~~~~~~~~~~~~~~~~~~~~~~~~ Functions used for delineating basins ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 // ============================================================================================= #

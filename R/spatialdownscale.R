@@ -232,8 +232,8 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)
     swf<-(1-dp)*shadowmask*.is(swradf)+dp*svf*.is(swradf)
     swf<-.rast(swf,dtmf)
     if (ti == 86400) {  # daily average across days
-      swf<-hourtodayCpp(.is(swf),dim(swf)[1],dim(swf)[2],dim(swf)[3],"mean")
-      drf<-hourtodayCpp(.is(drf),dim(drf)[1],dim(drf)[2],dim(drf)[3],"mean")
+      swf<-hourtodayCpp(.is(swf),"mean")
+      drf<-hourtodayCpp(.is(drf),"mean")
       swf<-.rast(swf,dtmf)
       drf<-.rast(swf,dtmf)
     }

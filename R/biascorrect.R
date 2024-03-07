@@ -157,8 +157,8 @@ correct_era5temps<-function(era5hourly,era5correctmodels) {
   me<-mean(.is(era5hourly[[1]]),na.rm=TRUE)
   if (me > 150) era5hourly<-era5hourly-273.15
   # Calculate tmx, tmn and dtr
-  tmx_era5<-hourtodayCpp(.is(era5hourly), dim(era5hourly)[1], dim(era5hourly)[2], dim(era5hourly)[3], "max")
-  tmn_era5<-hourtodayCpp(.is(era5hourly), dim(era5hourly)[1], dim(era5hourly)[2], dim(era5hourly)[3], "min")
+  tmx_era5<-hourtodayCpp(.is(era5hourly), "max")
+  tmn_era5<-hourtodayCpp(.is(era5hourly), "min")
   dtr_era5<-tmx_era5-tmn_era5
   # Match cells in era5hourly to model list index
   # get x & ys of model list index

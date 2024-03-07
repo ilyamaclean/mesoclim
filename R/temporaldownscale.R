@@ -1,127 +1,91 @@
-# ******** NB - I think we are mostly talking about daily to hourly here ***** #
-# ============================================================================ #
-# ~~~~~~~~~~~~ Temperature downscale ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-# ============================================================================ #
-# Generates a plausable vector of hourly temperatures from daily data
-# Inputs:
-# tmn - a vector of daily maximum temperatures (deg C)
-# tmx - a vector of daily minimum temperatures (deg C)
-# julian - astronomical julian day - as returned by julday()
-# lat - latitude of location (decimal degrees)
-# long - longitude of location (decimal degrees)
-# dl - otionally day length (decimal hours), calculated if not supplied
-# adjust - optional logical (see details)
-# strte - parameter controlling speed of decay of night time tmeperatures (see details)
-# Details:
-# Daytime temperatures are assumed to follow a sine curve with a peak s short while
-# after solar noon. After dusk, the temperatures are assumed to decay exponentially reaching
-# a minimum at dawn. The day in which tmx and tmn fall is assumed to match UTC days.
-# If adjust is TRUE, the generated hourly values are adjusted to ensure max and min temperatures
-# match tmx and tmn (slower, but sensible). The parameter stre controls the speed of decay of
-# night time temperatures with time. A value of zero ensures values drop to dawn temperature at
-# dawn the following day, but trial and error indicates in most circumstances temperatures decay
-# faster than this. The current value of 0.09 is optimised using ERA5 data for western Europe, but
-# should perform well globally
-hourlytemp <- function(tmn, tmx, julian, lat, long, dl = NA, adjust = TRUE, srte = 0.09) {
-  .sincf <- function(tmn, tmx, tmnn, dl, stt, ngtp, srte = 0.01)  {
-    lt <- c(0:23)
-    # Sunset and sunrise
-    sr <- 12 - 0.5 * dl
-    st <- lt + stt - sr # solar time after sunrise
-    st <- st%%24
-    if (dl == 24) {
-      rho <- 28
-      TD <- (tmx - tmn) * sin((pi * st) / rho) + tmn
-      gr <- (tmnn - tmn) * (st / 24)
-      TD <- TD + gr
-    } else if (dl == 0) {
-      sr <- 0
-      st <- lt + stt - sr # solar time after sunrise
-      st <- st%%24
-      TD <- (tmx - tmn) * sin((pi * st) / 24) + tmn
-      gr <- (tmnn - tmn) * (st / 24)
-      TD <- TD + gr
-    } else {
-      k <- -(24 - dl) / log(srte / ngtp)
-      ph <- -0.5 * dl * ((pi / (asin(ngtp) - pi)) + 1)
-      rho <- dl + 2 * ph
-      TD <- sin((pi * st) / rho)
-      TN <- ngtp * exp(-(st - dl) / k)
-      TD[st > dl] <- TN[st > dl]
-      # Adjust by tmax and tmin
-      TD <- (tmx - tmn) * TD + tmn
-      # Apply gradient to times after sunset as tmn is next day
-      gr <- (tmnn - tmn) * (st - dl) / (24 - dl)
-      sel <- which ((lt + stt) > dl)
-      TD[sel] <- TD[sel] + gr[sel]
+#' @title Derives hourly temperature from daily data
+#' @description Generates a plausible vector or SpatRaster of hourly temperatures
+#' from daily data.
+#' @param tmn a vector or SpatRaster of daily minimum temperatures (deg C)
+#' @param tmx a vector or SpatRaster of daily maximum temperatures (deg C)
+#' @param tme POSIXlt object of dates
+#' @param lat latitude of location (decimal degrees). Only required if `tmn` and
+#' `tmx` are vectors
+#' @param lon longitude of location (decimal degrees). Only required if `tmn` and
+#' `tmx` are vectors
+#' @param srte a parameter controlling speed of decay of night time temperatures (see details)
+#' @details Daytime temperatures are assumed to follow a sine curve with a peak a
+#' short while after solar noon. After dusk, the temperatures are assumed to decay
+#' exponentially reaching a minimum at dawn. The day in which tmx and tmn fall is
+#' assumed to match UTC days. The parameter `stre` controls the speed of decay of
+#' night time temperatures with time. A value of zero ensures values drop to minimum
+#' at dawn the following day, but trial and error indicates in most circumstances
+#' temperatures decay faster than this. The default value of 0.09 is an optimal
+#' value derived using ERA5 data for western Europe, but performs reasonably well
+#' globally
+#' @examples
+#' tc<-mesoclim::era5data$climarray$temp
+#' tme <- as.POSIXlt(c(0:30) * 3600 * 24, origin = "2018-05-01", tz = "UTC")
+#' # ========================================================================= #
+#' # ~~~~~~~~~~~~~~~~~~~~ input provided as vector =========================== #
+#' # ========================================================================= #
+#' # Derive tmx and tmn from hourly
+#' tch <- apply(tc, 3, mean, na.rm = TRUE)
+#' tcm <- matrix(tch, ncol = 24, byrow = TRUE)
+#' tmn <- apply(tcm, 1, min)
+#' tmx <- apply(tcm, 1, max)
+#' # Use interpolation function
+#' tcp <- hourlytemp(tmn, tmx, tme, 50, -5)
+#' tmeh <- as.POSIXct(mesoclim::era5data$tme)
+#' # Plot results to compare
+#' plot(tch ~ tmeh, type="l", ylim = c(8, 18), xlab = "Date", ylab = "Temperature")
+#' par(new = TRUE)
+#' plot(tcp ~ tmeh, type="l", ylim = c(8, 18), col = "red", xlab = "", ylab = "")
+# as SpatRast input
+#' # ========================================================================= #
+#' # ~~~~~~~~~~~~~~~~~~~~ input provided as SpatRaster ======================= #
+#' # ========================================================================= #
+#' dtmc <- rast(mesoclim::era5data$dtmc)
+#' # Derive tmx and tmn from hourly
+#' tmn <- rast(hourtodayCpp(tc, "min"))
+#' tmx <- rast(hourtodayCpp(tc, "max"))
+#' Convert to SpatRaster
+#' ext(tmn) <- ext(dtmc)
+#' ext(tmx) <- ext(dtmc)
+#' crs(tmn) <- crs(dtmc)
+#' crs(tmx) <- crs(dtmc)
+#' # Use interpolation function
+#' tp <- hourlytemp(tmn, tmx, tme)
+#' # Plot results to compare
+#' tc <- rast(tc)
+#' ext(tc) <- ext(tp)
+#' crs(tc) <- crs(tc)
+#' par(mfrow=c(2,1))
+#' plot(tc[[i]])
+#' plot(tp[[i]])
+hourlytemp <- function(tmn, tmx, tme, lat = NA, long = NA, srte = 0.09) {
+  if (inherits(tme, "POSIXlt")) {
+    year<-tme$year+1900
+    mon<-tme$mon+1
+    day<-tme$mday
+  } else stop("tme must be of class POSIXlt")
+  if (inherits(tmn, "numeric") || inherits(tmn, "integer")) {
+    if (inherits(lat, "logical")) stop("lat must be provided unless tmn and tmx are SpatRasts")
+    if (inherits(long, "logical")) stop("long must be provided unless tmn and tmx are SpatRasts")
+    if (length(tme) != length(tmn)) stop("length of tme must be the same as length of tmn")
+    th<-hourlytempv(tmn,tmx,year,mon,day,lat,long,srte)
+  } else if (inherits(tmn, "SpatRaster")) {
+    if (!inherits(lat, "logical")) {
+      warnings("lat and long computed from tmn and tmx SpatRast")
+      ll<-.latslonsfromr(tmn)
+      lats<-as.vector(t(ll$lats))
+      lons<-as.vector(t(ll$lons))
     }
-    return(TD)
-  }
-  # Calculate day length
-  if (is.na(dl[1])) dl <- daylength(julian, lat)
-  stt <- solartime(0, long, julian)
-  # Calculate predicted night fraction
-  ngtp <- 0.04187957*((tmx-tmn)*(1-dl/24))+0.4372056
-  ngtp[ngtp<0.01]<-0.01
-  ngtp[ngtp>0.99]<-0.99
-  # Calculate mean sunrise time in time zone of tme
-  msrtime <- mean(stt) + 12 - 0.5 * mean(dl)
-  if (msrtime > 0) { # if sunrise in current day
-    tmnn <-c(tmn, tmn[length(tmn)])
-    tmnn <- tmnn[2:length(tmnn)]
-  } else { # if sunrise in previous day
-    tmnn <- tmn
-    tmn <- c(tmn[1], tmn)
-    tmn <- tmn[1:(length(tmn) - 1)]
-  }
-  # interpolate temprature
-  thour <-mapply(.sincf, tmn, tmx, tmnn, dl, stt, ngtp, srte)
-  thour <- as.vector(thour)
-  # correct to ensure tmx and tmn are the same as in daily
-  if (adjust) {
-    td<-matrix(thour,ncol=24,byrow=T)
-    ptmx<-apply(td,1,max)
-    ptmn<-apply(td,1,min)
-    b<-(ptmx-ptmn)/(tmx-tmn)
-    a<-b*tmn-ptmn
-    thour<-(thour+rep(a,each=24))/rep(b,each=24)
-  }
-  return(thour)
+    r<-tmn[[1]]
+    d<-dim(tmn)
+    tmn<-matrix(.is(tmn),ncol=d[3])
+    tmx<-matrix(.is(tmx),ncol=d[3])
+    th<-array(hourlytempm(tmn,tmx,year,mon,day,lats,lons,srte),dim=c(d[1:2],d[3]*24))
+    th<-.rast(th,r)
+  } else stop("tmn and tmx must be vectors or SpatRasts")
+  return(th)
 }
-# Derives an array of hourly temperature values from daily maxima and minima. The
-# function applies function hourlytemp() over all rid cells of an array of data
-# Inputs:
-# tasmin - an array of daily minimum temperature values (deg C)
-# tasmax - an array of daily maximum temperature values (deg C)
-# tme - POSIXlt object of dates corresponding to radsw
-# r - a terra::SpatRaster object giving the extent of radsw -
-#     used for deriving the lat and long of grid cells
-# adjust - optional logical which if TRUE ensures that, after interpolation, returned
-#          hourly values, when averaged to daily, match the input
-# stre - coefficient controlling the rate of nightime temperature decay (see
-# hourlytemp for details)
-# Returns an array of hourly temperature values (deg C)
-temp_dailytohourly <- function(tasmin, tasmax, tme, r, adjust = TRUE, srte = 0.09) {
-  lat<-latsfromr(r)
-  lon<-lonsfromr(r)
-  jd<-julday(tme$year+1900,tme$mon+1,tme$mday)
-  lats<-.mta(lat,length(jd))
-  lons<-.mta(lon,length(jd))
-  jd<-.vta(jd,lat)
-  dls<-daylength(jd, lats)
-  tmeh <- as.POSIXlt(seq(tme[1],tme[length(tme)]+23*3600, by = 3600))
-  sel<-which(tmeh$year==tme$year[2])
-  thout<-array(NA,dim=c(dim(tasmin)[1:2],length(sel)))
-  for (i in 1:dim(r)[1]) {
-    for (j in 1:dim(r)[2]) {
-      tst<-mean(tasmin[i,j,],na.rm=T)
-      if (is.na(tst) == F) {
-        thout[i,j,]<-hourlytemp(tasmin[i,j,],tasmax[i,j,],jd[i,j,],lat[i,j],lon[i,j],dls[i,j,],adjust,srte)[sel]
-      }
-    }
-  }
-  return(thout)
-}
+
 # ============================================================================ #
 # ~~~~~~~~~~~~~~~~ Relative humidity ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
