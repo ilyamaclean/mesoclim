@@ -4,19 +4,22 @@
 \alias{precipcorrect}
 \title{Applies bias correction to precipitation data}
 \usage{
-precipcorrect(hist_obs, hist_mod, fut_mod, rangelims = NA, rangelim = 2)
+precipcorrect(hist_obs, hist_mod, fut_mod, mod_out = FALSE, rangelim = NA)
 }
 \arguments{
 \item{hist_obs}{a stacked SpatRast of precipitation data.}
 
 \item{hist_mod}{a stacked SpatRast of modelled precipitation data for
-for the same period and spatial area as \code{hist_obs}. I.e \code{dim(hist_mod)} must equal
-\code{dim(hist_obs)}}
+for the same period and spatial area as \code{hist_obs}. Reprojected and resampled
+to match \code{hist_obs} if necessary.}
 
 \item{fut_mod}{a stacked SpatRast of modelled precipitation data for
-for e.g. a future period to which corrections are applied. Must have the same
-x and y dims as \code{hist_obs} and \code{hist_mod}, but can cover a shorter or
-longer time period.}
+for e.g. a future period to which corrections are applied. eprojected and resampled
+to match \code{hist_obs} if necessary.}
+
+\item{mod_out}{optional logical indicating whether to return model correction
+coefficients, which can be applied to datasets over multiple time periods
+using \code{\link[=precipcorrect_apply]{precipcorrect_apply()}}.}
 
 \item{rangelim}{fractional amount above the maximum values of precipitation
 in \code{hist_obs} in any given cell by which values in the returned dataset can
@@ -25,12 +28,16 @@ cannot exceed twice the maximum amount in the corresponding grid cell in
 \code{hist_obs}.If not supplied (the default), returned values are unbounded.}
 }
 \value{
-a SpatRast of bias corrected precipitation.
+If \code{mod_out = FALSE} (the default), a SpatRaster of bias corrected
+precipitation. If \code{mod_out = TRUE} a list containing two wrapped SpatRasters
+representing the amount by which to adjust precipitation totals and precipitation
+day fractions.
 }
 \description{
-The function \code{biascorrect} applies bias correction to spatial
+The function \code{precipcorrect} applies bias correction to spatial
 climate dataset
 }
 \seealso{
-\code{\link[=biascorrect]{biascorrect()}} for applying corrections to other climate variables.
+\code{\link[=biascorrect]{biascorrect()}} for applying corrections to other climate variables and
+\code{\link[=precipcorrect_apply]{precipcorrect_apply()}} for applying correction coefficients to multiple datasets.
 }

@@ -5,6 +5,10 @@ hourtodayCpp <- function(a, fun) {
     .Call(`_mesoclim_hourtodayCpp`, a, fun)
 }
 
+populatematrix <- function(m, ij = "i") {
+    .Call(`_mesoclim_populatematrix`, m, ij)
+}
+
 juldayvCpp <- function(year, month, day) {
     .Call(`_mesoclim_juldayvCpp`, year, month, day)
 }

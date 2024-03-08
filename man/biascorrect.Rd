@@ -4,20 +4,23 @@
 \alias{biascorrect}
 \title{Applies bias correction to one climate variable}
 \usage{
-biascorrect(hist_obs, hist_mod, fut_mod, rangelims = NA)
+biascorrect(hist_obs, hist_mod, fut_mod, mod_out = FALSE, rangelims = NA)
 }
 \arguments{
-\item{hist_obs}{a 3D array or stacked SpatRast of climate observations. If an
-array the the first two dimension must represent and the third time.}
+\item{hist_obs}{a stacked SpatRaster of climate observations.}
 
-\item{hist_mod}{a 3D array or stacked SpatRast of modelled climate data for
-for the same period and spatial area as \code{hist_obs} \code{dim(hist_mod)} must equal
-\code{dim(hist_obs)}}
+\item{hist_mod}{a stacked SpatRaster of modelled climate data for
+for the same period as \code{hist_obs}. Reprojected and resampled to match \code{hist_obs}
+if necessary.}
 
-\item{fut_mod}{a 3D array or SpatRast of modelled climate data for
-for e.g. a future period to which corrections are applied. Must have the same
-x and y dims as \code{hist_obs} and \code{hist_mod}, but can cover a shorter or
-longer time periods.}
+\item{fut_mod}{optionally, SpatRaster of modelled climate data for
+for e.g. a future period to which corrections are applied. Reprojected and
+resampled to match \code{hist_obs} if necessary. If not supplied and \code{mod_out = FALSE}
+corrections are applied to hist_mod}
+
+\item{mod_out}{optional logical indicating whether to return an object
+of class \code{biascorrectmodels}, which allows the same form of bias correction
+to be applied to datasets over multiple time periods using \code{\link[=biascorrect_apply]{biascorrect_apply()}}.}
 
 \item{rangelims}{fractional amount above or below the range of values in
 \code{hist_obs} by which values in the returned dataset can vary. I.e. if set to
@@ -26,13 +29,14 @@ longer time periods.}
 If not supplied (the default), returned values are unbounded.}
 }
 \value{
-if \code{hist_obs} is a SpatRast, a SpatRast of bias corrected data. If
-\code{hist_obs} is a 3D array, a 3D array of bias corrected data.
+if \code{mod_out = FALSE}, a SpatRaster of bias corrected data. If
+\code{mod_out = TRUE}  an object of class \code{biascorrectmodels},
 }
 \description{
 The function \code{biascorrect} applies bias correction to spatial
 climate dataset
 }
 \seealso{
-\code{\link[=precipcorrect]{precipcorrect()}} for applying corrections to precipitation data.
+\code{\link[=precipcorrect]{precipcorrect()}} for applying corrections to precipitation data and
+\code{\link[=biascorrect_apply]{biascorrect_apply()}} for applying corrections to multiple datasets.
 }

@@ -22,6 +22,18 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// populatematrix
+IntegerMatrix populatematrix(IntegerMatrix m, std::string ij);
+RcppExport SEXP _mesoclim_populatematrix(SEXP mSEXP, SEXP ijSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< IntegerMatrix >::type m(mSEXP);
+    Rcpp::traits::input_parameter< std::string >::type ij(ijSEXP);
+    rcpp_result_gen = Rcpp::wrap(populatematrix(m, ij));
+    return rcpp_result_gen;
+END_RCPP
+}
 // juldayvCpp
 IntegerVector juldayvCpp(IntegerVector year, IntegerVector month, IntegerVector day);
 RcppExport SEXP _mesoclim_juldayvCpp(SEXP yearSEXP, SEXP monthSEXP, SEXP daySEXP) {
@@ -192,6 +204,7 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_mesoclim_hourtodayCpp", (DL_FUNC) &_mesoclim_hourtodayCpp, 2},
+    {"_mesoclim_populatematrix", (DL_FUNC) &_mesoclim_populatematrix, 2},
     {"_mesoclim_juldayvCpp", (DL_FUNC) &_mesoclim_juldayvCpp, 3},
     {"_mesoclim_clearskyradmCpp", (DL_FUNC) &_mesoclim_clearskyradmCpp, 5},
     {"_mesoclim_difpropmCpp", (DL_FUNC) &_mesoclim_difpropmCpp, 5},

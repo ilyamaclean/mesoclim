@@ -76,6 +76,25 @@ NumericVector hourtodayCpp(NumericVector a, std::string fun) {
     daily.attr("dim") = IntegerVector::create(dim1, dim2, ndays);
     return daily;
 }
+// ** Populate a matrix with i or j ** //
+// 'populatematrix
+// @export
+// [[Rcpp::export]]
+IntegerMatrix populatematrix(IntegerMatrix m, std::string ij = "i") {
+    int rows = m.nrow();
+    int cols = m.ncol();
+    for (int i = 0; i < rows; ++i) {
+        for (int j = 0; j < cols; ++j) { 
+            if (ij == "i") { 
+                m(i, j) = i + 1;
+            }
+            else {
+                m(i, j) = j + 1;
+            }
+        }
+    }
+    return m;
+}
 // ============================================================================================ = #
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Functions for calculating solar variables  ~~~~~~~~~~~~~~~~~ #
 // ============================================================================================== #
