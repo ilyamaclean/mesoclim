@@ -36,7 +36,7 @@ download_hadukdaily<-function(dir_out, cedausr, cedapwd, year, month, varn) {
   varbase<-paste0(urlbase,varn,"/day/latest/")
   fname<-paste0(varn,"_hadukgrid_uk_1km_day_",year,mtxt,"01-",year,mtxt,mday,".nc")
   destfile<-paste0(dir_out,fname)
-  dload_url<-paste0(urlbase,varn,"/day/",vsn,"/",fname)
+  dload_url<-paste0(varbase,fname)
   h <- curl::new_handle()
   curl::handle_setopt(h, userpwd = paste0(cedausr,":",cedapwd))
   curl::curl_download(dload_url, destfile, handle = h)
