@@ -53,3 +53,10 @@ downloads files to \code{dir_out}
 \description{
 Using parameters the function will downloaded from ftp.ceda.ac.uk all available UCKP18 files containing relevant data to the user defined output directory
 }
+\details{
+To obtain a username and password, first register at https://services.ceda.ac.uk/.
+Your username will be the same as that given for your main CEDA account.
+Your FTP password is separate from the password for your CEDA web account. If
+you do not already have a password, or if you want to reset your FTP password
+go to MyCEDA and click on the 'Configure FTP account' button.
+}

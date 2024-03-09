@@ -1,18 +1,52 @@
-#' Carries out multiple downloads from ceda - called by download_ukcp18
-#' @param f filename of file to be downloaded
-#' @param url complete url of file to be downloaded
-#' @param dir_out output directory of downloaded file
-#' @param h curl handle for file download
-#' @return downloads file to `file.path(dir_out,f)`
+#' @title Downloads 1km historic climata data for the UK
+#' @description The function `download_hadukdaily` downloads HadUK-Grid Gridded
+#' Climate Observation data on a 1km grid over the UK from CEDA.
+#' @param dir_out directory to which to save data
+#' @param cedausr string of ceda username
+#' @param cedapwd string of ceda username
+#' @param year numeric value indicating the year for which data are required
+#' @param month numeric value (1-12) indicating the month for which data are required
+#' @param varn. Variable required. One of `rainfall` (precipitation in mm), `tasmax`
+#' (maximum daily temperature, deg C) or `tasmin` (minimum daily temperature, deg C).
+#' @details To obtain a username and password, first register at https://services.ceda.ac.uk/.
+#' Your username will be the same as that given for your main CEDA account.
+#' Your FTP password is separate from the password for your CEDA web account. If
+#' you do not already have a password, or if you want to reset your FTP password
+#' go to MyCEDA and click on the 'Configure FTP account' button.
 #' @import curl
 #' @export
-#' @examples
-multi_download<-function(f,url,dir_out,h){
+download_hadukdaily<-function(dir_out, cedausr, cedapwd, year, month, varn) {
+  # Checks
+  if (varn != "rainfall" & varn != "tasmax" & varn != "tasmin") stop("daily data are not available for this variable")
+  tme<-as.POSIXlt(Sys.time())
+  yr<-tme$year+1900
+  if (year > yr) stop("Function downloads observed data. Cannot be used for future years")
+  if (year == yr) warning("Data may not yet be available for current year")
+  if (varn == "rainfall") {
+    if (year < 1891) stop("Rainfall data not available prior to 1891")
+  } else {
+    if (year < 1960) stop("Temperature data not available prior to 1960")
+  }
+  mtxt<-ifelse(month<10,paste0("0",month),paste0("",month))
+  mdays<-c(31,28,31,30,31,30,31,31,30,31,30,31)
+  if (year%%4==0) mdays[2]<-29
+  mday<-mdays[month]
+  # Create url
+  urlbase<-paste0("ftp.ceda.ac.uk/badc/ukmo-hadobs/data/insitu/MOHC/HadOBS/HadUK-Grid/v1.2.0.ceda/1km/")
+  varbase<-paste0(urlbase,varn,"/day/latest/")
+  fname<-paste0(varn,"_hadukgrid_uk_1km_day_",year,mtxt,"01-",year,mtxt,mday,".nc")
+  destfile<-paste0(dir_out,fname)
+  dload_url<-paste0(urlbase,varn,"/day/",vsn,"/",fname)
+  h <- curl::new_handle()
+  curl::handle_setopt(h, userpwd = paste0(cedausr,":",cedapwd))
+  curl::curl_download(dload_url, destfile, handle = h)
+}
+#' ILya: Have changed this to an internal function, including calls to it.
+.multi_download<-function(f,url,dir_out,h){
   dload_url<-paste(url, f, sep = "")
   destfile<-file.path(dir_out,basename(f))
   curl::curl_download(dload_url, destfile, handle = h)
 }
-
 #' Download UKCP18 climate data
 #' @description
 #' Using parameters the function will downloaded from ftp.ceda.ac.uk all available UCKP18 files containing relevant data to the user defined output directory
@@ -30,6 +64,11 @@ multi_download<-function(f,url,dir_out,h){
 #' @param cedaprot string of ceda protocol set to ftp DO NOT CHANGE
 #' @param cedaserv string of the ceda server url DO NOT CHANGE
 #' @return downloads files to `dir_out`
+#' @details To obtain a username and password, first register at https://services.ceda.ac.uk/.
+#' Your username will be the same as that given for your main CEDA account.
+#' Your FTP password is separate from the password for your CEDA web account. If
+#' you do not already have a password, or if you want to reset your FTP password
+#' go to MyCEDA and click on the 'Configure FTP account' button.
 #' @import curl
 #' @export
 #' #' @examples
@@ -103,7 +142,7 @@ download_ukcp18<-function(
       # Handles Multifile Download from server
       h <- curl::new_handle()
       curl::handle_setopt(h, userpwd = paste0(cedausr,":",cedapwd))
-      lapply(dload_files, FUN=multi_download, url=url,dir_out=dir_out,h=h)
+      lapply(dload_files, FUN=.multi_download, url=url,dir_out=dir_out,h=h)
     }
   }
   # TO ADD Get ancillary data if available?? ie original DEM for regional data
