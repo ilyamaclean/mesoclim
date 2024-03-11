@@ -71,9 +71,9 @@ download_hadukdaily<-function(dir_out, cedausr, cedapwd, year, month, varn) {
 #' go to MyCEDA and click on the 'Configure FTP account' button.
 #' @import curl
 #' @export
-#' #' @examples
+#' @examples
 #' dir_out <- tempdir()
-#' download_ukcp18(dir_out,'ceda_username','cedapwd'ceda_password',as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01'),c('tasmax','tasmin'))
+#' download_ukcp18(dir_out,'ceda_username','ceda_password',as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01'),c('tasmax','tasmin'))
 download_ukcp18<-function(
     dir_out,
     cedausr,
@@ -307,7 +307,7 @@ find_ukcp_decade<-function(collection=c('land-gcm','land-rcm'),startdate,enddate
 #' For regional UKCP18 data, it is recommended that 'dtm' is derived from the original orography data available for download.
 #' @examples
 #' dir_out <- tempdir()
-#' download_ukcp18(dir_out,'ceda_username','cedapwd'ceda_password',as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01','02','03'),c('clt','hurs','huss','pr','psl','rls','rss','tas','tasmax','tasmin','uas','vas'))
+#' download_ukcp18(dir_out,'ceda_username','ceda_password',as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01','02','03'),c('clt','hurs','huss','pr','psl','rls','rss','tas','tasmax','tasmin','uas','vas'))
 #' climdata<-ukcp18toclimarray()
 ukcp18toclimarray <- function(dir_ukcp, dtm,
                               toArrays=TRUE, sampleplot=FALSE, startdate, enddate,
