@@ -153,7 +153,8 @@ download_ukcp18<-function(
 #' by [mcera5::request_era5()] to the correct formal required for subsequent modelling.
 #' @param ncfile filename of UKCP18 ncdf data file
 #' @return a vector of date strings in the form 'yyy-dd-mm'
-#' @import ncdf4, lubridate
+#' @import ncdf4
+#' @import lubridate
 #' @export
 #' @details Creates a time series from the ncdf file time variable which is not correctly read by R terra package.
 #' UKCP18 time values expressed as hours since 1/1/1970 12.00. Output used by function `correct_ukcp_dates()`
@@ -236,7 +237,8 @@ fill_calendar_data<-function(ukcp_r, real_dates, testplot=FALSE, plotdays=c(89:9
 #' @param r SpatRaster with defined units
 #' @param to_unit units of output SpatRaster
 #' @return SpatRaster in new units
-#' @import terra, units
+#' @import terra
+#' @import units
 #' @export
 #' @examples
 change_rast_units<-function(r,to_unit){

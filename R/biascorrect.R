@@ -19,7 +19,8 @@
 #' If not supplied (the default), returned values are unbounded.
 #' @return if `mod_out = FALSE`, a SpatRaster of bias corrected data. If
 #' `mod_out = TRUE`  an object of class `biascorrectmodels`,
-#' @import terra, mgcv
+#' @import terra
+#' @import mgcv
 #' @export
 #' @rdname biascorrect
 #' @seealso [precipcorrect()] for applying corrections to precipitation data and
@@ -110,7 +111,8 @@ biascorrect <- function(hist_obs, hist_mod, fut_mod, mod_out = FALSE, rangelims 
 #' to multiple datasets, spanning e.g. several future time periods or climate scenarious.
 #' The spatial extent of `fut_mod` must at least partially overlap with that of
 #' `hist_obs` when running `biascorrect` as corrected values are only returned for the overlapping area
-#' @import terra, mgcv
+#' @import terra
+#' @import mgcv
 #' @importFrom Rcpp sourceCpp
 #' @useDynLib mesoclim, .registration = TRUE
 #' @export
@@ -258,7 +260,8 @@ precipcorrect <- function(hist_obs, hist_mod, fut_mod, mod_out = FALSE, rangelim
 #' be applied to multiple datasets, spanning e.g. several future time periods or
 #' climate scenarious. The spatial extent of `fut_mod` must at least partially
 #' overlap with that of `hist_obs` when running `precipcorrect` as corrected values are only returned for the overlapping area
-#' @import terra, mgcv
+#' @import terra
+#' @import mgcv
 #' @importFrom Rcpp sourceCpp
 #' @useDynLib mesoclim, .registration = TRUE
 #' @export
@@ -314,7 +317,8 @@ precipcorrect_apply<-function(fut_mod, biasmods) {
 #' @return a SpatRast of bias corrected temperature data
 #' @details `era5correctmodels` was derived by applying [biascorrect()] to a 2018
 #' dataset of era5 temperature data, calibrating against Met office data
-#' @import terra, mgcv
+#' @import terra
+#' @import mgcv
 #' @export
 #' @rdname correct_era5temps
 correct_era5temps<-function(era5hourly,era5correctmodels) {

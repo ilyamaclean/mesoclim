@@ -60,3 +60,7 @@ Your FTP password is separate from the password for your CEDA web account. If
 you do not already have a password, or if you want to reset your FTP password
 go to MyCEDA and click on the 'Configure FTP account' button.
 }
+\examples{
+dir_out <- tempdir()
+download_ukcp18(dir_out,'ceda_username','ceda_password',as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01'),c('tasmax','tasmin'))
+}

@@ -129,7 +129,9 @@ presdownscale<-function(pk, dtmf, dtmc, sealevel = TRUE) {
 #' @rdname swraddownscale
 #' @importFrom Rcpp sourceCpp
 #' @useDynLib mesoclim, .registration = TRUE
-#' @import terra, fields, gstat
+#' @import terra
+#' @import fields
+#' @import gstat
 #' @export
 #'
 #' @examples
@@ -378,7 +380,9 @@ relhumdownscale<-function(rh, tcc, tcf, dtmc, rhmin = 0) {
 #'
 #' @importFrom Rcpp sourceCpp
 #' @useDynLib mesoclim, .registration = TRUE
-#' @import terra, fields, gstat
+#' @import terra
+#' @import fields
+#' @import gstat
 #' @export
 precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, noraincut = 0, patchsim = FALSE, nsim = dim(prec)[3]) {
   prec<-.rast(prec,dtmc)
