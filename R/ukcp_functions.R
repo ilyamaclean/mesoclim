@@ -1,3 +1,40 @@
+#' @title Download 1km albedo data
+#' @description The function `download_globalbedo` downloads monthly GlobAlbedo tiled
+#' albedo data from Jasmin available for the years 1998-2011. Whole of the UK covered by default tiles. For further information see:
+#' \url{http://www.globalbedo.org/index.php}
+#' @param dir_out directory to which to save data
+#' @param year numeric vector indicating the years for which data are required
+#' @param month string vector  indicating the month for which data are required
+#' @param tiles vector of strings of the file name in the format 'h##v##'. Whole of the UK covered by default tiles.
+#' @details No username or password currently required.
+#' @import curl
+#' @export
+download_globalbedo<-function(dir_out,
+                              tiles=c('h17v03','h17v04','h18v03'),
+                              months=c('01','02','03','04','05','06','07','08','09','10','11','12'),
+                              years=seq(1998,2011),
+                              url='http://gws-access.jasmin.ac.uk',
+                              path='/public/qa4ecv/albedo/netcdf_cf/1km/monthly' ){
+  # Check parameters
+  if(!dir.exists(dir_out)) stop(paste("Output directory does not exist:",dir_out))
+  months<-match.arg(months,several.ok=TRUE)
+  years<-years(domain,several.ok=TRUE)
+  tiles<-match.arg(tiles,several.ok=TRUE)
+
+  for(t in tiles){
+    for(y in years){
+      print(paste('Downloading files for ',t,'-',y))
+      fp<-file.path(path,t,y)
+      fnames<-do.call(paste0, c(expand.grid(fp,'/','GlobAlbedo.merge.albedo.',y,months,'.',t,'.nc')))
+      print(fnames)
+
+      h <- curl::new_handle()
+      curl::handle_setopt(h)
+      lapply(fnames, FUN=.multi_download, url=url,dir_out=dir_out,h=h)
+    }
+  }
+}
+
 #' @title Downloads 1km historic climata data for the UK
 #' @description The function `download_hadukdaily` downloads HadUK-Grid Gridded
 #' Climate Observation data on a 1km grid over the UK from CEDA.
@@ -71,9 +108,9 @@ download_hadukdaily<-function(dir_out, cedausr, cedapwd, year, month, varn) {
 #' go to MyCEDA and click on the 'Configure FTP account' button.
 #' @import curl
 #' @export
-#' #' @examples
+#' @examples
 #' dir_out <- tempdir()
-#' download_ukcp18(dir_out,'ceda_username','cedapwd'ceda_password',as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01'),c('tasmax','tasmin'))
+#' download_ukcp18(dir_out,'ceda_username','ceda_password',as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01'),c('tasmax','tasmin'))
 download_ukcp18<-function(
     dir_out,
     cedausr,
@@ -153,7 +190,8 @@ download_ukcp18<-function(
 #' by [mcera5::request_era5()] to the correct formal required for subsequent modelling.
 #' @param ncfile filename of UKCP18 ncdf data file
 #' @return a vector of date strings in the form 'yyy-dd-mm'
-#' @import ncdf4, lubridate
+#' @import ncdf4
+#' @import lubridate
 #' @export
 #' @details Creates a time series from the ncdf file time variable which is not correctly read by R terra package.
 #' UKCP18 time values expressed as hours since 1/1/1970 12.00. Output used by function `correct_ukcp_dates()`
@@ -236,7 +274,8 @@ fill_calendar_data<-function(ukcp_r, real_dates, testplot=FALSE, plotdays=c(89:9
 #' @param r SpatRaster with defined units
 #' @param to_unit units of output SpatRaster
 #' @return SpatRaster in new units
-#' @import terra, units
+#' @import terra
+#' @import units
 #' @export
 #' @examples
 change_rast_units<-function(r,to_unit){
@@ -277,6 +316,14 @@ find_ukcp_decade<-function(collection=c('land-gcm','land-rcm'),startdate,enddate
   return(decades)
 }
 
+#Function to calculate LWup from temperature
+# tc=temperature in C, sb = stefan boltzman, em=emissivity of surface
+# emissivity of surface c. 0.97 if not metal
+.lwup<-function(tc,sb=5.67*10^-8,em=0.97){
+  lwup<-sb*em*(tc+273.15)^4
+  return(lwup)
+}
+
 #' @title convert UKCP18  ncdf4 files to format required for model
 #' @description Converts UKCP18 global or regional land data in the form of netCDF4 file (as returned
 #' by [ukcp18_downscale()] to the correct data form required for subsequent modelling.
@@ -307,7 +354,7 @@ find_ukcp_decade<-function(collection=c('land-gcm','land-rcm'),startdate,enddate
 #' For regional UKCP18 data, it is recommended that 'dtm' is derived from the original orography data available for download.
 #' @examples
 #' dir_out <- tempdir()
-#' download_ukcp18(dir_out,'ceda_username','cedapwd'ceda_password',as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01','02','03'),c('clt','hurs','huss','pr','psl','rls','rss','tas','tasmax','tasmin','uas','vas'))
+#' download_ukcp18(dir_out,'ceda_username','ceda_password',as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01','02','03'),c('clt','hurs','huss','pr','psl','rls','rss','tas','tasmax','tasmin','uas','vas'))
 #' climdata<-ukcp18toclimarray()
 ukcp18toclimarray <- function(dir_ukcp, dtm,
                               toArrays=TRUE, sampleplot=FALSE, startdate, enddate,
@@ -401,9 +448,30 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,
     clim_list[[v]]<-var_r
   }
 
-  # Calculate derived variables
+  # Calculate derived variables: wind
   clim_list$windspeed<-.rast(sqrt(as.array(clim_list$uas)^2+as.array(clim_list$vas)^2)*log(67.8*2-5.42)/log(67.8*10-5.42),output_list$dtmc) # Wind speed (m/s)
   clim_list$winddir<-.rast(as.array((terra::atan2(clim_list$uas,clim_list$vas)*180/pi+180)%%360),output_list$dtmc) # Wind direction (deg from N - from)
+
+  # Calculate derived variables: longwave downward
+  tmean<-(clim_list$tmax+clim_list$tmin)/2
+  lwup<-terra::app(tmean, fun=calc_lwup)
+  clim_list$lwdown<-clim_list$lwnet+lwup
+
+  # Calculate derived variables: shortwave downward
+  bsalb<-0.21
+  wsalb<-0.19
+  seaalb<-0.065
+  wsm <- matrix(c(-5, 2,seaalb, 2, 100, wsalb),ncol=3,byrow=TRUE)
+  wsalb_r<-classify(clim_list$dem,wsm)
+  bsm <- matrix(c(-5, 2,seaalb, 2, 100, bsalb),ncol=3,byrow=TRUE)
+  bsalb_r<-classify(clim_list$dem,bsm)
+
+  clim_alb<-(1-clim_list$clt)*bsalb_r + clim_list$clt * wsalb_r
+  clim_swd<-clim_list$rss/(1-clim_alb)
+  plot(clim_swd[[1:9]]); plot(clim_swd[[2391]])
+
+  mesoclim_list$swdown<-downscale_resample(clim_swd,mesoclim_list$dem)
+
 
   # Set units, times and layer names
   units(clim_list$windspeed)<-'m/s'
@@ -415,13 +483,13 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,
 
   # Select and rename climate output rasts MIGHT NEED TO CHANGE THESE TO MATCH THOSE USED BY MESOCLIM FUNCTIONS
   # *** Ilya comment - will need to integrate some conversion functons and change names
-  # mesclim names and variables are: temp, (or tmin / tmax), relhum, pres,swrad,     "difrad"    "lwrad"     "windspeed"
+  # mesclim names and variables are: temp, (or tmin / tmax), relhum, pres, swrad, difrad, lwrad, windspeed
   # winddir,  prec.
-  clim_list<-clim_list[c("clt","hurs","huss","pr","psl","rls","rss","tasmax","tasmin", "windspeed","winddir")]
-  names(clim_list)<-c('cloud','relhum','spechum','prec','pres','lwnet','swnet','tmax','tmin','windspeed','winddir')
+  clim_list<-clim_list[c("clt","hurs","huss","pr","psl","lwdown","swdown","tasmax","tasmin", "windspeed","winddir")]
+  names(clim_list)<-c('cloud','relhum','spechum','prec','pres','lwrad','swrad','tmax','tmin','windspeed','winddir')
 
   # Add other data
-  output_list$windheight_m<-10. # windspeed at 10 metres height
+  output_list$windheight_m<-10 # windspeed at 10 metres height
   output_list$tempheight_m<-1.5 # air temp at 1.5 metres height
 
   # Restrict to dates requested

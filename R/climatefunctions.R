@@ -81,7 +81,8 @@ flowacc <- function (dtm, basins = NA) {
 #' temperature data are temporally interpolated to daily values, so the duration of
 #' `tmeout` must be at least that of `tmeout`. Hourly values are returned by replicating
 #' all values within a day as sea-surface temperatures tend to fluctuate slowly.
-#' @import terra, zoo
+#' @import terra
+#' @import zoo
 #' @export
 #' @rdname SSTinterpolate
 SSTinterpolate<-function(SST, tmein, tmeout) {

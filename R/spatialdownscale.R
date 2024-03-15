@@ -37,7 +37,7 @@ tempdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, u2 = NA,
                         cad = TRUE, coastal = TRUE, refhgt = 2, uhgt = 2) {
   if (class(dtmm) == "logical" & coastal) stop("dtmm needed for calculating coastal effects")
   # Calculate elevation effects
-  dtmc<-rast(climdata$dtmc)
+  if (class(climdata$dtmc)[1] == "PackedSpatRaster") dtmc<-rast(climdata$dtmc) else dtmc<-climdata$dtmc
   tc<-climdata$climarray$temp
   rh<-climdata$climarray$relhum
   pk<-climdata$climarray$pres
@@ -129,7 +129,9 @@ presdownscale<-function(pk, dtmf, dtmc, sealevel = TRUE) {
 #' @rdname swraddownscale
 #' @importFrom Rcpp sourceCpp
 #' @useDynLib mesoclim, .registration = TRUE
-#' @import terra, fields, gstat
+#' @import terra
+#' @import fields
+#' @import gstat
 #' @export
 #'
 #' @examples
@@ -143,7 +145,7 @@ presdownscale<-function(pk, dtmf, dtmc, sealevel = TRUE) {
 #' # plot output
 #' plot(swradf[[13]], main = as.character(tme)[13])
 swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)[3],
-                      difr = FALSE) {
+                      terrainshade = FALSE) {
   # Work out whether daily or not
   ti<-round(as.numeric(tme[2])-as.numeric(tme[1]))
   # Calculate clear sky fraction
@@ -235,7 +237,7 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)
       swf<-hourtodayCpp(.is(swf),"mean")
       drf<-hourtodayCpp(.is(drf),"mean")
       swf<-.rast(swf,dtmf)
-      drf<-.rast(swf,dtmf)
+      drf<-.rast(drf,dtmf)
     }
     swf<-wrap(swf)
     drf<-wrap(drf)
@@ -378,7 +380,9 @@ relhumdownscale<-function(rh, tcc, tcf, dtmc, rhmin = 0) {
 #'
 #' @importFrom Rcpp sourceCpp
 #' @useDynLib mesoclim, .registration = TRUE
-#' @import terra, fields, gstat
+#' @import terra
+#' @import fields
+#' @import gstat
 #' @export
 precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, noraincut = 0, patchsim = FALSE, nsim = dim(prec)[3]) {
   prec<-.rast(prec,dtmc)
@@ -596,10 +600,10 @@ spatialdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, cad = TR
     if (nsim > dim(swrad)[3]) nsim<-dim(swrad)[3]
   } else nsim<-dim(swrad)[3]
   # Sw radiation
-  swf<-swdownscale(swrad,tme,dtmf,dtmc,patchsim,nsim,difr)
+  swf<-swdownscale(swrad,tme,dtmf,dtmc,patchsim,nsim,terrainshade)
   if (terrainshade) {
-    difrad<-rast(swf$dp)
-    swf<-rast(swf$swradf)
+    difrad<-rast(swf$drf)
+    swf<-rast(swf$swf)
     difrad<-difrad*swf
   }  else difr = NA
   # lwrad
@@ -622,14 +626,15 @@ spatialdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, cad = TR
   rhf<-wrap(rhf)
   pkf<-wrap(pkf)
   swf<-wrap(swf)
-  if (difr) difrad<-wrap(difrad)
+  if (terrainshade) difrad<-wrap(difrad)
   lwf<-wrap(lwf)
   uzf<-wrap(uzf)
   wdf<-wrap(wdf)
+  precf<-wrap(precf)
   if (hourly) {
-    out<-return(list(temp=tcf,relhum=rhf,pres=pkf,swrad=swf,difrad=difrad,lwrad=lwf,windspeed=uzf,winddir=wdf,prec=precf))
+    out<-list(temp=tcf,relhum=rhf,pres=pkf,swrad=swf,difrad=difrad,lwrad=lwf,windspeed=uzf,winddir=wdf,prec=precf)
   } else {
-    out<-return(list(tmin=tminf,tmax=tmaxf,relhum=rhf,pres=pkf,swrad=swf,difrad=difrad,lwrad=lwf,windspeed=uzf,winddir=wdf,prec=precf))
+    out<-list(tmin=tminf,tmax=tmaxf,relhum=rhf,pres=pkf,swrad=swf,difrad=difrad,lwrad=lwf,windspeed=uzf,winddir=wdf,prec=precf)
   }
   return(out)
 }
