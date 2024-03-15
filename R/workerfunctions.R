@@ -907,7 +907,6 @@
   tcp<-swgt*SST+(1-swgt)*tc
   return(tcp)
 }
-<<<<<<< HEAD
 # ** Following is a bit of a code dump. We won't need it all:
 # NB:
 #  ** (1) For several of these functions we'll need to add the appropriate imports
@@ -1432,7 +1431,3 @@ get_dem<-function(r, zeroasna = TRUE) {
   if (zeroasna) dtm[dtm<=0]<-NA
   return(dtm)
 }
-=======
-
-
->>>>>>> 2b6a2701bc2bf214ea133f98a4df556590b61881
