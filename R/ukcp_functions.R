@@ -195,7 +195,6 @@ download_ukcp18<-function(
 #' @export
 #' @details Creates a time series from the ncdf file time variable which is not correctly read by R terra package.
 #' UKCP18 time values expressed as hours since 1/1/1970 12.00. Output used by function `correct_ukcp_dates()`
-#' @examples
 get_ukcp18_dates<-function(ncfile){
   netcdf_data <-ncdf4::nc_open(ncfile)
   time_hours <- ncdf4::ncvar_get(netcdf_data,"time")
@@ -207,8 +206,6 @@ get_ukcp18_dates<-function(ncfile){
   ukcp_dates<-paste(years,sprintf("%02d",months),sprintf("%02d",days),sep="-")
   return(ukcp_dates)
 }
-
-
 #' @title Corrects time series of UKCP18 360 day year data to valid calendar dates
 #' @description Converts 12 x 30 day monthly data provided by UKCP18 to data corresponding to actual calendar dates
 #' by reassigning invalid dates (eg 29-30 Feb). Does NOT add missing dates (eg 31st May). Output used by `fill_calendar_data()`
@@ -216,7 +213,6 @@ get_ukcp18_dates<-function(ncfile){
 #' @return a vector of valid date strings in the form 'yyy-dd-mm'
 #' @import lubridate
 #' @export
-#' @examples
 correct_ukcp_dates<-function(ukcp_dates){
   years<-as.numeric(sapply(strsplit(ukcp_dates,"-"), getElement, 1))
   months<-as.numeric(sapply(strsplit(ukcp_dates,"-"), getElement, 2))
@@ -256,7 +252,6 @@ correct_ukcp_dates<-function(ukcp_dates){
 #' @return a SpatRaster timeseries corresponding to actual calendar dates with invalid, no missing/empty days
 #' @import terra
 #' @export
-#' @examples
 fill_calendar_data<-function(ukcp_r, real_dates, testplot=FALSE, plotdays=c(89:91,242:244)){
   # Assign real dates to layer names and time values
   terra::time(ukcp_r)<-real_dates
@@ -268,8 +263,6 @@ fill_calendar_data<-function(ukcp_r, real_dates, testplot=FALSE, plotdays=c(89:9
   if(testplot)  plot(ukcp_r[[plotdays]],main=paste(time(ukcp_r)[plotdays], 'after filling'))
   return(ukcp_r)
 }
-
-
 #' @title Convert units and values of a SpatRast
 #' @param r SpatRaster with defined units
 #' @param to_unit units of output SpatRaster
@@ -277,7 +270,6 @@ fill_calendar_data<-function(ukcp_r, real_dates, testplot=FALSE, plotdays=c(89:9
 #' @import terra
 #' @import units
 #' @export
-#' @examples
 change_rast_units<-function(r,to_unit){
   in_unit<-terra::units(r)
   # Get and convert values
@@ -288,8 +280,6 @@ change_rast_units<-function(r,to_unit){
   terra::units(newr)<-to_unit
   return(newr)
 }
-
-
 #' @title Find UKCP18 decades containing timeseries of data
 #' @description Returns UKCP18 decade text (used in file names) containing required data defined by start and end dates
 #' @param collection UKCP18 collection, either global ('land-gcm') or regional ('land-rcm'), as file naming conventions vary between each collection

@@ -11,7 +11,7 @@ swdownscale(
   dtmc,
   patchsim = FALSE,
   nsim = dim(swrad)[3],
-  difr = FALSE
+  terrainshade = FALSE
 )
 }
 \arguments{
