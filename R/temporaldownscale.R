@@ -18,6 +18,8 @@
 #' temperatures decay faster than this. The default value of 0.09 is an optimal
 #' value derived using ERA5 data for western Europe, but performs reasonably well
 #' globally
+#' @importFrom Rcpp sourceCpp
+#' @export
 #' @examples
 #' tc<-mesoclim::era5data$climarray$temp
 #' tme <- as.POSIXlt(c(0:30) * 3600 * 24, origin = "2018-05-01", tz = "UTC")
@@ -84,6 +86,39 @@ hourlytemp <- function(tmn, tmx, tme, lat = NA, long = NA, srte = 0.09) {
     th<-.rast(th,r)
   } else stop("tmn and tmx must be vectors or SpatRasts")
   return(th)
+}
+#' @title Blends Met Office and ERA5 data to produce hourly 1km resolution temperature data
+#' @description The function `blendtemp_hadukera5` ERA5 data to 1 km grid resoltuion,
+#' calculates the diurnal cycle in each grid cell, and then adjust this by the
+#' maximum and minimum daily temperatures in the one km met office data.
+#' @param tasmin a stacked SpatRaster of haduk daily minimum temperatures (deg C)
+#' @param tasmax a stacked SpatRaster of haduk daily maximum temperatures (deg C)
+#' @param era5t2m a stacked SpatRaster of hourly ERA5 temperatures (deg C or K)
+#' @import terra
+#' @importFrom Rcpp sourceCpp
+#' @export
+blendtemp_hadukera5<-function(tasmin,tasmax,era5t2m) {
+  d1<-dim(tasmin)
+  d2<-dim(tasmax)
+  d3<-dim(era5t2m)
+  if (sum(d1-d2) != 0) stop("dims of tasmin and tasmac must match")
+  if (d3[3] != (d2[3]*24)) stop("Hours in era5 must match days in tasmin")
+  # Reproject era5
+  era5t2m<-project(era5t2m,tasmin)
+  # met office dtr
+  dtr<-tasmax-tasmin
+  # era5 dtr and min
+  era5min<-hourtodayCpp(.is(era5t2m),"min")
+  era5max<-hourtodayCpp(.is(era5t2m),"max")
+  era5dtr<-era5max-era5min
+  era5minh<-.ehr(era5min)
+  era5dtrh<-.ehr(era5dtr)
+  era5frac<-(.is(era5t2m)-era5minh)/era5dtrh
+  # met office hourly
+  tasminh<-.ehr(.is(tasmin))
+  dtrh<-.ehr(.is(dtr))
+  tch<-.rast(xx<-era5frac*dtrh+tasminh,tasmin)
+  return(tch)
 }
 
 # ============================================================================ #
@@ -526,6 +561,10 @@ plotrain <- function(daily, subdaily) {
   polygon(xs, ys1, col = rgb(1,0,0,0.5))
   polygon(xs, ys2, col = rgb(0,0,1,0.5))
 }
+
+
+
+
 # ============================================================================ #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Downscale all ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #

@@ -88,6 +88,31 @@
   lats<-array(ll$lat,dim=dim(lats))
   return(list(lats=lats,lons=lons))
 }
+#' version of terra resample that equates to NA.RM = TRUE
+#' @import terra
+.resample<-function(r1,r2) {
+  # reproject if necessary
+  if (crs(r1) != crs (r2)) r1<-project(r1,crs(r1))
+  af<-res(r2)[1] /res(r1)[1]
+  if (af > 1) {
+    # Resample if extents don't match'
+    e1<-ext(r1)
+    e2<-ext(r2)
+    e1<-c(e1$xmin,e1$xmax,e1$ymin,e1$ymax)
+    e2<-c(e2$xmin,e2$xmax,e2$ymin,e2$ymax)
+    if (all(e1==e2)) {
+      ro<-aggregate(r1,af,na.rm=TRUE)
+    } else {
+      e<-ext(r2)
+      r<-rast(e)
+      res(r)<-res(r1)
+      crs(r)<-crs(r1)
+      ro<-resample(r1,r)
+      ro<-aggregate(ro,af,na.rm=TRUE)
+    }
+  } else ro<-resample(r1,r2)
+  return(ro)
+}
 # ============================================================================ #
 # ~~~~~~~~~ Climate processing worker functions here ~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
@@ -232,9 +257,9 @@
   lc[s0]<-min(lc,na.rm=TRUE)
   lc[s1]<-max(lc,na.rm=TRUE)
   # resample
-  lc<-resample(.rast(lc,dtmc),dtmf)
+  lc<-.resample(.rast(lc,dtmc),dtmf)
   # Apply elevation adjustment to mean
-  dc<-.is(resample(dtmc,dtmf))
+  dc<-.is(.resample(dtmc,dtmf))
   ddif<-.is(dtmf)-dc
   ldif<- -9.938e-03-6.550e-04*ddif+4.966e-05*dc+1.358e-06*dc*ddif
   lcn<-.rast(.is(lc)+ldif,dtmf)
@@ -243,7 +268,7 @@
   mu<-.is(lcn-lc)
   mu<-.rta(mu,dim(csfc)[3])
   # Calculated individual logit transoformed radiation
-  cf<-resample(csfc,dtmf)
+  cf<-.resample(csfc,dtmf)
   cf<-.is(cf)
   s0<-which(cf==0)
   s1<-which(cf==1)
@@ -748,7 +773,7 @@
   rp<-.rast(pm,r)
   af<-1000/reso
   if (af > 1) {
-    rpa<-resample(aggregate(rp,af,na.rm=TRUE),rp)
+    rpa<-.resample(aggregate(rp,af,na.rm=TRUE),rp)
     rpa<-mask(rpa,rp)
   } else rpa<-rp
   return(rpa)
@@ -760,7 +785,7 @@
 # ============================================================================ #
 #' Downscales temperature for elevation effects
 .tempelev <- function(tc, dtmf, dtmc = NA, rh = NA, pk = NA) {
-  if (class(dtmc)[1] == "logical")  dtmc<-resample(dtmf,tc)
+  if (class(dtmc)[1] == "logical")  dtmc<-.resample(dtmf,tc)
   if (class(tc)[1] == "array") tc<-.rast(tc,dtmc)
   # Calculate lapse rate
   n<-dim(tc)[3]
@@ -773,15 +798,15 @@
     lrc<-.rast(lrc,dtmc)
     if (crs(lrc) != crs(dtmf)) {
       lrcp<-project(lrc,crs(dtmf))
-      lrf<-resample(lrcp,dtmf)
-    } else lrf<-resample(lrc,dtmf)
+      lrf<-.resample(lrcp,dtmf)
+    } else lrf<-.resample(lrc,dtmf)
     lrc<-as.array(lrc)*.rta(dtmc,n)
     lrf<-as.array(lrf)*.rta(dtmf,n)
   }
   # Sea-level temperature
   stc<-.rast(.is(tc)+lrc,dtmc)
   if (crs(dtmc) != crs(dtmf)) stc<-project(stc,crs(dtmf))
-  stc<-resample(stc,dtmf)
+  stc<-.resample(stc,dtmf)
   # Actual temperature
   tcf<-suppressWarnings(stc-.rast(lrf,dtmf))
   return(tcf)
@@ -814,7 +839,7 @@
   lr<-lapserate(tc, ea, pk)
   lr<-.rast(lr,dtmc)
   if (crs(lr) != crs(dtmf)) lr<-project(lr,crs(dtmf))
-  lr<-resample(lr,dtmf)
+  lr<-.resample(lr,dtmf)
   n<-dim(lr)[3]
   cad<-.is(lr)*-.rta(mu,n)
   # determine whether cold-air drainage conditions exist
@@ -829,7 +854,7 @@
   st<- -(0.4*9.81*(refhgt-d)*H)/(1241*(tc+273.15)*uf^3)
   st<-.rast(st,dtmc)
   if (crs(st) != crs(dtmf)) st<-project(st,crs(dtmf))
-  st<-resample(st,dtmf)
+  st<-.resample(st,dtmf)
   st<-.is(st)
   st[st>1]<-1
   st[st<1]<-0
@@ -841,15 +866,8 @@
   if (crs(dtmm) != crs(dtmf)) dtmm<-project(dtmm,crs(dtmf))
   if (crs(dtmc) != crs(dtmf)) dtmc<-project(dtmc,crs(dtmf))
   if (crs(SST) != crs(dtmf)) SST<-project(SST,crs(dtmf))
-  dtmf[is.na(dtmf)]<-0
-  dtm<-extend(dtmf,ext(dtmm))
-  landsea<-resample(dtmm,dtm)
-  m<-.is(dtm)
-  m2<-.is(landsea)
-  s<-which(is.na(m))
-  m[s]<-m2[s]
-  landsea<-.rast(m,landsea)
-  landsea[landsea==0]<-NA
+  landsea<-.resample(dtmm,dtmf)
+  landsea<-mask(landsea,dtmf)
   lsr<-array(NA,dim=c(dim(dtmf)[1:2],8))
   for (i in 0:7) {
     r<-coastalexposure(landsea, ext(dtmf), i%%8*45)
@@ -888,8 +906,6 @@
   tcp<-swgt*SST+(1-swgt)*tc
   return(tcp)
 }
-
-
 # ** Following is a bit of a code dump. We won't need it all:
 # NB:
 #  ** (1) For several of these functions we'll need to add the appropriate imports

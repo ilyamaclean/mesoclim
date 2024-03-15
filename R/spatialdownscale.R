@@ -44,7 +44,7 @@ tempdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, u2 = NA,
   tcf<-.rast(tc,dtmc)
   if (crs(tcf) != crs(dtmf)) tcf<-project(tcf,crs(dtmf))
   # Calculate resampled coarse-res temp
-  tcc<-resample(tcf,dtmf)
+  tcc<-.resample(tcf,dtmf)
   # Calculate elevation effects
   tcf<-.tempelev(tc,dtmf,dtmc,rh,pk)
   if (cad) {
@@ -57,7 +57,7 @@ tempdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, u2 = NA,
       SST<-SSTinterpolate(SST,climdata$tme,climdata$tme)
     }
     if (crs(SST) != crs(dtmf)) SST<-project(SST,crs(dtmf))
-    SST<-resample(SST,dtmf)
+    SST<-.resample(SST,dtmf)
     wspeed<-climdata$climarray$windspeed
     wdir<-climdata$climarray$winddir
     u2<-winddownscale(wspeed,wdir,dtmf,dtmm,dtmc,uhgt)
@@ -85,14 +85,14 @@ tempdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, u2 = NA,
 #' plot(pk[[1]])
 presdownscale<-function(pk, dtmf, dtmc, sealevel = TRUE) {
   if (class(pk)[1] == "array") pk<-.rast(pk,dtmc)
-  if (class(dtmc)[1] == "logical")  dtmc<-resample(dtmf,pk)
+  if (class(dtmc)[1] == "logical")  dtmc<-.resample(dtmf,pk)
   n<-dim(pk)[3]
   if (sealevel == FALSE) {
     pk<-.is(pk)/(((293-0.0065*.rta(dtmc,n))/293)^5.26)
     pk<-.rast(pk,dtmc)
   }
   if (crs(dtmf) != crs(dtmc)) pk<-project(pk,crs(dtmf))
-  pkf<-.is(resample(pk,dtmf))
+  pkf<-.is(.resample(pk,dtmf))
   pkf<-.rast(pkf*((293-0.0065*.rta(dtmf,n))/293)^5.26,dtmf)
   return(pkf)
 }
@@ -302,7 +302,7 @@ winddownscale <- function(wspeed, wdir, dtmf, dtmm, dtmc, uz = 2) {
   if (uz !=2) wsr<-wsr*4.8699/log(67.8*uz-5.42)
   if (crs(wsr) != crs(dtmf)) {
     ws<-.is(project(wsr,dtmf))
-  } else ws<-.is(resample(wsr,dtmf))
+  } else ws<-.is(.resample(wsr,dtmf))
   # Calculate wind speed
   ws<-ws*windmu
   # adjust back to uz if not 2 m
@@ -330,7 +330,7 @@ relhumdownscale<-function(rh, tcc, tcf, dtmc, rhmin = 0) {
   eac<-.satvap(tcc)*rh/100
   eac<-.rast(eac,dtmc)
   if (crs(eac) != crs(tcf)) eac<-project(eac,crs(tcf))
-  eaf<-resample(eac,tcf[[1]])
+  eaf<-.resample(eac,tcf[[1]])
   rhf<-(.is(eaf)/.satvap(.is(tcf)))*100
   rhf<-.rast(rhf,tcf[[1]])
   rhf[rhf>100]<-100
@@ -438,7 +438,7 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
   s<-which(rrain==0)
   rrain[s]<-0.1
   # Calculate resampled rain
-  rf3<-resample(prec,dtmf)
+  rf3<-.resample(prec,dtmf)
   rf3<-mask(rf3,dtmf)
   if (method == "Tps") {
     # Downscaled rain total
@@ -450,11 +450,11 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
     dtmcf<-resample(dtmc,dtmf)
     edif<-dtmf-dtmcf
     prat<-9.039606e-03+1.818067e-03*edif-2.923351e-04*dtmf-6.471352e-07*dtmf*edif
-    rtmc<-resample(r1,dtmf)
+    rtmc<-.resample(r1,dtmf)
     rf1<-rtmc*exp(prat)
     # Downscaled rain day fraction
     prat<- -2.787208e-03+-2.787208e-03*edif-2.787208e-03*dtmf-4.503742e-07*dtmf*edif
-    rdmc<-resample(r2,dtmf)
+    rdmc<-.resample(r2,dtmf)
     rf2<-rdmc*exp(prat)
     rf2[rf2<0]<-0
     rf2[rf2>1]<-1
@@ -562,8 +562,8 @@ spatialdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, cad = TR
   vv<-.rast(wspeed*sin(wdir*pi/180),dtmc)
   if (crs(uu) != crs(dtmf)) uu<-project(uu,crs(dtmf))
   if (crs(vv) != crs(dtmf)) vv<-project(vv,crs(dtmf))
-  uu<-resample(uu,dtmf)
-  vv<-resample(vv,dtmf)
+  uu<-.resample(uu,dtmf)
+  vv<-.resample(vv,dtmf)
   wdf<-atan2(vv,uu)*180/pi
   wdf<-.rast(.is(wdf)%%360,dtmf)
   wdf<-mask(wdf,dtmf)
@@ -605,7 +605,7 @@ spatialdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, cad = TR
   # lwrad
   lwf<-.rast(lwrad,dtmc)
   if (crs(lwf) != crs(dtmf)) lwf<-project(lwf,crs(dtmf))
-  lwf<-resample(lwf,dtmf)
+  lwf<-.resample(lwf,dtmf)
   if (terrainshade) {
     svf<-.rta(.skyview(dtmf),dim(lwf)[3])
     lwf<-.rast(.is(lwf)*svf,dtmf)

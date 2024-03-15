@@ -222,18 +222,18 @@ windelev <- function(dtmf, dtmm, dtmc, wdir, uz = 2) {
   dtmr[is.na(dtmr)]<-1
   wc1<-.windz(dtmm,dtmc,dtmr,wdir)
   # Calculate wind adjustment 2
-  wc1<-resample(wc1,dtmf)
+  wc1<-.resample(wc1,dtmf)
   wc2<-.windz(dtmf,dtmm,wc1,wdir)
   # Average
   wc<-(wc1+wc2)/2
   # Calculate average for coarse grid cell
   wcc<-resample(wc,dtmc,method="near")
   wcc[is.na(wcc)]<-mean(as.vector(wc),na.rm=TRUE)
-  wcc<-resample(wcc,wc)
+  wcc<-.resample(wcc,wc)
   wc<-wc/wcc
   # Calculate terrain shelter coefficient
   ws<-.windcoef(dtmm, wdir, hgt = uz)  # coarse
-  ws<-resample(ws,dtmf)
+  ws<-.resample(ws,dtmf)
   ws2<-.windcoef(dtmf, wdir, hgt = uz) # fine
   ws<-.rast(pmin(.is(ws),.is(ws2)),dtmf)
   wc<-ws*wc
