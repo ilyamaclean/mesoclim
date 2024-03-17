@@ -67,3 +67,8 @@ The function converts 360 day UKCP18 to actual calendar data by reassignment and
 The extent will be provided by the \code{dtm} which, if necessary, will be reprojected and resampled to the CRS and resolution of UKCP18 data requested.
 For regional UKCP18 data, it is recommended that 'dtm' is derived from the original orography data available for download.
 }
+\examples{
+dir_out <- tempdir()
+download_ukcp18(dir_out,'ceda_username','ceda_password',as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01','02','03'),c('clt','hurs','huss','pr','psl','rls','rss','tas','tasmax','tasmin','uas','vas'))
+climdata<-ukcp18toclimarray()
+}

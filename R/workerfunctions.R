@@ -879,32 +879,35 @@
   lsr2<-lsr
   for (i in 0:7) lsr2[,,i+1]<-0.25*lsr[,,(i-1)%%8+1]+0.5*lsr[,,i%%8+1]+0.25*lsr[,,(i+1)%%8+1]
   lsm<-apply(lsr,c(1,2),mean)
-  # slot in wind speeds
-  wdr<-.rast(wdir,dtmc)
-  ll<-.latlongfromrast(wdr)
-  xy<-data.frame(x=ll$long,y=ll$lat)
-  wdir<-as.numeric(xx<-extract(wdr,xy))[-1]
-  if (is.na(wdir[1])) wdir<-apply(.is(wdr),3,median,na.rm=TRUE)
-  # Calculate array land-sea ratios for every hour
-  i<-round(wdir/45)%%8
-  lsr<-lsr2[,,i+1]
-  # Calculate SST weighting upwind
-  # derive power scaling coefficient from wind speed
-  p2<-0.10573*log(.is(u2))-0.17478
-  # calculate logit lsr and lsm
-  llsr<-log(lsr/(1-lsr))
-  llsm<-.rta(log(lsm/(1-lsm)),dim(lsr)[3])
-  # Calculate mins and maxes
-  s<-which(is.na(lsr) == FALSE & lsr > 0 & lsr < 1)
-  llsr[lsr==0]<-log(min(lsr[s])/(1-min(lsr[s])))
-  llsr[lsr==1]<-log(max(lsr[s])/(1-max(lsr[s])))
-  s<-which(is.na(lsm) == FALSE & lsm > 0 & lsm < 1)
-  llsm[lsm==0]<-log(min(lsm[s])/(1-min(lsm[s])))
-  llsm[lsm==1]<-log(max(lsm[s])/(1-max(lsm[s])))
-  # predict logit swgt
-  lswgt<- -0.8729502+p2*llsr-0.6903705*llsm
-  swgt<-.rast(1/(1+exp(-lswgt)),tc)
-  tcp<-swgt*SST+(1-swgt)*tc
+  tst<-min(lsm,na.rm=T)
+  if (tst < 1) { # only apply coastal effects if there are coastal area
+    # slot in wind speeds
+    wdr<-.rast(wdir,dtmc)
+    ll<-.latlongfromrast(wdr)
+    xy<-data.frame(x=ll$long,y=ll$lat)
+    wdir<-as.numeric(xx<-extract(wdr,xy))[-1]
+    if (is.na(wdir[1])) wdir<-apply(.is(wdr),3,median,na.rm=TRUE)
+    # Calculate array land-sea ratios for every hour
+    i<-round(wdir/45)%%8
+    lsr<-lsr2[,,i+1]
+    # Calculate SST weighting upwind
+    # derive power scaling coefficient from wind speed
+    p2<-0.10573*log(.is(u2))-0.17478
+    # calculate logit lsr and lsm
+    llsr<-log(lsr/(1-lsr))
+    llsm<-.rta(log(lsm/(1-lsm)),dim(lsr)[3])
+    # Calculate mins and maxes
+    s<-which(is.na(lsr) == FALSE & lsr > 0 & lsr < 1)
+    llsr[lsr==0]<-log(min(lsr[s])/(1-min(lsr[s])))
+    llsr[lsr==1]<-log(max(lsr[s])/(1-max(lsr[s])))
+    s<-which(is.na(lsm) == FALSE & lsm > 0 & lsm < 1)
+    llsm[lsm==0]<-log(min(lsm[s])/(1-min(lsm[s])))
+    llsm[lsm==1]<-log(max(lsm[s])/(1-max(lsm[s])))
+    # predict logit swgt
+    lswgt<- -0.8729502+p2*llsr-0.6903705*llsm
+    swgt<-.rast(1/(1+exp(-lswgt)),tc)
+    tcp<-swgt*SST+(1-swgt)*tc
+  } else tcp<-tc
   return(tcp)
 }
 # ** Following is a bit of a code dump. We won't need it all:
