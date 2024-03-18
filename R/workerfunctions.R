@@ -89,10 +89,11 @@
   return(list(lats=lats,lons=lons))
 }
 #' version of terra resample that equates to NA.RM = TRUE
+#' method for resample and project can be set
 #' @import terra
-.resample<-function(r1,r2) {
+.resample<-function(r1,r2,method='bilinear') {
   # reproject if necessary
-  if (crs(r1) != crs (r2)) r1<-project(r1,crs(r1))
+  if (crs(r1) != crs (r2)) r1<-project(r1,crs(r1),method)
   af<-res(r2)[1] /res(r1)[1]
   if (af > 1) {
     # Resample if extents don't match'
@@ -107,10 +108,10 @@
       r<-rast(e)
       res(r)<-res(r1)
       crs(r)<-crs(r1)
-      ro<-resample(r1,r)
+      ro<-resample(r1,r,method)
       ro<-aggregate(ro,af,na.rm=TRUE)
     }
-  } else ro<-resample(r1,r2)
+  } else ro<-resample(r1,r2,method)
   return(ro)
 }
 # ============================================================================ #
