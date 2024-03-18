@@ -93,7 +93,7 @@
 #' @import terra
 .resample<-function(r1,r2,method='bilinear') {
   # reproject if necessary
-  if (crs(r1) != crs (r2)) r1<-project(r1,crs(r1),method)
+  if (crs(r1) != crs (r2)) r1<-project(r1,crs(r2),method)
   af<-res(r2)[1] /res(r1)[1]
   if (af > 1) {
     # Resample if extents don't match'
