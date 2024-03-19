@@ -97,7 +97,7 @@
   r1<-project(r1, crs(r2), method)
   af<-res(r2)[1] /res(r1)[1]
 
-  if (af > 1) {			                   # If resolution different aggregate
+  if (round(af,10) > 1) {			         # If resolution different aggregate
     ro<-aggregate(r1, af, na.rm=TRUE)
     if (ext(ro) != ext(r2)){           # if extents different then also resample
       ro<-resample(ro, r2, method)
