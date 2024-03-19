@@ -89,29 +89,22 @@
   return(list(lats=lats,lons=lons))
 }
 #' version of terra resample that equates to NA.RM = TRUE
+#' r1 resampled to same geometry as r2
+#' msk=TRUE if output to be masked out where r2 cells = NA
 #' method for resample and project can be set
 #' @import terra
-.resample<-function(r1,r2,method='bilinear') {
-  # reproject if necessary
-  if (crs(r1) != crs (r2)) r1<-project(r1,crs(r2),method)
+.resample <- function(r1,r2, msk=TRUE, method='bilinear'){
+  r1<-project(r1, crs(r2), method)
   af<-res(r2)[1] /res(r1)[1]
-  if (af > 1) {
-    # Resample if extents don't match'
-    e1<-ext(r1)
-    e2<-ext(r2)
-    e1<-c(e1$xmin,e1$xmax,e1$ymin,e1$ymax)
-    e2<-c(e2$xmin,e2$xmax,e2$ymin,e2$ymax)
-    if (all(e1==e2)) {
-      ro<-aggregate(r1,af,na.rm=TRUE)
-    } else {
-      e<-ext(r2)
-      r<-rast(e)
-      res(r)<-res(r1)
-      crs(r)<-crs(r1)
-      ro<-resample(r1,r,method)
-      ro<-aggregate(ro,af,na.rm=TRUE)
+
+  if (af > 1) {			                   # If resolution different aggregate
+    ro<-aggregate(r1, af, na.rm=TRUE)
+    if (ext(ro) != ext(r2)){           # if extents different then also resample
+      ro<-resample(ro, r2, method)
     }
-  } else ro<-resample(r1,r2,method)
+  } else ro<-resample(r1, r2, method)  # if res same then just resample
+
+  if(msk) ro<-mask(ro, r2)
   return(ro)
 }
 # ============================================================================ #
