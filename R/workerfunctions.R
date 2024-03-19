@@ -93,7 +93,7 @@
 #' msk=TRUE if output to be masked out where r2 cells = NA
 #' method for resample and project can be set
 #' @import terra
-.resample <- function(r1,r2, msk=TRUE, method='bilinear'){
+.resample <- function(r1,r2, msk=FALSE, method='bilinear'){
   r1<-project(r1, crs(r2), method)
   af<-res(r2)[1] /res(r1)[1]
 
