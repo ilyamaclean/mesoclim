@@ -35,6 +35,74 @@ download_globalbedo<-function(dir_out,
   }
 }
 
+#' Create UKCP sea surface temperature rast stack from ncdf files
+#'
+#' @param dir_data directory holding SST .nc files downloaded from ceda
+#' @param startdate start date as POSIXlt
+#' @param enddate end date as POSIXlt
+#' @param aoi SpatRaster, SpatVector or sf object defining area of interest to crop data. NA no corpping occurs
+#' @param members model members to be included
+#' @param v = SST sea surface temperature
+#'
+#' @return
+#' @export
+#' @import terra
+#' @import lubridate
+#' @examples
+create_sst_data<-function(
+    dir_data,
+    startdate,
+    enddate,
+    aoi=NA,
+    members=c('01','02','03','04','05','06','07','08','09','10','11','12','13','14','15') ,
+    v='SST' ){
+  # Check parameters
+  members<-match.arg(members,several.ok=TRUE)
+  if(!dir.exists(dir_data))(stop(paste("Directory",dir_data,"does not exist!!!")))
+  if(class(startdate)[1]!="POSIXlt" | class(enddate)[1]!="POSIXlt") stop("Date parameters NOT POSIXlt class!!")
+
+  # Derive months of data required - will output month before and after start and end dates for interpolation
+  start<-startdate %m-% months(1)
+  end<-enddate %m+% months(1)
+  yrs<-unique(c(year(start):year(end)))
+
+  # Get member ID used in file names from mesoclim lookup table
+  # Ref: https://www.metoffice.gov.uk/binaries/content/assets/metofficegovuk/pdf/research/ukcp/ukcp18-guidance-data-availability-access-and-formats.pdf
+  memberid<-ukcp18lookup$PP_ID[which(ukcp18lookup$Member_ID %in% members)]
+  if("" %in% memberid) warning(paste("Model members",members[which(memberid=="")],"NOT available for sea surface temperature - ignoring!!"))
+  memberid<-memberid[which(memberid!="")]
+
+  # Check input files all present in dir_data
+  ncfiles<-do.call(paste0, c(expand.grid('NWSClim_NWSPPE_',memberid,'_',yrs,'_gridT.nc') ))
+  ncfiles<-file.path(dir_data,ncfiles)
+  not_present<-which(!file.exists(ncfiles))
+  if (length(not_present)>0) stop(paste("Input .nc files required are NOT present: ",ncfiles[not_present]," ") )
+
+  # Get extent of aoi and project to same as SST data (lat lon)
+  if(!is.na(aoi)){
+    if(!class(aoi)[1] %in% c("SpatRaster","SpatVector","sf")) stop("Parameter aoi NOT of suitable spatial class ")
+    if(class(aoi)[1]=="sf") aoi<-vect(aoi)
+    target_crs<-crs(rast(ncfiles[1],subds=v))
+    aoi_e<-ext( project(aoi,target_crs) )
+  }
+  # Get spatrast stack
+  var_r<-terra::rast()
+  for(f in ncfiles){
+    print(f)
+    r<- rast(f, subds = v, drivers="NETCDF")
+    if(!class(aoi)[1]=='logical') r<-crop(r,aoi)
+    units(r)<-'degC'
+    # Join if multiple decades of data
+    terra::add(var_r)<-r
+  }
+  # Select relevant months
+  tme<-terra::time(var_r)
+  var_r<-var_r[[which(terra::time(var_r) %within%  interval(start-month(1), end+month(1)) ) ]]
+  names(var_r)<-terra::time(var_r)
+
+  return(var_r)
+}
+
 #' @title Downloads 1km historic climata data for the UK
 #' @description The function `download_hadukdaily` downloads HadUK-Grid Gridded
 #' Climate Observation data on a 1km grid over the UK from CEDA.
@@ -82,7 +150,7 @@ download_hadukdaily<-function(dir_out, cedausr, cedapwd, year, month, varn) {
 .multi_download<-function(f,url,dir_out,h){
   dload_url<-paste(url, f, sep = "")
   destfile<-file.path(dir_out,basename(f))
-  curl::curl_download(dload_url, destfile, handle = h)
+  curl::curl_download(dload_url, destfile, handle = h, quiet=FALSE)
 }
 #' Download UKCP18 climate data
 #' @description
@@ -121,7 +189,7 @@ download_ukcp18<-function(
     domain=c('uk','eur','global'),
     rcp=c('rcp85', 'rcp26'),
     member=c('01','02','03','04','05','06','07','08','09','10','11','12','13','14','15',
-                '16','17','18','19','20','21','22','23','24','25','26','27','28'),
+             '16','17','18','19','20','21','22','23','24','25','26','27','28'),
     vars=c('clt','hurs','huss','pr','prsn','psl','rls','rss','snw','tasmax','tasmin','uas','vas'), # 'tas',
     cedaprot="ftp://",
     cedaserv="ftp.ceda.ac.uk"
@@ -133,9 +201,9 @@ download_ukcp18<-function(
   rcp<-match.arg(rcp)
   member<-match.arg(member,several.ok=TRUE)
   vars<-match.arg(vars,several.ok=TRUE)
-  if(collection=='land-rcm' & !member %in% c('01','02','03','04','05','06','07','08','09','10','11','12','13','14','15')){
+  if(collection=='land-rcm' & !any(member %in% c('01','04','05','06','07','08','09','10','11','12','13','15'))){
     warning('Invalid member for land-rcm - retricting to only those valid!!')
-    member<-member[which(modelsruns %in% c('01','02','03','04','05','06','07','08','09','10','11','12','13','14','15'))]
+    member<-member[which(modelsruns %in% c('01','04','05','06','07','08','09','10','11','12','13','15'))]
   }
   if(collection=='land-gcm' & !domain %in% c('uk','global')){
     warning('Invalid area for global data - downloading global data!!')
@@ -195,6 +263,7 @@ download_ukcp18<-function(
 #' @export
 #' @details Creates a time series from the ncdf file time variable which is not correctly read by R terra package.
 #' UKCP18 time values expressed as hours since 1/1/1970 12.00. Output used by function `correct_ukcp_dates()`
+#' @examples
 get_ukcp18_dates<-function(ncfile){
   netcdf_data <-ncdf4::nc_open(ncfile)
   time_hours <- ncdf4::ncvar_get(netcdf_data,"time")
@@ -206,6 +275,8 @@ get_ukcp18_dates<-function(ncfile){
   ukcp_dates<-paste(years,sprintf("%02d",months),sprintf("%02d",days),sep="-")
   return(ukcp_dates)
 }
+
+
 #' @title Corrects time series of UKCP18 360 day year data to valid calendar dates
 #' @description Converts 12 x 30 day monthly data provided by UKCP18 to data corresponding to actual calendar dates
 #' by reassigning invalid dates (eg 29-30 Feb). Does NOT add missing dates (eg 31st May). Output used by `fill_calendar_data()`
@@ -213,6 +284,7 @@ get_ukcp18_dates<-function(ncfile){
 #' @return a vector of valid date strings in the form 'yyy-dd-mm'
 #' @import lubridate
 #' @export
+#' @examples
 correct_ukcp_dates<-function(ukcp_dates){
   years<-as.numeric(sapply(strsplit(ukcp_dates,"-"), getElement, 1))
   months<-as.numeric(sapply(strsplit(ukcp_dates,"-"), getElement, 2))
@@ -252,6 +324,7 @@ correct_ukcp_dates<-function(ukcp_dates){
 #' @return a SpatRaster timeseries corresponding to actual calendar dates with invalid, no missing/empty days
 #' @import terra
 #' @export
+#' @examples
 fill_calendar_data<-function(ukcp_r, real_dates, testplot=FALSE, plotdays=c(89:91,242:244)){
   # Assign real dates to layer names and time values
   terra::time(ukcp_r)<-real_dates
@@ -263,6 +336,8 @@ fill_calendar_data<-function(ukcp_r, real_dates, testplot=FALSE, plotdays=c(89:9
   if(testplot)  plot(ukcp_r[[plotdays]],main=paste(time(ukcp_r)[plotdays], 'after filling'))
   return(ukcp_r)
 }
+
+
 #' @title Convert units and values of a SpatRast
 #' @param r SpatRaster with defined units
 #' @param to_unit units of output SpatRaster
@@ -270,6 +345,7 @@ fill_calendar_data<-function(ukcp_r, real_dates, testplot=FALSE, plotdays=c(89:9
 #' @import terra
 #' @import units
 #' @export
+#' @examples
 change_rast_units<-function(r,to_unit){
   in_unit<-terra::units(r)
   # Get and convert values
@@ -280,6 +356,8 @@ change_rast_units<-function(r,to_unit){
   terra::units(newr)<-to_unit
   return(newr)
 }
+
+
 #' @title Find UKCP18 decades containing timeseries of data
 #' @description Returns UKCP18 decade text (used in file names) containing required data defined by start and end dates
 #' @param collection UKCP18 collection, either global ('land-gcm') or regional ('land-rcm'), as file naming conventions vary between each collection
@@ -300,8 +378,8 @@ find_ukcp_decade<-function(collection=c('land-gcm','land-rcm'),startdate,enddate
                  '20191201-20291130','20291201-20391130','20391201-20491130','20491201-20591130',
                  '20591201-20691130','20691201-20791130')
   if(collection=='land-gcm') ukcp_decades<-gcm_decades else ukcp_decades<-rcm_decades
-  decade_start<-ymd(sapply(strsplit(ukcp_decades,"-"), `[`, 1))
-  decade_end<-ymd(sapply(strsplit(ukcp_decades,"-"), `[`, 2))
+  decade_start<-lubridate::ymd(sapply(strsplit(ukcp_decades,"-"), `[`, 1))
+  decade_end<-lubridate::ymd(sapply(strsplit(ukcp_decades,"-"), `[`, 2))
   decades<-ukcp_decades[which(decade_end>startdate & decade_start<enddate)]
   return(decades)
 }
@@ -312,6 +390,86 @@ find_ukcp_decade<-function(collection=c('land-gcm','land-rcm'),startdate,enddate
 .lwup<-function(tc,sb=5.67*10^-8,em=0.97){
   lwup<-sb*em*(tc+273.15)^4
   return(lwup)
+}
+
+# Function to calculate SW down from SW net, cloud cover and white & black sky albedo
+# swnet Spatrast of net SW
+# cloud Spatrast of cld cover as %
+# dtmc - elevation (sea as NA) matching climate data
+# wsalbedo - white sky albedo - can be a constant of fixed land albedo or a Spat raster of values.
+#           if >1 layer rast then must have time values as either numeric Day of Year or as Date
+#           interpolates missing days of year - SHOULD be either values for single year or
+#           mean monthly (or other step across multiple years)
+# bsalbedo - as wsalbedo but black sky
+#swdown_r<-.swdown(clim_list$rss,clim_list$clt,dtmc,wsalbedo,bsalbedo)
+#plot(swdown_r[[contrast_layers(swdown_r)]])
+# swdown_r<-.swdown(clim_list$rss,clim_list$clt,dtmc,NA,NA)
+# plot(swdown_r[[contrast_layers(swdown_r)]])
+.swdown<-function(swnet,cloud,dtmc,wsalbedo=0.19,bsalbedo=0.22,seaalb=0.065){
+
+  if(class(wsalbedo)[1]!='SpatRaster' ||  class(bsalbedo)[1] != "SpatRaster"){
+    message('Using constant land and sea albedo values - assuming NA values in dtmc are sea!!')
+    wsalb_r<-ifel(is.na(dtmc),seaalb,wsalbedo)
+    bsalb_r<-ifel(is.na(dtmc),seaalb,bsalbedo)
+  }
+
+  if(class(wsalbedo)[1]=='SpatRaster' &  class(bsalbedo)[1] == "SpatRaster"){
+    # Resample to match dtmc and climate data
+    wsalb_r<-.resample(wsalbedo,dtmc,msk=TRUE)
+    bsalb_r<-.resample(bsalbedo,dtmc,msk=TRUE)
+    # Set any NA to sea  albedo value
+    wsalb_r<-ifel(is.na(wsalb_r),seaalb,wsalb_r)
+    bsalb_r<-ifel(is.na(bsalb_r),seaalb,bsalb_r)
+
+    # Interpolate albedo values across each year of climate data
+    if(nlyr(wsalb_r)>1){
+      message('Interpolating albedo values to match climate data.')
+
+      # Create albedo rasters matching time steps of swnet - interpolating missing values
+      wsin_r<-wsalb_r
+      bsin_r<-bsalb_r
+      tme<-terra::time(swnet)
+
+      # Create new timeseries of albedo to match swnet
+      wsalb_r<-rast(crs=crs(swnet),ext=ext(swnet),res=res(swnet),nlyrs=nlyr(swnet))
+      wsalb_r<-setValues(wsalb_r,NA)
+      terra::time(wsalb_r)<-terra::time(swnet)
+
+      bsalb_r<-rast(crs=crs(swnet),ext=ext(swnet),res=res(swnet),nlyrs=nlyr(swnet))
+      bsalb_r<-setValues(bsalb_r,NA)
+      terra::time(bsalb_r)<-terra::time(swnet)
+
+      # Fill timeseries with available data provided
+      for(y in unique(lubridate::year(tme))){
+        # White sky albedo
+        if(inherits(terra::time(wsin_r), 'Date')) terra::time(wsin_r)<-as.Date(lubridate::yday(terra::time(wsin_r)), origin = paste0(y-1,"-12-31"))
+        if(class(terra::time(wsin_r))=='numeric'){
+          message('Assuming albedo time values are days of year')
+          terra::time(wsin_r)<-as.Date(terra::time(wsin_r), origin = paste0(y-1,"-12-31"))
+        }
+        sel<-which(as.Date(terra::time(wsalb_r)) %in% terra::time(wsin_r))
+        if(length(sel)>0) wsalb_r[[sel]]<-wsin_r
+
+        # Black sky albedo
+        if(inherits(terra::time(bsin_r), 'Date')) terra::time(bsin_r)<-as.Date(lubridate::yday(terra::time(bsin_r)), origin = paste0(y-1,"-12-31"))
+        if(class(terra::time(bsin_r))=='numeric'){
+          message('Assuming albedo time values are days of year')
+          terra::time(bsin_r)<-as.Date(terra::time(bsin_r), origin = paste0(y-1,"-12-31"))
+        }
+        sel<-which(as.Date(terra::time(bsalb_r)) %in% terra::time(bsin_r))
+        if(length(sel)>0) bsalb_r[[sel]]<-bsin_r
+      }
+      # Interpolate remaining of time series
+      wsalb_r<-approximate(wsalb_r,rule=2)
+      bsalb_r<-approximate(bsalb_r,rule=2)
+    } else message('Using provided albedo data for all time periods.')
+  }
+  # Calculate swdown
+  if(terra::units(cloud)[1]=='%') cloud<-cloud/100
+  albedo<-(1-cloud)*bsalb_r + (cloud * wsalb_r)
+  swdown<-swnet/(1-albedo)
+  terra::units(swnet)<-terra::units(swnet)[1]
+  return(swdown)
 }
 
 #' @title convert UKCP18  ncdf4 files to format required for model
@@ -340,24 +498,25 @@ find_ukcp_decade<-function(collection=c('land-gcm','land-rcm'),startdate,enddate
 #' @import terra
 #' @export
 #' @details The function converts 360 day UKCP18 to actual calendar data by reassignment and linear interpolation of missing data. Returned climate data will be at the resolution, corrdinate reference system of the UKCP18 data requested, which can vary between domains and collections.
-#' The extent will be provided by the `dtm` which, if necessary, will be reprojected and resampled to the CRS and resolution of UKCP18 data requested.
+#' The extent will be provided by the `dtm` which, if necessary, will be re-projected and resampled to the CRS and resolution of UKCP18 data requested.
 #' For regional UKCP18 data, it is recommended that 'dtm' is derived from the original orography data available for download.
 #' @examples
 #' dir_out <- tempdir()
 #' download_ukcp18(dir_out,'ceda_username','ceda_password',as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01','02','03'),c('clt','hurs','huss','pr','psl','rls','rss','tas','tasmax','tasmin','uas','vas'))
 #' climdata<-ukcp18toclimarray()
-ukcp18toclimarray <- function(dir_ukcp, dtm,
-                              toArrays=TRUE, sampleplot=FALSE, startdate, enddate,
+ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
                               collection=c('land-gcm','land-rcm'),
                               domain=c('uk','eur','global'),
                               member=c('01','02','03','04','05','06','07','08','09','10','11','12','13','14','15',
-                                      '16','17','18','19','20','21','22','23','24','25','26','27','28'),
+                                       '16','17','18','19','20','21','22','23','24','25','26','27','28'),
+                              wsalbedo=0.19, bsalbedo=0.22,
                               ukcp_vars=c('clt','hurs','huss','pr','psl','rls','rss',
-                                         'tasmax','tasmin','uas','vas'),
+                                          'tasmax','tasmin','uas','vas'),
                               ukcp_units=c('%','%','1','mm/day','hPa','watt/m^2','watt/m^2',
                                            'degC','degC','m/s','m/s'),
                               output_units=c('%','%','1','mm/day','kPa','watt/m^2','watt/m^2',
-                                              'degC','degC','m/s','m/s') ){
+                                             'degC','degC','m/s','m/s'),
+                              toArrays=TRUE, sampleplot=FALSE){
   # Parameter check
   collection<-match.arg(collection)
   domain<-match.arg(domain)
@@ -391,14 +550,11 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,
   ukcp_res<-terra::res(sample_ukcp18)
   ukcp_e<-terra::ext(sample_ukcp18)
 
-  # Create output list
-  output_list<-list()
 
   # Create coarse-resolution dtm to use as template for resampling - weighted !!!
-  dtm <- subst(dtm,NA, 0)
-  output_list$dtmc<-terra::trim(terra::resample(terra::project(dtm,ukcp_crs),sample_ukcp18,method='bilinear'))
-  units(output_list$dtmc)<-'m'
-  names(output_list$dtmc)<-'Elevation'
+  dtmc<-terra::crop(.resample(dtm,sample_ukcp18),dtm)
+  units(dtmc)<-'m'
+  names(dtmc)<-'Elevation'
 
   # Load spatrasters from ukcp.nc file, crop to dtmc, convert to normal calendar and add to output list
   clim_list<-list()
@@ -414,7 +570,7 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,
 
       # Load and crop data in native crs then project to dtmc crs and recrop
       r <- terra::rast(ncfile, subds=v)
-      r<-terra::crop(r,output_list$dtmc)
+      r<-terra::crop(r,dtmc)
 
       # If requested then convert to real calendar dates and fill missing dates
       ukcp_dates<-get_ukcp18_dates(ncfile)
@@ -425,45 +581,23 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,
       terra::units(r)<-ukcp_u
 
       # PROBLEM with u v wind vectors in global data - based on DIFFERENT grid to other variables!!!
-      if(terra::ext(r)!=terra::ext(output_list$dtmc)){
+      if(terra::ext(r)!=terra::ext(dtmc)){
         print("Extents of input data DIFFERENT - correcting!!")
-        r<-terra::resample(r,output_list$dtmc)
+        r<-terra::resample(r,dtmc)
       }
       # Join if multiple decades of data
       terra::add(var_r)<-r
     }
     # Check & convert units, check all rasters geoms are same
     if(ukcp_u!=out_u) var_r<-change_rast_units(var_r, out_u)
-    if(!terra::compareGeom(output_list$dtmc,var_r)) warning(paste(v,"Spatrast NOT comparable to output_list$dem!!") )
+    if(!terra::compareGeom(dtmc,var_r)) warning(paste(v,"Spatrast NOT comparable to DTM!!") )
     clim_list[[v]]<-var_r
   }
+  # Check time class - POSIXct?
 
   # Calculate derived variables: wind
-  clim_list$windspeed<-.rast(sqrt(as.array(clim_list$uas)^2+as.array(clim_list$vas)^2)*log(67.8*2-5.42)/log(67.8*10-5.42),output_list$dtmc) # Wind speed (m/s)
-  clim_list$winddir<-.rast(as.array((terra::atan2(clim_list$uas,clim_list$vas)*180/pi+180)%%360),output_list$dtmc) # Wind direction (deg from N - from)
-
-  # Calculate derived variables: longwave downward
-  tmean<-(clim_list$tmax+clim_list$tmin)/2
-  lwup<-terra::app(tmean, fun=calc_lwup)
-  clim_list$lwdown<-clim_list$lwnet+lwup
-
-  # Calculate derived variables: shortwave downward
-  bsalb<-0.21
-  wsalb<-0.19
-  seaalb<-0.065
-  wsm <- matrix(c(-5, 2,seaalb, 2, 100, wsalb),ncol=3,byrow=TRUE)
-  wsalb_r<-classify(clim_list$dem,wsm)
-  bsm <- matrix(c(-5, 2,seaalb, 2, 100, bsalb),ncol=3,byrow=TRUE)
-  bsalb_r<-classify(clim_list$dem,bsm)
-
-  clim_alb<-(1-clim_list$clt)*bsalb_r + clim_list$clt * wsalb_r
-  clim_swd<-clim_list$rss/(1-clim_alb)
-  plot(clim_swd[[1:9]]); plot(clim_swd[[2391]])
-
-  mesoclim_list$swdown<-downscale_resample(clim_swd,mesoclim_list$dem)
-
-
-  # Set units, times and layer names
+  clim_list$windspeed<-.rast(sqrt(as.array(clim_list$uas)^2+as.array(clim_list$vas)^2)*log(67.8*2-5.42)/log(67.8*10-5.42),dtmc) # Wind speed (m/s)
+  clim_list$winddir<-.rast(as.array((terra::atan2(clim_list$uas,clim_list$vas)*180/pi+180)%%360),dtmc) # Wind direction (deg from N - from)
   units(clim_list$windspeed)<-'m/s'
   units(clim_list$winddir)<-'deg'
   terra::time(clim_list$windspeed)<-terra::time(clim_list$uas)
@@ -471,14 +605,23 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,
   names(clim_list$windspeed)<-terra::time(clim_list$windspeed)
   names(clim_list$winddir)<-terra::time(clim_list$winddir)
 
+  # Calculate derived variables: longwave downward
+  tmean<-(clim_list$tasmax+clim_list$tasmin)/2
+  lwup<-terra::app(tmean, fun=.lwup)
+  clim_list$lwdown<-clim_list$rls+lwup
+
+  # Calculate derived variables: shortwave downward from white & black sky albedo as rast timeseries or fixed land and sea values
+  clim_list$swdown<-.swdown(clim_list$rss, clim_list$clt, dtmc, wsalbedo, bsalbedo)
+
+  ### Create ouput list
+  output_list<-list()
+
   # Select and rename climate output rasts MIGHT NEED TO CHANGE THESE TO MATCH THOSE USED BY MESOCLIM FUNCTIONS
-  # *** Ilya comment - will need to integrate some conversion functons and change names
-  # mesclim names and variables are: temp, (or tmin / tmax), relhum, pres, swrad, difrad, lwrad, windspeed
-  # winddir,  prec.
-  clim_list<-clim_list[c("clt","hurs","huss","pr","psl","lwdown","swdown","tasmax","tasmin", "windspeed","winddir")]
-  names(clim_list)<-c('cloud','relhum','spechum','prec','pres','lwrad','swrad','tmax','tmin','windspeed','winddir')
+  clim_list<-clim_list[c("clt","hurs","pr","psl","lwdown","swdown","tasmax","tasmin", "windspeed","winddir")]
+  names(clim_list)<-c('cloud','relhum','prec','pres','lwrad','swrad','tmax','tmin','windspeed','winddir')
 
   # Add other data
+  output_list$dtmc<-dtmc
   output_list$windheight_m<-10 # windspeed at 10 metres height
   output_list$tempheight_m<-1.5 # air temp at 1.5 metres height
 
@@ -496,4 +639,3 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,
 
   return(output_list)
 }
-
