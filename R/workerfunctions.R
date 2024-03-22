@@ -105,6 +105,10 @@
   } else ro<-resample(r1, r2, method)  # if res same then just resample
 
   if(msk) ro<-mask(ro, r2)
+
+  #ensure time and names of layers in new raster match r1
+  names(ro)<-names(r1)
+  terra::time(ro)<-terra::time(r1)
   return(ro)
 }
 # ============================================================================ #
