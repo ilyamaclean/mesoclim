@@ -786,6 +786,9 @@
 .tempelev <- function(tc, dtmf, dtmc = NA, rh = NA, pk = NA) {
   if (class(dtmc)[1] == "logical")  dtmc<-.resample(dtmf,tc)
   if (class(tc)[1] == "array") tc<-.rast(tc,dtmc)
+  # COnvert NA to elevation of 0 in dtm's
+  dtmc<-ifel(is.na(dtmc),0,dtmc)
+
   # Calculate lapse rate
   n<-dim(tc)[3]
   if (class(rh) == "logical") {
