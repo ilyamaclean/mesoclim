@@ -482,8 +482,7 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
 #' @title Spatially downscale all climate variables
 #' @description Spatially downscales coarse-resolution climate data
 #' @param climdata a `climdata` model object containing climate data of the same format as `era5climdata`
-#' @param SST a coarse resolution SpatRast of hourly sea-surface temperature data (deg C) with no NAs, as
-#' returned by [SSTinterpolate()]
+#' @param SST a coarse resolution SpatRast of sea-surface temperature data (deg C) without NAs where time(SST) == climdata$tme
 #' @param dtmf a high-resolution SpatRast of elevations
 #' @param dtmm a medium-resolution SpatRast of elevations covering a larger area
 #' than dtmf (only needed for coastal effects - see details under [tempdownscale()]).
@@ -531,13 +530,14 @@ spatialdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, cad = TR
                            coastal = TRUE, refhgt = 2, uhgt = 2, rhmin = 20,
                            pksealevel = TRUE, patchsim = TRUE, terrainshade = TRUE, precipmethod = "Elev",
                            fast = TRUE, noraincut = 0) {
-  # Sort out SST
   tme<-as.POSIXlt(climdata$tme,tz="UTC")
+  # Check SST data matches tme
+  if(all(tme!=as.POSIXlt(terra::time(SST)))) stop('SST data not of same timesteps as climdata!!')
   # Find out whether daily or hourly
   tint<-as.numeric(tme[2])-as.numeric(tme[1])
   hourly<-TRUE
   if (abs(tint-86400) < 5) hourly=FALSE
-  SST<-SSTinterpolate(SST,tme,tme)
+  # SST<-SSTinterpolate(SST,tme,tme)
   # Extract variables
   dtmc<-rast(climdata$dtmc)
   climarray<-climdata$climarray
