@@ -15,6 +15,7 @@
 #' rout<-spatial_interpNA(r)
 #' plot(c(r,rout))
 spatial_interpNA<-function(r){
+  tme<-terra::time(r)
   me<-as.vector(r)
   n<-which(is.na(me))
   rout<-r
@@ -47,6 +48,7 @@ spatial_interpNA<-function(r){
     }
     rout<-.rast(m1,r)
   }
+  terra::time(rout)<-tme
   return(rout)
 }
 #' Temporal interpolation of missing times in Spatraster
@@ -81,7 +83,7 @@ time_interp<-function(rin, tmeout, tmein=NA){
 
   # Extend desired output timeseries to next available input data before/after output timeseries
   if(any(tmein<tmeout[1])) tstart<- tmein[which(tmein<tmeout[1])][1] else tstart<-as.POSIXlt(tmeout[1])
-  if(any(tmein>tmeout))  tend<-tmein[which(tmein>tmeout[length(tmeout)])][1] else tend<-as.POSIXlt(tmeout[length(tmeout)])
+  if(any(tmein>tmeout[length(tmeout)]))  tend<-tmein[which(tmein>tmeout[length(tmeout)])][1] else tend<-as.POSIXlt(tmeout[length(tmeout)])
   ext_tmeout<-as.POSIXlt(seq(tstart,tend,tstep))
 
   # Create output raster
