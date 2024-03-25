@@ -38,9 +38,11 @@ tempdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, u2 = NA,
   if (class(dtmm) == "logical" & coastal) stop("dtmm needed for calculating coastal effects")
   # Calculate elevation effects
   if (class(climdata$dtmc)[1] == "PackedSpatRaster") dtmc<-rast(climdata$dtmc) else dtmc<-climdata$dtmc
-  tc<-climdata$climarray$temp
   rh<-climdata$climarray$relhum
   pk<-climdata$climarray$pres
+
+  tc<-climdata$climarray$temp
+
   tcf<-.rast(tc,dtmc)
   if (crs(tcf) != crs(dtmf)) tcf<-project(tcf,crs(dtmf))
   # Calculate resampled coarse-res temp
@@ -52,10 +54,10 @@ tempdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, u2 = NA,
     tcf<-tcf+tcad
   }
   if (coastal) {
-    te<-mean(.is(SST))
-    if (is.na(te)) {
-      SST<-SSTinterpolate(SST,climdata$tme,climdata$tme)
-    }
+    #te<-mean(.is(SST))
+    #if (is.na(te)) {
+    #  SST<-SSTinterpolate(SST,climdata$tme,climdata$tme)
+    #}
     if (crs(SST) != crs(dtmf)) SST<-project(SST,crs(dtmf))
     SST<-.resample(SST,dtmf)
     wspeed<-climdata$climarray$windspeed
@@ -148,6 +150,8 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)
                       terrainshade = FALSE) {
   # Work out whether daily or not
   ti<-round(as.numeric(tme[2])-as.numeric(tme[1]))
+  # Check no NA in dtmc - convert to 0 elevation
+  dtmc<-ifel(is.na(dtmc),0,dtmc)
   # Calculate clear sky fraction
   jd<-juldayvCpp(tme$year+1900, tme$mon+1, tme$mday)
   lt<-tme$hour+tme$min/60+tme$sec/3600
@@ -230,7 +234,7 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)
     # Calculate sky view
     svf<-.rta(.skyview(dtmf),dim(swradf)[3])
     # Adjust radiation to account for sky view factor
-    drf<-.rast(dp*svf*.is(swradf),dtmf)
+    drf<-.rast(dp*svf*.is(swradf),dtmf) # FAILS HERE FOR DAILY
     swf<-(1-dp)*shadowmask*.is(swradf)+dp*svf*.is(swradf)
     swf<-.rast(swf,dtmf)
     if (ti == 86400) {  # daily average across days
@@ -626,15 +630,15 @@ spatialdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, cad = TR
   rhf<-wrap(rhf)
   pkf<-wrap(pkf)
   swf<-wrap(swf)
-  if (terrainshade) difrad<-wrap(difrad)
   lwf<-wrap(lwf)
   uzf<-wrap(uzf)
   wdf<-wrap(wdf)
   precf<-wrap(precf)
   if (hourly) {
-    out<-list(temp=tcf,relhum=rhf,pres=pkf,swrad=swf,difrad=difrad,lwrad=lwf,windspeed=uzf,winddir=wdf,prec=precf)
+    out<-list(temp=tcf,relhum=rhf,pres=pkf,swrad=swf,lwrad=lwf,windspeed=uzf,winddir=wdf,prec=precf)
   } else {
-    out<-list(tmin=tminf,tmax=tmaxf,relhum=rhf,pres=pkf,swrad=swf,difrad=difrad,lwrad=lwf,windspeed=uzf,winddir=wdf,prec=precf)
+    out<-list(tmin=tminf,tmax=tmaxf,relhum=rhf,pres=pkf,swrad=swf,lwrad=lwf,windspeed=uzf,winddir=wdf,prec=precf)
   }
+  if (terrainshade) out$difrad<-wrap(difrad)
   return(out)
 }
