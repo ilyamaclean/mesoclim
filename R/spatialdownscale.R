@@ -40,13 +40,13 @@ tempdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, u2 = NA,
   if (class(climdata$dtmc)[1] == "PackedSpatRaster") dtmc<-rast(climdata$dtmc) else dtmc<-climdata$dtmc
   rh<-climdata$climarray$relhum
   pk<-climdata$climarray$pres
-
   tc<-climdata$climarray$temp
 
-  tcf<-.rast(tc,dtmc)
-  if (crs(tcf) != crs(dtmf)) tcf<-project(tcf,crs(dtmf))
+  #tcf<-.rast(tc,dtmc)
+  #if (crs(tcf) != crs(dtmf)) tcf<-project(tcf,crs(dtmf))
   # Calculate resampled coarse-res temp
-  tcc<-.resample(tcf,dtmf)
+  #tcc<-.resample(tcf,dtmf)
+
   # Calculate elevation effects
   tcf<-.tempelev(tc,dtmf,dtmc,rh,pk)
   if (cad) {
@@ -454,6 +454,8 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
     # Downscaled rain day fraction
     rf2<-Tpsdownscale(r2, dtmc, dtmf, method = "logit", fast) # Rain day fraction
   } else {
+    # Convert NA to zero in dtmc
+    dtmc<-ifel(is.na(dtmc),0,dtmc)
     # Downscaled rain total
     dtmcf<-resample(dtmc,dtmf)
     edif<-dtmf-dtmcf
@@ -543,7 +545,7 @@ spatialdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, cad = TR
   if (abs(tint-86400) < 5) hourly=FALSE
   # SST<-SSTinterpolate(SST,tme,tme)
   # Extract variables
-  dtmc<-rast(climdata$dtmc)
+  if(class(climdata$dtmc)[1]=='PackedSpatRaster') dtmc<-rast(climdata$dtmc) else dtmc<-climdata$dtmc
   climarray<-climdata$climarray
   if (hourly) {
     tc<-climarray$temp
