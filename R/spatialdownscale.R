@@ -624,27 +624,27 @@ spatialdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, cad = TR
   precf<-precipdownscale(prec,dtmf,dtmc,precipmethod,fast,noraincut,patchsim,nsim)
   # return values
   if (hourly) {
-    time(tcf)<-climdata$tme
+    terra::time(tcf)<-climdata$tme
     tcf<-wrap(tcf)
   } else {
-    time(tminf)<-climdata$tme
+    terra::time(tminf)<-climdata$tme
     tminf<-wrap(tminf)
-    time(tmaxf)<-climdata$tme
+    terra::time(tmaxf)<-climdata$tme
     tmaxf<-wrap(tmaxf)
   }
-  time(rhf)<-climdata$tme
+  terra::time(rhf)<-climdata$tme
   rhf<-wrap(rhf)
-  time(pkf)<-climdata$tme
+  terra::time(pkf)<-climdata$tme
   pkf<-wrap(pkf)
-  time(swf)<-climdata$tme
+  terra::time(swf)<-climdata$tme
   swf<-wrap(swf)
-  time(lwf)<-climdata$tme
+  terra::time(lwf)<-climdata$tme
   lwf<-wrap(lwf)
-  time(uzf)<-climdata$tme
+  terra::time(uzf)<-climdata$tme
   uzf<-wrap(uzf)
-  time(wdf)<-climdata$tme
+  terra::time(wdf)<-climdata$tme
   wdf<-wrap(wdf)
-  time(precf)<-climdata$tme
+  terra::time(precf)<-climdata$tme
   precf<-wrap(precf)
   if (hourly) {
     out<-list(temp=tcf,relhum=rhf,pres=pkf,swrad=swf,lwrad=lwf,windspeed=uzf,winddir=wdf,prec=precf)

@@ -931,7 +931,8 @@
 # fi - filename of nc file
 # e - raster extent object of the extent to crop to
 # returns a SpatRaster object
-#' @import raster, terra
+#' @import raster
+#' @import terra
 .cropnc<-function(fi,e) {
   r<-suppressWarnings(brick(fi))
   r<-crop(r,e)
