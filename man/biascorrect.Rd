@@ -4,7 +4,7 @@
 \alias{biascorrect}
 \title{Applies bias correction to one climate variable}
 \usage{
-biascorrect(hist_obs, hist_mod, fut_mod, mod_out = FALSE, rangelims = NA)
+biascorrect(hist_obs, hist_mod, fut_mod = NA, mod_out = FALSE, rangelims = NA)
 }
 \arguments{
 \item{hist_obs}{a stacked SpatRaster of climate observations.}

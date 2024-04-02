@@ -2,10 +2,16 @@
 % Please edit documentation in R/workerfunctions.R
 \name{.resample}
 \alias{.resample}
-\title{version of terra resample that equates to NA.RM = TRUE}
+\title{version of terra resample that equates to NA.RM = TRUE
+r1 resampled to same geometry as r2
+msk=TRUE if output to be masked out where r2 cells = NA
+method for resample and project can be set}
 \usage{
-.resample(r1, r2)
+.resample(r1, r2, msk = FALSE, method = "bilinear")
 }
 \description{
 version of terra resample that equates to NA.RM = TRUE
+r1 resampled to same geometry as r2
+msk=TRUE if output to be masked out where r2 cells = NA
+method for resample and project can be set
 }

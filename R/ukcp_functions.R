@@ -153,9 +153,12 @@ download_hadukdaily<-function(dir_out, cedausr, cedapwd, year, month, varn) {
   curl::curl_download(dload_url, destfile, handle = h, quiet=FALSE)
 }
 #' Download UKCP18 climate data
+#' ILya comment: function needs fixing to handle cases where length(member) or
+#' length (collection) > 1 (or make clear you only want one at a time).
+#' Note that with collection='land-rcm', it can download 12 model runs numbered, 1 & 4-15.
+#' I.e. 2 & 3 don't exist
 #' @description
 #' Using parameters the function will downloaded from ftp.ceda.ac.uk all available UCKP18 files containing relevant data to the user defined output directory
-#'
 #' @param dir_out Output directory to which files are downloaded
 #' @param cedausr string of ceda user name
 #' @param cedapwd string of ceda user pasword
@@ -201,7 +204,13 @@ download_ukcp18<-function(
   rcp<-match.arg(rcp)
   member<-match.arg(member,several.ok=TRUE)
   vars<-match.arg(vars,several.ok=TRUE)
+<<<<<<< HEAD
+  ## ILya comment: this will give an error, I think, if member or collection has length greater than 1!
+
+  if(collection=='land-rcm' & !member %in% c('01','02','03','04','05','06','07','08','09','10','11','12','13','14','15')){
+=======
   if(collection=='land-rcm' & !any(member %in% c('01','04','05','06','07','08','09','10','11','12','13','15'))){
+>>>>>>> 028f7017f7a0d470cb14cee5ad90ce5595f402e3
     warning('Invalid member for land-rcm - retricting to only those valid!!')
     member<-member[which(modelsruns %in% c('01','04','05','06','07','08','09','10','11','12','13','15'))]
   }
@@ -365,6 +374,7 @@ change_rast_units<-function(r,to_unit){
 #' @param enddate POSIXlt class defining starting date
 #' @return a vector of strings corresponding to the decade part of UKCP18 files containing the entire requested timeseries
 #' @export
+#' @import lubridate
 #' @examples
 #' find_ukcp_decade('land-rcm',as.POSIXlt("2030/01/01"),as.POSIXlt("2039/12/31"))
 #'

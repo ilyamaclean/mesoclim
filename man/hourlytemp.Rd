@@ -4,14 +4,15 @@
 \alias{hourlytemp}
 \title{Derives hourly temperature from daily data}
 \usage{
-hourlytemp(tmn, tmx, tme, lat = NA, long = NA, srte = 0.09)
+hourlytemp(tmn, tmx, tme = NA, lat = NA, long = NA, srte = 0.09)
 }
 \arguments{
 \item{tmn}{a vector or SpatRaster of daily minimum temperatures (deg C)}
 
 \item{tmx}{a vector or SpatRaster of daily maximum temperatures (deg C)}
 
-\item{tme}{POSIXlt object of dates}
+\item{tme}{POSIXlt object of dates. Only required if \code{tmn} and
+\code{tmx} are vectors.}
 
 \item{lat}{latitude of location (decimal degrees). Only required if \code{tmn} and
 \code{tmx} are vectors}

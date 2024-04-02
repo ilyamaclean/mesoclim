@@ -41,12 +41,6 @@ tempdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, u2 = NA,
   rh<-climdata$climarray$relhum
   pk<-climdata$climarray$pres
   tc<-climdata$climarray$temp
-
-  #tcf<-.rast(tc,dtmc)
-  #if (crs(tcf) != crs(dtmf)) tcf<-project(tcf,crs(dtmf))
-  # Calculate resampled coarse-res temp
-  #tcc<-.resample(tcf,dtmf)
-
   # Calculate elevation effects
   tcf<-.tempelev(tc,dtmf,dtmc,rh,pk)
   if (cad) {
@@ -54,10 +48,10 @@ tempdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, u2 = NA,
     tcf<-tcf+tcad
   }
   if (coastal) {
-    #te<-mean(.is(SST))
-    #if (is.na(te)) {
-    #  SST<-SSTinterpolate(SST,climdata$tme,climdata$tme)
-    #}
+    te<-mean(.is(SST))
+    if (is.na(te)) {
+      SST<-SSTinterpolate(SST,climdata$tme,climdata$tme)
+    }
     if (crs(SST) != crs(dtmf)) SST<-project(SST,crs(dtmf))
     SST<-.resample(SST,dtmf)
     wspeed<-climdata$climarray$windspeed
