@@ -561,7 +561,7 @@ spatialdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, cad = TR
   lwrad<-climarray$lwrad
   prec<-climarray$prec
   # ================== Downscale variables ===============================  #
-  # windspeed"
+  message('Downscaling wind...')
   uzf<-winddownscale(wspeed,wdir,dtmf,dtmm,dtmc,uhgt)
   if (uhgt!=2) {
     u2<-.is(uzf)*4.8699/log(67.8*uhgt-5.42)
@@ -577,6 +577,8 @@ spatialdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, cad = TR
   wdf<-atan2(vv,uu)*180/pi
   wdf<-.rast(.is(wdf)%%360,dtmf)
   wdf<-mask(wdf,dtmf)
+
+  message('Downscaling temperature...')
   if (hourly) {
     tcf<-tempdownscale(climdata,SST,dtmf,dtmm,basins,u2,cad,coastal,refhgt,uhgt)
   } else {
@@ -585,15 +587,18 @@ spatialdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, cad = TR
     climdata$climarray$temp<-tmax
     tmaxf<-tempdownscale(climdata,SST,dtmf,dtmm,basins,u2,cad,coastal,refhgt,uhgt)
   }
-  # Relative humidity
+
+  message('Downscaling relative humidity')
   if (hourly) {
     rhf<-relhumdownscale(rh,tc,tcf,dtmc,rhmin)
   } else {
     rhf<-relhumdownscale(rh,(tmin+tmax)/2,(tminf+tmaxf)/2,dtmc,rhmin)
   }
-  # Pressure
+
+  message('Downscaling pressure...')
   pkf<-presdownscale(pk,dtmf,dtmc,pksealevel)
-  # swrad
+
+  message('Downscaling SW radiation...')
   if (patchsim) {
     # Calculate mean wind speed
     mws<-mean(as.vector(uzf),na.rm=TRUE)
@@ -612,7 +617,8 @@ spatialdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, cad = TR
     swf<-rast(swf$swf)
     difrad<-difrad*swf
   }  else difr = NA
-  # lwrad
+
+  message('Downscaling LW radiation...')
   lwf<-.rast(lwrad,dtmc)
   if (crs(lwf) != crs(dtmf)) lwf<-project(lwf,crs(dtmf))
   lwf<-.resample(lwf,dtmf)
@@ -620,7 +626,8 @@ spatialdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, cad = TR
     svf<-.rta(.skyview(dtmf),dim(lwf)[3])
     lwf<-.rast(.is(lwf)*svf,dtmf)
   }
-  # prech
+
+  message('Downscaling precipitation...')
   precf<-precipdownscale(prec,dtmf,dtmc,precipmethod,fast,noraincut,patchsim,nsim)
   # return values
   if (hourly) {
@@ -632,6 +639,8 @@ spatialdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, cad = TR
     terra::time(tmaxf)<-climdata$tme
     tmaxf<-wrap(tmaxf)
   }
+
+  message('Formatting output...')
   terra::time(rhf)<-climdata$tme
   rhf<-wrap(rhf)
   terra::time(pkf)<-climdata$tme
