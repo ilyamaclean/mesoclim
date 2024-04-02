@@ -2,7 +2,11 @@
 % Please edit documentation in R/ukcp_functions.R
 \name{download_ukcp18}
 \alias{download_ukcp18}
-\title{Download UKCP18 climate data}
+\title{Download UKCP18 climate data
+ILya comment: function needs fixing to handle cases where length(member) or
+length (collection) > 1 (or make clear you only want one at a time).
+Note that with collection='land-rcm', it can download 12 model runs numbered, 1 & 4-15.
+I.e. 2 & 3 don't exist}
 \usage{
 download_ukcp18(
   dir_out,

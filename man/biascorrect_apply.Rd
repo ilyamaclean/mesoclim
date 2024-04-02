@@ -8,9 +8,7 @@ biascorrect_apply(fut_mod, biasmods, rangelims = NA)
 }
 \arguments{
 \item{fut_mod}{a SpatRaster of modelled climate data for for e.g. a future
-period to which corrections are applied. Reprojected and resampled to match
-\code{hist_obs} if necessary. If not supplied and \code{mod_out = FALSE} corrections are
-applied to \code{hist_mod}.}
+period to which corrections are applied.}
 
 \item{biasmods}{an object of class \code{biascorrectmodels} derived using \code{\link[=biascorrect]{biascorrect()}}.}
 }

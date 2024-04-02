@@ -3,7 +3,8 @@
 #' from daily data.
 #' @param tmn a vector or SpatRaster of daily minimum temperatures (deg C)
 #' @param tmx a vector or SpatRaster of daily maximum temperatures (deg C)
-#' @param tme POSIXlt object of dates
+#' @param tme POSIXlt object of dates. Only required if `tmn` and
+#' `tmx` are vectors.
 #' @param lat latitude of location (decimal degrees). Only required if `tmn` and
 #' `tmx` are vectors
 #' @param lon longitude of location (decimal degrees). Only required if `tmn` and
@@ -60,7 +61,10 @@
 #' par(mfrow=c(2,1))
 #' plot(tc[[i]])
 #' plot(tp[[i]])
-hourlytemp <- function(tmn, tmx, tme, lat = NA, long = NA, srte = 0.09) {
+hourlytemp <- function(tmn, tmx, tme = NA, lat = NA, long = NA, srte = 0.09) {
+  if (inherits(tmn, "SpatRaster")) {
+    tme<-as.POSIXlt(terra::time(tmn))
+  }
   if (inherits(tme, "POSIXlt")) {
     year<-tme$year+1900
     mon<-tme$mon+1
@@ -72,12 +76,9 @@ hourlytemp <- function(tmn, tmx, tme, lat = NA, long = NA, srte = 0.09) {
     if (length(tme) != length(tmn)) stop("length of tme must be the same as length of tmn")
     th<-hourlytempv(tmn,tmx,year,mon,day,lat,long,srte)
   } else if (inherits(tmn, "SpatRaster")) {
-    if (!inherits(lat, "logical")) {
-      warnings("lat and long computed from tmn and tmx SpatRast")
-      ll<-.latslonsfromr(tmn)
-      lats<-as.vector(t(ll$lats))
-      lons<-as.vector(t(ll$lons))
-    }
+    ll<-.latslonsfromr(tmn)
+    lats<-as.vector(t(ll$lats))
+    lons<-as.vector(t(ll$lons))
     r<-tmn[[1]]
     d<-dim(tmn)
     tmn<-matrix(.is(tmn),ncol=d[3])

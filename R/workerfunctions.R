@@ -94,9 +94,8 @@
 #' method for resample and project can be set
 #' @import terra
 .resample <- function(r1,r2, msk=FALSE, method='bilinear'){
-  r1<-project(r1, crs(r2), method)
+  if (crs(r1) != crs(r2)) r1<-project(r1, crs(r2), method)
   af<-res(r2)[1] /res(r1)[1]
-
   if (round(af,10) > 1) {			         # If resolution different aggregate
     ro<-aggregate(r1, af, na.rm=TRUE)
     if (ext(ro) != ext(r2)){           # if extents different then also resample
@@ -887,6 +886,7 @@
     # Calculate SST weighting upwind
     # derive power scaling coefficient from wind speed
     p2<-0.10573*log(.is(u2))-0.17478
+    p2[p2>0]<-0 # cap to avoid negative slope
     # calculate logit lsr and lsm
     llsr<-log(lsr/(1-lsr))
     llsm<-.rta(log(lsm/(1-lsm)),dim(lsr)[3])

@@ -43,8 +43,6 @@ tempdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, u2 = NA,
   pk<-climdata$climarray$pres
   tcf<-.rast(tc,dtmc)
   if (crs(tcf) != crs(dtmf)) tcf<-project(tcf,crs(dtmf))
-  # Calculate resampled coarse-res temp
-  tcc<-.resample(tcf,dtmf)
   # Calculate elevation effects
   tcf<-.tempelev(tc,dtmf,dtmc,rh,pk)
   if (cad) {

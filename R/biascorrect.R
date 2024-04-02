@@ -8,7 +8,7 @@
 #' @param fut_mod optionally, SpatRaster of modelled climate data for
 #' for e.g. a future period to which corrections are applied. Reprojected and
 #' resampled to match `hist_obs` if necessary. If not supplied and `mod_out = FALSE`
-#' corrections are applied to hist_mod
+#' corrections are applied to `hist_mod`
 #' @param mod_out optional logical indicating whether to return an object
 #' of class `biascorrectmodels`, which allows the same form of bias correction
 #' to be applied to datasets over multiple time periods using [biascorrect_apply()].
@@ -25,7 +25,7 @@
 #' @rdname biascorrect
 #' @seealso [precipcorrect()] for applying corrections to precipitation data and
 #' [biascorrect_apply()] for applying corrections to multiple datasets.
-biascorrect <- function(hist_obs, hist_mod, fut_mod, mod_out = FALSE, rangelims = NA) {
+biascorrect <- function(hist_obs, hist_mod, fut_mod = NA, mod_out = FALSE, rangelims = NA) {
   if (!inherits(hist_obs, "SpatRaster")) stop("hist_obs must be a SpatRaster")
   if (!inherits(hist_mod, "SpatRaster")) stop("hist_mod must be a SpatRaster")
   if (mod_out == FALSE & inherits(fut_mod, "logical")) fut_mod<-hist_mod
@@ -102,9 +102,7 @@ biascorrect <- function(hist_obs, hist_mod, fut_mod, mod_out = FALSE, rangelims 
 #' @description The function `biascorrect_apply` applies a set of bias corrections
 #' derived using `bias_correct` to a spatial climate dataset
 #' @param fut_mod a SpatRaster of modelled climate data for for e.g. a future
-#' period to which corrections are applied. Reprojected and resampled to match
-#' `hist_obs` if necessary. If not supplied and `mod_out = FALSE` corrections are
-#' applied to `hist_mod`.
+#' period to which corrections are applied.
 #' @param biasmods an object of class `biascorrectmodels` derived using [biascorrect()].
 #' @return a SpatRaster matching `fut_mod` with climate data bias corrected.
 #' @details The `biascorrect_apply` function allows the same bias correction to be applied
