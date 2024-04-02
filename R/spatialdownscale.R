@@ -38,11 +38,9 @@ tempdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, u2 = NA,
   if (class(dtmm) == "logical" & coastal) stop("dtmm needed for calculating coastal effects")
   # Calculate elevation effects
   if (class(climdata$dtmc)[1] == "PackedSpatRaster") dtmc<-rast(climdata$dtmc) else dtmc<-climdata$dtmc
-  tc<-climdata$climarray$temp
   rh<-climdata$climarray$relhum
   pk<-climdata$climarray$pres
-  tcf<-.rast(tc,dtmc)
-  if (crs(tcf) != crs(dtmf)) tcf<-project(tcf,crs(dtmf))
+  tc<-climdata$climarray$temp
   # Calculate elevation effects
   tcf<-.tempelev(tc,dtmf,dtmc,rh,pk)
   if (cad) {
@@ -146,6 +144,8 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)
                       terrainshade = FALSE) {
   # Work out whether daily or not
   ti<-round(as.numeric(tme[2])-as.numeric(tme[1]))
+  # Check no NA in dtmc - convert to 0 elevation
+  dtmc<-ifel(is.na(dtmc),0,dtmc)
   # Calculate clear sky fraction
   jd<-juldayvCpp(tme$year+1900, tme$mon+1, tme$mday)
   lt<-tme$hour+tme$min/60+tme$sec/3600
@@ -228,7 +228,7 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)
     # Calculate sky view
     svf<-.rta(.skyview(dtmf),dim(swradf)[3])
     # Adjust radiation to account for sky view factor
-    drf<-.rast(dp*svf*.is(swradf),dtmf)
+    drf<-.rast(dp*svf*.is(swradf),dtmf) # FAILS HERE FOR DAILY
     swf<-(1-dp)*shadowmask*.is(swradf)+dp*svf*.is(swradf)
     swf<-.rast(swf,dtmf)
     if (ti == 86400) {  # daily average across days
@@ -448,6 +448,8 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
     # Downscaled rain day fraction
     rf2<-Tpsdownscale(r2, dtmc, dtmf, method = "logit", fast) # Rain day fraction
   } else {
+    # Convert NA to zero in dtmc
+    dtmc<-ifel(is.na(dtmc),0,dtmc)
     # Downscaled rain total
     dtmcf<-resample(dtmc,dtmf)
     edif<-dtmf-dtmcf
@@ -480,8 +482,7 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
 #' @title Spatially downscale all climate variables
 #' @description Spatially downscales coarse-resolution climate data
 #' @param climdata a `climdata` model object containing climate data of the same format as `era5climdata`
-#' @param SST a coarse resolution SpatRast of hourly sea-surface temperature data (deg C) with no NAs, as
-#' returned by [SSTinterpolate()]
+#' @param SST a coarse resolution SpatRast of sea-surface temperature data (deg C) without NAs where time(SST) == climdata$tme
 #' @param dtmf a high-resolution SpatRast of elevations
 #' @param dtmm a medium-resolution SpatRast of elevations covering a larger area
 #' than dtmf (only needed for coastal effects - see details under [tempdownscale()]).
@@ -529,15 +530,16 @@ spatialdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, cad = TR
                            coastal = TRUE, refhgt = 2, uhgt = 2, rhmin = 20,
                            pksealevel = TRUE, patchsim = TRUE, terrainshade = TRUE, precipmethod = "Elev",
                            fast = TRUE, noraincut = 0) {
-  # Sort out SST
   tme<-as.POSIXlt(climdata$tme,tz="UTC")
+  # Check SST data matches tme
+  if(all(tme!=as.POSIXlt(terra::time(SST)))) stop('SST data not of same timesteps as climdata!!')
   # Find out whether daily or hourly
   tint<-as.numeric(tme[2])-as.numeric(tme[1])
   hourly<-TRUE
   if (abs(tint-86400) < 5) hourly=FALSE
-  SST<-SSTinterpolate(SST,tme,tme)
+  # SST<-SSTinterpolate(SST,tme,tme)
   # Extract variables
-  dtmc<-rast(climdata$dtmc)
+  if(class(climdata$dtmc)[1]=='PackedSpatRaster') dtmc<-rast(climdata$dtmc) else dtmc<-climdata$dtmc
   climarray<-climdata$climarray
   if (hourly) {
     tc<-climarray$temp
@@ -616,23 +618,33 @@ spatialdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, cad = TR
   precf<-precipdownscale(prec,dtmf,dtmc,precipmethod,fast,noraincut,patchsim,nsim)
   # return values
   if (hourly) {
+    terra::time(tcf)<-climdata$tme
     tcf<-wrap(tcf)
   } else {
+    terra::time(tminf)<-climdata$tme
     tminf<-wrap(tminf)
+    terra::time(tmaxf)<-climdata$tme
     tmaxf<-wrap(tmaxf)
   }
+  terra::time(rhf)<-climdata$tme
   rhf<-wrap(rhf)
+  terra::time(pkf)<-climdata$tme
   pkf<-wrap(pkf)
+  terra::time(swf)<-climdata$tme
   swf<-wrap(swf)
-  if (terrainshade) difrad<-wrap(difrad)
+  terra::time(lwf)<-climdata$tme
   lwf<-wrap(lwf)
+  terra::time(uzf)<-climdata$tme
   uzf<-wrap(uzf)
+  terra::time(wdf)<-climdata$tme
   wdf<-wrap(wdf)
+  terra::time(precf)<-climdata$tme
   precf<-wrap(precf)
   if (hourly) {
-    out<-list(temp=tcf,relhum=rhf,pres=pkf,swrad=swf,difrad=difrad,lwrad=lwf,windspeed=uzf,winddir=wdf,prec=precf)
+    out<-list(temp=tcf,relhum=rhf,pres=pkf,swrad=swf,lwrad=lwf,windspeed=uzf,winddir=wdf,prec=precf)
   } else {
-    out<-list(tmin=tminf,tmax=tmaxf,relhum=rhf,pres=pkf,swrad=swf,difrad=difrad,lwrad=lwf,windspeed=uzf,winddir=wdf,prec=precf)
+    out<-list(tmin=tminf,tmax=tmaxf,relhum=rhf,pres=pkf,swrad=swf,lwrad=lwf,windspeed=uzf,winddir=wdf,prec=precf)
   }
+  if (terrainshade) out$difrad<-wrap(difrad)
   return(out)
 }

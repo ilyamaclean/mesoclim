@@ -104,6 +104,10 @@
   } else ro<-resample(r1, r2, method)  # if res same then just resample
 
   if(msk) ro<-mask(ro, r2)
+
+  #ensure time and names of layers in new raster match r1
+  names(ro)<-names(r1)
+  terra::time(ro)<-terra::time(r1)
   return(ro)
 }
 # ============================================================================ #
@@ -781,6 +785,9 @@
 .tempelev <- function(tc, dtmf, dtmc = NA, rh = NA, pk = NA) {
   if (class(dtmc)[1] == "logical")  dtmc<-.resample(dtmf,tc)
   if (class(tc)[1] == "array") tc<-.rast(tc,dtmc)
+  # COnvert NA to elevation of 0 in dtm's
+  dtmc<-ifel(is.na(dtmc),0,dtmc)
+
   # Calculate lapse rate
   n<-dim(tc)[3]
   if (class(rh) == "logical") {
@@ -924,7 +931,8 @@
 # fi - filename of nc file
 # e - raster extent object of the extent to crop to
 # returns a SpatRaster object
-#' @import raster, terra
+#' @import raster
+#' @import terra
 .cropnc<-function(fi,e) {
   r<-suppressWarnings(brick(fi))
   r<-crop(r,e)
