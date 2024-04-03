@@ -788,7 +788,6 @@
 
   # Convert NA to elevation of 0 in dtm's
   dtmc<-ifel(is.na(dtmc),0,dtmc)
-  dtmf<-ifel(is.na(dtmf),0,dtmf)
 
   # Calculate lapse rate
   n<-dim(tc)[3]
