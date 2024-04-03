@@ -228,11 +228,17 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)
     shadowmask[hora>tan(alt)]<-0
     shadowmask[(90-ze)<0]<-0
     # Calculate sky view
-    svf<-.rta(.skyview(dtmf),dim(swradf)[3])
+    #svf<-.rta(.skyview(dtmf),dim(swradf)[3])
+    svf<-.rta(.skyview(dtmf),dim(shadowmask)[3])
+
+    # Convert daily SW to hourly
+    swradfh<-.ehr(.is(swradf))
 
     # Adjust radiation to account for sky view factor
-    drf<-.rast(dp*svf*.is(swradf),dtmf) # FAILS HERE FOR DAILY
-    swf<-(1-dp)*shadowmask*.is(swradf)+dp*svf*.is(swradf)
+    #drf<-.rast(dp*svf*.is(swradf),dtmf) # FAILS HERE FOR DAILY swradf still daily values
+    drf<-dp*svf*swradfh
+    #swf<-(1-dp)*shadowmask*.is(swradf)+dp*svf*.is(swradf)
+    swf<-(1-dp)*shadowmask*swradfh+dp*svf*swradfh
     swf<-.rast(swf,dtmf)
     if (ti == 86400) {  # daily average across days
       swf<-hourtodayCpp(.is(swf),"mean")
@@ -615,14 +621,13 @@ spatialdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, cad = TR
     difrad<-difrad*swf
   }  else difr = NA
 
-  message('Downscaling LW radiation...')
+  message('Downscaling LW radiation with terrain shading...')
   lwf<-.rast(lwrad,dtmc)
-  if (crs(lwf) != crs(dtmf)) lwf<-project(lwf,crs(dtmf))
-  lwf<-.resample(lwf,dtmf)
-  if (terrainshade) {
-    svf<-.rta(.skyview(dtmf),dim(lwf)[3])
-    lwf<-.rast(.is(lwf)*svf,dtmf)
-  }
+  lwf<-.resample(lwf,dtmf, msk=TRUE)
+  #if (terrainshade) {
+  svf<-.rta(.skyview(dtmf),dim(lwf)[3])
+  lwf<-.rast(.is(lwf)*svf,dtmf)
+  #}
 
   message('Downscaling precipitation...')
   precf<-precipdownscale(prec,dtmf,dtmc,precipmethod,fast,noraincut,patchsim,nsim)
