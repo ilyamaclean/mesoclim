@@ -159,7 +159,8 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)
   }  else {  # daily
     lats<-as.vector(ll$lats[,1])
     csr<-clearskyradmCpp(jd,rep(12,length(jd)),lats,rep(0,length(lats)),hourly=FALSE)
-    csr<-array(rep(csr,each=dim(swrad)[2]),dim(swrad))
+    # csr<-array(rep(csr,each=dim(swrad)[2]),dim(swrad))
+    csr<-array(apply(csr,2,rep,times=dim(swrad)[2]), dim(swrad))
   }
   # Calculate clear-sky fraction and elevation adjust it
   csfc<-.is(swrad)/csr
@@ -186,7 +187,8 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)
   }  else {  # daily
     lats<-as.vector(ll$lats[,1])
     csrf<-clearskyradmCpp(jd,rep(12,length(jd)),lats,rep(0,length(lats)),hourly=FALSE)
-    csrf<-array(rep(csrf,each=dim(swrad)[2]),dim=c(dim(dtmf)[1:2],dim(swrad)[3]))
+    # csrf<-array(rep(csrf,each=dim(swrad)[2]),dim=c(dim(dtmf)[1:2],dim(swrad)[3]))
+    csrf<-array(apply(csrf,2,rep,times=dim(dtmf)[2]),dim=c(dim(dtmf)[1:2],dim(swrad)[3]))
   }
   swradf<-.rast(csrf,dtmf)*csf
   if (terrainshade) {
@@ -227,6 +229,7 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)
     shadowmask[(90-ze)<0]<-0
     # Calculate sky view
     svf<-.rta(.skyview(dtmf),dim(swradf)[3])
+
     # Adjust radiation to account for sky view factor
     drf<-.rast(dp*svf*.is(swradf),dtmf) # FAILS HERE FOR DAILY
     swf<-(1-dp)*shadowmask*.is(swradf)+dp*svf*.is(swradf)
