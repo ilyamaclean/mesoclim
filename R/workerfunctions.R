@@ -892,8 +892,7 @@
     lsr<-lsr2[,,i+1]
     # Calculate SST weighting upwind
     # derive power scaling coefficient from wind speed
-    p2<-0.10573*log(.is(u2))-0.17478
-    p2[p2>0]<-0 # cap to avoid negative slope
+    p2<-0.10420*sqrt(.is(u2))-0.47852
     # calculate logit lsr and lsm
     llsr<-log(lsr/(1-lsr))
     llsm<-.rta(log(lsm/(1-lsm)),dim(lsr)[3])
@@ -905,9 +904,13 @@
     llsm[lsm==0]<-log(min(lsm[s])/(1-min(lsm[s])))
     llsm[lsm==1]<-log(max(lsm[s])/(1-max(lsm[s])))
     # predict logit swgt
-    lswgt<- -0.8729502+p2*llsr-0.6903705*llsm
+    lswgt<- -0.1095761+p2*(llsr+3.401197)-0.1553487*llsm
     swgt<-.rast(1/(1+exp(-lswgt)),tc)
     tcp<-swgt*SST+(1-swgt)*tc
+    # calculate aggregation factor
+    af<-res(dtmc)[1]/res(dtmf)[1]
+    tcc<-resample(aggregate(tcp,af,na.rm=TRUE),tcp)
+    tcp<-tc+(tcp-tcc)
   } else tcp<-tc
   return(tcp)
 }
