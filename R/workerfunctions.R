@@ -884,8 +884,8 @@
   if (tst < 1) { # only apply coastal effects if there are coastal area
     # slot in wind speeds
     wdr<-.rast(wdir,dtmc)
-    ll<-.latlongfromrast(wdr)
-    xy<-data.frame(x=ll$long,y=ll$lat)
+    ew<-ext(wdr)
+    xy<-data.frame(x=(ew$xmin+ew$xmax)/2,y=(ew$ymin+ew$ymax)/2)
     wdir<-as.numeric(xx<-extract(wdr,xy))[-1]
     if (is.na(wdir[1])) wdir<-apply(.is(wdr),3,median,na.rm=TRUE)
     # Calculate array land-sea ratios for every hour
