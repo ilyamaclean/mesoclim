@@ -204,13 +204,7 @@ download_ukcp18<-function(
   rcp<-match.arg(rcp)
   member<-match.arg(member,several.ok=TRUE)
   vars<-match.arg(vars,several.ok=TRUE)
-<<<<<<< HEAD
-  ## ILya comment: this will give an error, I think, if member or collection has length greater than 1!
-
-  if(collection=='land-rcm' & !member %in% c('01','02','03','04','05','06','07','08','09','10','11','12','13','14','15')){
-=======
   if(collection=='land-rcm' & !any(member %in% c('01','04','05','06','07','08','09','10','11','12','13','15'))){
->>>>>>> 028f7017f7a0d470cb14cee5ad90ce5595f402e3
     warning('Invalid member for land-rcm - retricting to only those valid!!')
     member<-member[which(modelsruns %in% c('01','04','05','06','07','08','09','10','11','12','13','15'))]
   }

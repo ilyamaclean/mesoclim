@@ -159,7 +159,8 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)
   }  else {  # daily
     lats<-as.vector(ll$lats[,1])
     csr<-clearskyradmCpp(jd,rep(12,length(jd)),lats,rep(0,length(lats)),hourly=FALSE)
-    csr<-array(rep(csr,each=dim(swrad)[2]),dim(swrad))
+    # csr<-array(rep(csr,each=dim(swrad)[2]),dim(swrad))
+    csr<-array(apply(csr,2,rep,times=dim(swrad)[2]), dim(swrad))
   }
   # Calculate clear-sky fraction and elevation adjust it
   csfc<-.is(swrad)/csr
@@ -186,7 +187,8 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)
   }  else {  # daily
     lats<-as.vector(ll$lats[,1])
     csrf<-clearskyradmCpp(jd,rep(12,length(jd)),lats,rep(0,length(lats)),hourly=FALSE)
-    csrf<-array(rep(csrf,each=dim(swrad)[2]),dim=c(dim(dtmf)[1:2],dim(swrad)[3]))
+    # csrf<-array(rep(csrf,each=dim(swrad)[2]),dim=c(dim(dtmf)[1:2],dim(swrad)[3]))
+    csrf<-array(apply(csrf,2,rep,times=dim(dtmf)[2]),dim=c(dim(dtmf)[1:2],dim(swrad)[3]))
   }
   swradf<-.rast(csrf,dtmf)*csf
   if (terrainshade) {
@@ -226,10 +228,17 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)
     shadowmask[hora>tan(alt)]<-0
     shadowmask[(90-ze)<0]<-0
     # Calculate sky view
-    svf<-.rta(.skyview(dtmf),dim(swradf)[3])
+    #svf<-.rta(.skyview(dtmf),dim(swradf)[3])
+    svf<-.rta(.skyview(dtmf),dim(shadowmask)[3])
+
+    # Convert daily SW to hourly
+    swradfh<-.ehr(.is(swradf))
+
     # Adjust radiation to account for sky view factor
-    drf<-.rast(dp*svf*.is(swradf),dtmf) # FAILS HERE FOR DAILY
-    swf<-(1-dp)*shadowmask*.is(swradf)+dp*svf*.is(swradf)
+    #drf<-.rast(dp*svf*.is(swradf),dtmf) # FAILS HERE FOR DAILY swradf still daily values
+    drf<-dp*svf*swradfh
+    #swf<-(1-dp)*shadowmask*.is(swradf)+dp*svf*.is(swradf)
+    swf<-(1-dp)*shadowmask*swradfh+dp*svf*swradfh
     swf<-.rast(swf,dtmf)
     if (ti == 86400) {  # daily average across days
       swf<-hourtodayCpp(.is(swf),"mean")
@@ -555,7 +564,7 @@ spatialdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, cad = TR
   lwrad<-climarray$lwrad
   prec<-climarray$prec
   # ================== Downscale variables ===============================  #
-  # windspeed"
+  message('Downscaling wind...')
   uzf<-winddownscale(wspeed,wdir,dtmf,dtmm,dtmc,uhgt)
   if (uhgt!=2) {
     u2<-.is(uzf)*4.8699/log(67.8*uhgt-5.42)
@@ -571,6 +580,8 @@ spatialdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, cad = TR
   wdf<-atan2(vv,uu)*180/pi
   wdf<-.rast(.is(wdf)%%360,dtmf)
   wdf<-mask(wdf,dtmf)
+
+  message('Downscaling temperature...')
   if (hourly) {
     tcf<-tempdownscale(climdata,SST,dtmf,dtmm,basins,u2,cad,coastal,refhgt,uhgt)
   } else {
@@ -579,15 +590,18 @@ spatialdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, cad = TR
     climdata$climarray$temp<-tmax
     tmaxf<-tempdownscale(climdata,SST,dtmf,dtmm,basins,u2,cad,coastal,refhgt,uhgt)
   }
-  # Relative humidity
+
+  message('Downscaling relative humidity')
   if (hourly) {
     rhf<-relhumdownscale(rh,tc,tcf,dtmc,rhmin)
   } else {
     rhf<-relhumdownscale(rh,(tmin+tmax)/2,(tminf+tmaxf)/2,dtmc,rhmin)
   }
-  # Pressure
+
+  message('Downscaling pressure...')
   pkf<-presdownscale(pk,dtmf,dtmc,pksealevel)
-  # swrad
+
+  message('Downscaling SW radiation...')
   if (patchsim) {
     # Calculate mean wind speed
     mws<-mean(as.vector(uzf),na.rm=TRUE)
@@ -606,15 +620,16 @@ spatialdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, cad = TR
     swf<-rast(swf$swf)
     difrad<-difrad*swf
   }  else difr = NA
-  # lwrad
+
+  message('Downscaling LW radiation with terrain shading...')
   lwf<-.rast(lwrad,dtmc)
-  if (crs(lwf) != crs(dtmf)) lwf<-project(lwf,crs(dtmf))
-  lwf<-.resample(lwf,dtmf)
-  if (terrainshade) {
-    svf<-.rta(.skyview(dtmf),dim(lwf)[3])
-    lwf<-.rast(.is(lwf)*svf,dtmf)
-  }
-  # prech
+  lwf<-.resample(lwf,dtmf, msk=TRUE)
+  #if (terrainshade) {
+  svf<-.rta(.skyview(dtmf),dim(lwf)[3])
+  lwf<-.rast(.is(lwf)*svf,dtmf)
+  #}
+
+  message('Downscaling precipitation...')
   precf<-precipdownscale(prec,dtmf,dtmc,precipmethod,fast,noraincut,patchsim,nsim)
   # return values
   if (hourly) {
@@ -626,6 +641,8 @@ spatialdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, cad = TR
     terra::time(tmaxf)<-climdata$tme
     tmaxf<-wrap(tmaxf)
   }
+
+  message('Formatting output...')
   terra::time(rhf)<-climdata$tme
   rhf<-wrap(rhf)
   terra::time(pkf)<-climdata$tme
