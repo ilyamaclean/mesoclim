@@ -49,7 +49,7 @@ download_globalbedo<-function(dir_out,
 #' @import terra
 #' @import lubridate
 #' @examples
-create_sst_data<-function(
+create_ukcpsst_data<-function(
     dir_data,
     startdate,
     enddate,
@@ -88,7 +88,6 @@ create_sst_data<-function(
   # Get spatrast stack
   var_r<-terra::rast()
   for(f in ncfiles){
-    print(f)
     r<- rast(f, subds = v, drivers="NETCDF")
     if(!class(aoi)[1]=='logical') r<-crop(r,aoi)
     units(r)<-'degC'
@@ -554,7 +553,6 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
   ukcp_res<-terra::res(sample_ukcp18)
   ukcp_e<-terra::ext(sample_ukcp18)
 
-
   # Create coarse-resolution dtm to use as template for resampling - weighted !!!
   dtmc<-terra::crop(.resample(dtm,sample_ukcp18),dtm)
   units(dtmc)<-'m'
@@ -564,13 +562,13 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
   clim_list<-list()
   for (n in 1:length(ukcp_vars)){
     v<-ukcp_vars[n]
-    print(v)
     ukcp_u<-ukcp_units[n]
     out_u<-output_units[n]
     var_r<-terra::rast()
     for (d in decades){
-      ncfile<-file.path(dir_ukcp,paste0(v,'_rcp85_',collection,'_',domain,'_',collres,'_',member,'_day_', d,".nc") )
-      print(paste("Loading",ncfile))
+      filename<-paste0(v,'_rcp85_',collection,'_',domain,'_',collres,'_',member,'_day_', d,".nc")
+      message(paste("Loading",filename))
+      ncfile<-file.path(dir_ukcp, filename)
 
       # Load and crop data in native crs then project to dtmc crs and recrop
       r <- terra::rast(ncfile, subds=v)
@@ -586,7 +584,7 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
 
       # PROBLEM with u v wind vectors in global data - based on DIFFERENT grid to other variables!!!
       if(terra::ext(r)!=terra::ext(dtmc)){
-        print("Extents of input data DIFFERENT - correcting!!")
+        message("Extents of input data DIFFERENT - correcting!!")
         r<-terra::resample(r,dtmc)
       }
       # Join if multiple decades of data
@@ -597,7 +595,6 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
     if(!terra::compareGeom(dtmc,var_r)) warning(paste(v,"Spatrast NOT comparable to DTM!!") )
     clim_list[[v]]<-var_r
   }
-  # Check time class - POSIXct?
 
   # Calculate derived variables: wind
   clim_list$windspeed<-.rast(sqrt(as.array(clim_list$uas)^2+as.array(clim_list$vas)^2)*log(67.8*2-5.42)/log(67.8*10-5.42),dtmc) # Wind speed (m/s)

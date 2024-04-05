@@ -85,6 +85,8 @@ hourlytemp <- function(tmn, tmx, tme = NA, lat = NA, long = NA, srte = 0.09) {
     tmx<-matrix(.is(tmx),ncol=d[3])
     th<-array(hourlytempm(tmn,tmx,year,mon,day,lats,lons,srte),dim=c(d[1:2],d[3]*24))
     th<-.rast(th,r)
+    newtme<-as.POSIXlt(unlist(lapply(tme,FUN=function(x) x+(60*60*c(0:23)) )))
+    terra::time(th)<-seconds(newtme) # for some reason must be stored as seconds for date-times!!
   } else stop("tmn and tmx must be vectors or SpatRasts")
   return(th)
 }
@@ -238,7 +240,7 @@ pres_dailytohourly <- function(pres, tme, adjust = TRUE) {
 # Returns an array of hourly radiation values (W/m**2)
 swrad_dailytohourly <- function(radsw, tme, clearsky = NA, r = r, adjust = TRUE) {
   # If NA, calaculate daily clearsky radiation
-  if (class(clearsky) == "logical") clearsky <- clearskyraddaily(radsw, tme, r)
+  if (class(clearsky) == "logical") clearsky <- .clearskyraddaily(tme,radsw)
   # Calculate clear sky fraction
   radf <- radsw/clearsky
   radf[radf > 1] <- 1
@@ -251,7 +253,8 @@ swrad_dailytohourly <- function(radsw, tme, clearsky = NA, r = r, adjust = TRUE)
   lat <- latsfromr(r)
   lon <- lonsfromr(r)
   tmeh <- as.POSIXlt(seq(tme[1],tme[length(tme)]+23*3600, by = 3600))
-  jd <- julday(tmeh$year + 1900, tmeh$mon + 1, tmeh$mday)
+  #jd <- julday(tmeh$year + 1900, tmeh$mon + 1, tmeh$mday)
+  jd<-juldayvCpp(tme$year+1900, tme$mon+1, tme$mday)
   lt <- tmeh$hour
   lats <- .mta(lat, length(lt))
   lons <- .mta(lon, length(lt))
