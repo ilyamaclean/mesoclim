@@ -7,8 +7,6 @@
 ukcp18toclimarray(
   dir_ukcp,
   dtm,
-  toArrays = TRUE,
-  sampleplot = FALSE,
   startdate,
   enddate,
   collection = c("land-gcm", "land-rcm"),
@@ -16,22 +14,22 @@ ukcp18toclimarray(
   member = c("01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12",
     "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26",
     "27", "28"),
+  wsalbedo = 0.19,
+  bsalbedo = 0.22,
   ukcp_vars = c("clt", "hurs", "huss", "pr", "psl", "rls", "rss", "tasmax", "tasmin",
     "uas", "vas"),
   ukcp_units = c("\%", "\%", "1", "mm/day", "hPa", "watt/m^2", "watt/m^2", "degC",
     "degC", "m/s", "m/s"),
   output_units = c("\%", "\%", "1", "mm/day", "kPa", "watt/m^2", "watt/m^2", "degC",
-    "degC", "m/s", "m/s")
+    "degC", "m/s", "m/s"),
+  toArrays = TRUE,
+  sampleplot = FALSE
 )
 }
 \arguments{
 \item{dir_ukcp}{directory holding ALL ncdf files of UKCP18 data required to extract the requested variables and timeseries.}
 
 \item{dtm}{SpatRaster object of elevations covering the geographical extent required (see details)}
-
-\item{toArrays}{logical determining if climate data returned as list of arrays. If FALSE returns list of Spatrasts.}
-
-\item{sampleplot}{if TRUE plots examples of interpolated dates when converting from 360 to 366 day years}
 
 \item{startdate}{POSIXlt class defining start date of required timeseries}
 
@@ -48,6 +46,10 @@ ukcp18toclimarray(
 \item{ukcp_units}{units of the UKCP18 variables extracted DO NOT CHANGE}
 
 \item{output_units}{units required for output DO NOT CHANGE CHECK CORRECT}
+
+\item{toArrays}{logical determining if climate data returned as list of arrays. If FALSE returns list of Spatrasts.}
+
+\item{sampleplot}{if TRUE plots examples of interpolated dates when converting from 360 to 366 day years}
 }
 \value{
 a list of the following:
@@ -64,7 +66,7 @@ by \code{\link[=ukcp18_downscale]{ukcp18_downscale()}} to the correct data form 
 }
 \details{
 The function converts 360 day UKCP18 to actual calendar data by reassignment and linear interpolation of missing data. Returned climate data will be at the resolution, corrdinate reference system of the UKCP18 data requested, which can vary between domains and collections.
-The extent will be provided by the \code{dtm} which, if necessary, will be reprojected and resampled to the CRS and resolution of UKCP18 data requested.
+The extent will be provided by the \code{dtm} which, if necessary, will be re-projected and resampled to the CRS and resolution of UKCP18 data requested.
 For regional UKCP18 data, it is recommended that 'dtm' is derived from the original orography data available for download.
 }
 \examples{

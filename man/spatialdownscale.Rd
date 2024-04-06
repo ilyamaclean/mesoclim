@@ -26,8 +26,7 @@ spatialdownscale(
 \arguments{
 \item{climdata}{a \code{climdata} model object containing climate data of the same format as \code{era5climdata}}
 
-\item{SST}{a coarse resolution SpatRast of hourly sea-surface temperature data (deg C) with no NAs, as
-returned by \code{\link[=SSTinterpolate]{SSTinterpolate()}}}
+\item{SST}{a coarse resolution SpatRast of sea-surface temperature data (deg C) without NAs where time(SST) == climdata$tme}
 
 \item{dtmf}{a high-resolution SpatRast of elevations}
 

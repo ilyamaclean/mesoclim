@@ -769,12 +769,7 @@
   pm[s0]<-0
   pm[s1]<-1
   rp<-.rast(pm,r)
-  af<-1000/reso
-  if (af > 1) {
-    rpa<-.resample(aggregate(rp,af,na.rm=TRUE),rp)
-    rpa<-mask(rpa,rp)
-  } else rpa<-rp
-  return(rpa)
+  return(rp)
 }
 
 # Component temperature effect spatial downscale functions

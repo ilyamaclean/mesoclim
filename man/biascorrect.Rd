@@ -16,7 +16,7 @@ if necessary.}
 \item{fut_mod}{optionally, SpatRaster of modelled climate data for
 for e.g. a future period to which corrections are applied. Reprojected and
 resampled to match \code{hist_obs} if necessary. If not supplied and \code{mod_out = FALSE}
-corrections are applied to hist_mod}
+corrections are applied to \code{hist_mod}}
 
 \item{mod_out}{optional logical indicating whether to return an object
 of class \code{biascorrectmodels}, which allows the same form of bias correction
