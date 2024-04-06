@@ -1109,7 +1109,7 @@
   }
   e <- ext(r)
   lats <- seq(e$ymax - res(r)[2] / 2, e$ymin + res(r)[2] / 2, length.out = dim(r)[1])
-  jd <- rep(julday(tme$year + 1900, tme$mon + 1, tme$mday),  each = 1440)
+  jd <- rep(juldayvCpp(tme$year + 1900, tme$mon + 1, tme$mday),  each = 1440)
   lt <- rep(c(0:1439)/60,length(tme))
   # Create matrices of times and latitudes
   n1 <- length(lats)

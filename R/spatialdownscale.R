@@ -59,6 +59,7 @@ tempdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, u2 = NA,
     u2<-winddownscale(wspeed,wdir,dtmf,dtmm,dtmc,uhgt)
     tcf<-.tempcoastal(tcf,SST,u2,wdir,dtmf,dtmm,dtmc)
   }
+  terra::time(tcf)<-climdata$tme
   return(tcf)
 }
 #' @title Downscale pressure with elevation effects
