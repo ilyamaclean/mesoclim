@@ -239,6 +239,11 @@ pres_dailytohourly <- function(pres, tme, adjust = TRUE) {
 #          hourly values, when averaged to daily, match the input
 # Returns an array of hourly radiation values (W/m**2)
 swrad_dailytohourly <- function(radsw, tme, clearsky = NA, r = r, adjust = TRUE) {
+  # Check geo info in either radsw or as r; convert radsw to array
+  if(class(radsw)[1]=='SpatRaster') r<-radsw[[1]] else{
+    if(class(r)[1]!='SpatRaster') stop('Lacking geo information. Need radsw or r to be class SpatRaster!')
+  }
+  radsw<-.is(radsw)
   # If NA, calaculate daily clearsky radiation
   if (class(clearsky) == "logical") clearsky <- .clearskyraddaily(tme,radsw)
   # Calculate clear sky fraction
@@ -246,12 +251,12 @@ swrad_dailytohourly <- function(radsw, tme, clearsky = NA, r = r, adjust = TRUE)
   radf[radf > 1] <- 1
   radf[radf < 0] <- 0
   # Interpolate clear sky fraction to hourly
-  radfh <- daytohour(radf)
+  radfh <- .daytohour(radf)
   radfh[radfh > 1] <- 1
   radfh[radfh < 0] <- 0
   # Calculate hourly clear sky radiation
-  lat <- latsfromr(r)
-  lon <- lonsfromr(r)
+  lat <- .latsfromr(r)
+  lon <- .lonsfromr(r)
   tmeh <- as.POSIXlt(seq(tme[1],tme[length(tme)]+23*3600, by = 3600))
   #jd <- julday(tmeh$year + 1900, tmeh$mon + 1, tmeh$mday)
   jd<-juldayvCpp(tme$year+1900, tme$mon+1, tme$mday)
@@ -260,7 +265,8 @@ swrad_dailytohourly <- function(radsw, tme, clearsky = NA, r = r, adjust = TRUE)
   lons <- .mta(lon, length(lt))
   jd <- .vta(jd, lat)
   lt <- .vta(lt, lat)
-  csh<-clearskyrad(lt, lats, lons, jd)
+  #csh<-clearskyrad(lt, lats, lons, jd)
+  csh<-clearskyradmCpp(jd,lt,lats, lons)
   csh[is.na(csh)] <- 0
   # Calculate hourly radiation
   radh <- csh * radfh
