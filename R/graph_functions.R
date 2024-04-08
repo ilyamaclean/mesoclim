@@ -7,6 +7,7 @@
 #'
 #' @return NA plots series of timeploat
 #' @export
+#' @import magrittr
 #'
 #' @examples
 #' plot_timestats_r(ukcp18rcm$climarray$tmax,'tmax',idx='doy',lgd=FALSE)
