@@ -44,7 +44,7 @@ plot_timestats_r<-function(r,var,idx=c('years', 'months', 'week',  'doy', 'yearm
 #'
 #' @examples
 plot_q_layers<-function(r,p=c(0, 0.5, 1),fun='mean', common_scale=FALSE){
-  par(mfrow=c(1,3))
+  par(mfrow=c(1,3), mai=c(1,0.1,0.1,0.1))
   # Find corresponding layers
   lyrstat<-global(r,fun,na.rm=TRUE)
   qtls<-quantile(lyrstat[,1],prob=p)
@@ -56,7 +56,7 @@ plot_q_layers<-function(r,p=c(0, 0.5, 1),fun='mean', common_scale=FALSE){
   names(out_r)<-paste(names(r[[sel]]),'(q=',names(qtls),')',as.POSIXlt(terra::time(out_r)))
   if(common_scale){
     rng=range(global(out_r,'range',na.rm=TRUE))
-    plot(out_r,main=names(out_r),font.main=1, cex.main=1, range=rng, nc=length(p))
+    plot(out_r,main=names(out_r),font.main=1, buffer=FALSE,nc=3,nr=1, cex.main=1, range=rng, nc=length(p))
   } else {
     plot(out_r,main=names(out_r),font.main=1, cex.main=1, nc=length(p))
   }
@@ -79,7 +79,7 @@ plot_q_layers<-function(r,p=c(0, 0.5, 1),fun='mean', common_scale=FALSE){
 #' @import fmsb
 #'
 #' @examples
-windplot<-function(winddir,windspeed){
+plot_wind<-function(winddir,windspeed){
   # Classify by cardinal group
   dgrp<- .dir_to_cardinal(c(winddir))
   dgrp_mean<-tapply(c(windspeed),dgrp,mean)
