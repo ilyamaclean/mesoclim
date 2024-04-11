@@ -197,7 +197,48 @@ checkinputs <- function(input_list, tstep = c("hour","day")){
 
   # Plot wind direction
   print('Plotting wind direction figures')
-  windplot(input_list$winddir,input_list$windspeed)
+  plot_wind(input_list$winddir,input_list$windspeed)
 
   return(input_list)
+}
+
+#' @title Read climate data
+#' @description
+#' Reads a climate dataset as output by for example `ukcp18toclimdata()` and written by `write_climdata()`
+#' Unwraps any PackedSpatRasters to Spatrasters
+#' @param filepath
+#'
+#' @return R list of climate data
+#' @export
+#'
+#' @examples
+#' climdata<-read_climdata(system.file('data/ukcp18rcm.rda',package='mesoclim'))
+read_climdata<-function(filepath){
+  if(file.exists(filepath)!=TRUE) stop('Filepath provided does NOT exist!!') else{
+    climdata<-readRDS(filepath)
+    climdata<-lapply(climdata,function(x) if(class(x)[1]=='PackedSpatRaster') terra::unwrap(x) else x)
+  }
+  return(climdata)
+}
+
+#' @title Write climate data
+#' @description
+#' Writes to a binary file a climate dataset (as output by for example `ukcp18toclimdata()`.
+#'Wraps any Spatrasters to PackedSpatRasters before writing.
+#' @param climdata a list of climate variables as output by `ukcp18toclimdata()`
+#' @param filepath to be written
+#'
+#' @return writes an external file
+#' @export
+#'
+#' @examples
+#' dirct<-tempdir()
+#' write_climdata(ukcp18rcm,file.path(dirct,'filename.rds'))
+write_climdata<-function(climdata,filepath,overwrite=FALSE){
+  if(file.exists(filepath)==TRUE & overwrite==FALSE) stop('Existing file of that name - requires setting overwrite to TRUE !!')
+  else{
+    climdata<-lapply(climdata,function(x) if(class(x)[1]=='SpatRaster') terra::wrap(x) else x)
+    saveRDS(climdata,filepath)
+  }
+  return()
 }

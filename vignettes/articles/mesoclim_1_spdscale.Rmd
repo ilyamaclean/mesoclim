@@ -1,5 +1,6 @@
 ---
 title: "1 UKCP18 spatial downscaling"
+output: html_document
 ---
 
 ```{r, include = FALSE}
