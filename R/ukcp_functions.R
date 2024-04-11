@@ -79,17 +79,17 @@ create_ukcpsst_data<-function(
   if (length(not_present)>0) stop(paste("Input .nc files required are NOT present: ",ncfiles[not_present]," ") )
 
   # Get extent of aoi and project to same as SST data (lat lon)
-  if(!is.na(aoi)){
+  if(!class(aoi)=='logical'){
     if(!class(aoi)[1] %in% c("SpatRaster","SpatVector","sf")) stop("Parameter aoi NOT of suitable spatial class ")
     if(class(aoi)[1]=="sf") aoi<-vect(aoi)
-    target_crs<-crs(rast(ncfiles[1],subds=v))
+    target_crs<-crs(rast(ncfiles[1]))
     aoi_e<-ext( project(aoi,target_crs) )
   }
   # Get spatrast stack
   var_r<-terra::rast()
   for(f in ncfiles){
     r<- rast(f, subds = v, drivers="NETCDF")
-    if(!class(aoi)[1]=='logical') r<-crop(r,aoi)
+    if(!class(aoi)[1]=='logical') r<-crop(r,aoi_e)
     units(r)<-'degC'
     # Join if multiple decades of data
     terra::add(var_r)<-r

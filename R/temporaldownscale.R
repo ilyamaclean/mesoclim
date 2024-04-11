@@ -243,10 +243,11 @@ swrad_dailytohourly <- function(radsw, tme, clearsky = NA, r = r, adjust = TRUE)
   if(class(radsw)[1]=='SpatRaster') r<-radsw[[1]] else{
     if(class(r)[1]!='SpatRaster') stop('Lacking geo information. Need radsw or r to be class SpatRaster!')
   }
-  radsw<-.is(radsw)
   # If NA, calaculate daily clearsky radiation
-  if (class(clearsky) == "logical") clearsky <- .clearskyraddaily(tme,radsw)
+  if (class(clearsky) == "logical") clearsky <- .clearskyraddaily(tme,r)
   # Calculate clear sky fraction
+  radsw<-.is(radsw)
+
   radf <- radsw/clearsky
   radf[radf > 1] <- 1
   radf[radf < 0] <- 0
@@ -259,7 +260,7 @@ swrad_dailytohourly <- function(radsw, tme, clearsky = NA, r = r, adjust = TRUE)
   lon <- .lonsfromr(r)
   tmeh <- as.POSIXlt(seq(tme[1],tme[length(tme)]+23*3600, by = 3600))
   #jd <- julday(tmeh$year + 1900, tmeh$mon + 1, tmeh$mday)
-  jd<-juldayvCpp(tme$year+1900, tme$mon+1, tme$mday)
+  jd<-juldayvCpp(tmeh$year+1900, tmeh$mon+1, tmeh$mday)
   lt <- tmeh$hour
   lats <- .mta(lat, length(lt))
   lons <- .mta(lon, length(lt))
