@@ -86,14 +86,18 @@ plot_wind<-function(winddir,windspeed){
   dgrp_max<-tapply(c(windspeed),dgrp,max)
   dgrp_freq<-as.array(table(dgrp))
 
-  # Make charts
+  # Mean/Max windspeed plot by dir
+  cardorder<- c('N', 'NNW', 'NW', 'WNW', 'W', 'WSW', 'SW', 'SSW', 'S', 'SSE', 'SE', 'ESE', 'E', 'ENE', 'NE', 'NNE')
+  df<-as.data.frame(matrix(0, 4, 16) )
+  names(df)<-cardorder
+  rownames(df)<-c('Max','Min','Mean windspeed','Max windspeed')
+  df[1,]<-rep(max(dgrp_max),length(cardorder)) # max speed across  all directions
+  df[2,]<-rep(0,length(cardorder)) # min speed across all dir
+  df[3,names(dgrp_mean)]<-dgrp_mean
+  df[4,names(dgrp_max)]<-dgrp_max
+
   par(mar=c(1,1,1,1))
   par(mfrow=c(1,2))
-  cardorder<- c('N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW')
-  df<-rbind(rep(max(dgrp_max),length(cardorder)),rep(0,length(cardorder)),
-            as.data.frame(t(dgrp_mean))[,cardorder],
-            as.data.frame(t(dgrp_max))[,cardorder])
-  rownames(df)<-c('Max','Min','Mean windspeed','Max windspeed')
   fmsb::radarchart(df, title='Mean and max windspeeds', cex=0.75)
   legend(
     x = "bottomleft", legend = c('Mean','Maximum'), horiz = TRUE,
@@ -101,9 +105,14 @@ plot_wind<-function(winddir,windspeed){
     text.col = "black", cex = 1, pt.cex = 1
   )
 
+  # Freq plot by dir
+  df<-as.data.frame(matrix(0, 3, 16) )
+  names(df)<-cardorder
+  rownames(df)<-c('Max','Min','Frequency')
+  df[1,]<-rep(max(dgrp_freq),length(cardorder)) # max speed across  all directions
+  df[2,]<-rep(0,length(cardorder)) # min speed across all dir
+  df[3,names(dgrp_freq)]<-dgrp_freq
 
-    df<-data.frame(rbind(rep(max(dgrp_freq),length(cardorder)),rep(0,length(cardorder)),
-            dgrp_freq[cardorder] ) )
   fmsb::radarchart(df, title='Wind direction frequency',pcol=c('green'), cex=0.75)
 
   legend(
