@@ -1,0 +1,57 @@
+---
+title: "4. Temporal downscaling"
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup, include=FALSE}
+#library(mesoclim)
+devtools::load_all(quiet=TRUE)
+```
+
+# 4. Temporal downscaling
+Any efficiency or theoretical reasons for spatial before temporal downscaling or v.v?
+
+```{r input-data}
+# Get spatially downscaled data
+ mesolizd<-read_climdata(file.path(system.file('extdata/dscaledata',package='mesoclim'),'mesolizd.rds'))
+```
+
+## Daily to hourly temperature downscaling
+From one year's daily timeseries of spatially downscaled data.
+
+```{r temp_tmedscale}
+
+# Generate hourly timeseries
+t0<-now()
+hrtemps<-hourlytemp(mesolizd$tmin, mesolizd$tmax, srte = 0.09) 
+print(now()-t0)
+
+```
+
+```{r graph-temp}
+# Plot hourly timeseries for contrasting days: spatial mean,min,max
+par(mfrow=c(1,2))
+plot_timestats_r(hrtemps[[1:96]],var='Temperatures for 1-4 Jan 2018',idx='hour',lgd=FALSE)
+plot_timestats_r(hrtemps[[5328:5423]],var='Temperatures for 11-14 July 2018',idx='hour',lgd=FALSE)
+
+# Plot hourly rasters 
+plot_q_layers(hrtemps,p=c(0, 0.5, 1),fun='mean', common_scale=FALSE)
+```
+
+
+Functions also permit daily to hourly downscaling of other climate variables.
+
+Change variable names - tme parameter etc to standardise across functions
+
+## Shortwave radiation downscaling
+NOT working
+```{r swdaytohr, eval=FALSE}
+swradhr<-swrad_dailytohourly(mesolizd$swrad, as.POSIXlt(terra::time(mesolizd$swrad)), clearsky = NA, r = dtmf, adjust = TRUE) 
+
+```

@@ -1,0 +1,77 @@
+---
+title: "1 Downloading Inputs"
+output:
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup, include=FALSE}
+# library(mesoclim)
+devtools::load_all(quiet=TRUE)
+```
+
+# 1 Downloading  of coarse resolution global climate data.
+A number of source-specific functions are provided for both the downscaling and processing of coarse-resolution climate data.Data sources include ERA5 Reanalysis data produced by the Copernicus Climate Change Service (ref), NCEP-NCAR and NCEP–DOE Atmospheric Model Intercomparison Project (Kanamitso et al 2002), and UKCP18 global and regional future climate estimates. {_Others??_}. 
+
+## Example: downloading UKCP18 RCM data for the UK
+UKCP18 data is available at different resolutions from various climate models that have been run to produce outputs for global, European and UK domains. They are the outputs of various comoinations of driving global climate models and regional or local  
+
+Data download requires a ceda username and password.
+
+The function will download netcdf file(s) containing a decade of data that correspond to the model, collection, domain and time period requested. UKCP18 files contain a single variable and therefore multiple files will be downloaded
+
+For further details see: {_MetOff reference_}
+
+```{r download_ukcp, eval=FALSE}
+dir_ukcp18<-tempdir()
+
+collection<-'land-rcm'
+domain<-'uk'
+member<-'01'
+rcp<-'rcp85'
+startdate<-as.POSIXlt('2018/01/01')
+enddate<-as.POSIXlt('2018/12/31')
+
+download_ukcp18(
+    dir_ukcp18,
+    cedausr,cedapwd,
+    startdate,enddate,
+    collection, domain, rcp, member,
+    vars=c('clt','hurs','pr','prsn','psl','rls','rss','tasmax','tasmin','uas','vas')
+)
+
+list.files(dir_ukcp18)
+```
+
+## Ancillary data requirements and sourcing
+
+### Digital terrain models
+Additional data required for downscaling include digital terrain models (DTMs) at both the coarse resolution of the climate input data and at the fine resolution of the downscaling.
+
+Where possible, the coarse resolution DTM should correspond to data that informed climate modelling. For example, this is made available for UKCP18 RCM data and can be derived from ERA5 using the geopotential variable. {_An option in the UKCP18 and ERA5 download functions allows the downloading of these DTMs?_}
+
+Where the original DTM corresponding to input climate data is unavailable , if can be derived from various webservices and resampled to the correct projection and resolution.
+
+The DTMs used in downscaling also act as a land/sea mask, and therefore sea cells should possess an NA value. 
+
+__TO DO:__ 
+* _ADD download of UKCP18 rcm dem option to function and to ERA5 using geopotential!!!_
+
+### Sea Surface Temperature
+Sea surface temperatures are required for the corresponding time period and geography of the downscaling area.  Functions are provided to download historic sea surface temperature from ERA5 and NCEP(?) data and future data estimated using UKCP18 regional models for the UK and NW Atlantic (__add reference__).
+
+__ Something more on sourcing future sst data??__
+
+```{r accillary-download, eval=FALSE}
+# Download UKCP18 sea surface temp data
+
+# ADD FUNCTION
+
+```
+
+Additional data may also be used to inform preprocessing and downscaling of particular climate inputs. For example, UKCP18 data commonly provides net rather than downward short and longwave radiation. For converting to the downward radiation required by downscaling, albedo values can either provided (from historic data sources) or constant proxy values can be used.
