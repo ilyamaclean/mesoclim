@@ -15,8 +15,6 @@
 checkinputs <- function(input_list, tstep = c("hour","day")){
   tstep<-match.arg(tstep)
 
-  if('climarray' %in% names(input_list)) input_list[names(input_list$climarray)]<-input_list$climarray[names(input_list$climarray)]
-
   check.names<-function(nms,char) {
     sel<-which(nms==char)
     if (length(sel) == 0) stop(paste0("Cannot find ",char," in weather"))
@@ -221,8 +219,9 @@ read_climdata<-function(filepath){
 #' @export
 #'
 #' @examples
-#' dirct<-tempdir()
-#' write_climdata(ukcp18rcm,file.path(dirct,'filename.rds'))
+#' climdata<-read_climdata(system.file('data/ukcp18rcm.rda',package='mesoclim'))
+#' dir_temp<-tempdir()
+#' write_climdata(climdata,file.path(dir_temp,'filename.rds'))
 write_climdata<-function(climdata,filepath,overwrite=FALSE){
   if(file.exists(filepath)==TRUE & overwrite==FALSE) stop('Existing file of that name - requires setting overwrite to TRUE !!')
   else{
