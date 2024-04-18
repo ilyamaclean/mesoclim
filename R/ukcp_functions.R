@@ -35,7 +35,7 @@ download_globalbedo<-function(dir_out,
   }
 }
 
-#' Create UKCP sea surface temperature rast stack from ncdf files
+#' @title Create UKCP sea surface temperature rast stack from ncdf files
 #'
 #' @param dir_data directory holding SST .nc files downloaded from ceda
 #' @param startdate start date as POSIXlt
@@ -49,6 +49,8 @@ download_globalbedo<-function(dir_out,
 #' @import terra
 #' @import lubridate
 #' @examples
+#' dir_data<-system.file('extdata/ukcp18sst',package='mesoclim')
+#' sst<-create_ukcpsst_data(dir_data,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),members='01')
 create_ukcpsst_data<-function(
     dir_data,
     startdate,
@@ -78,7 +80,7 @@ create_ukcpsst_data<-function(
   not_present<-which(!file.exists(ncfiles))
   if (length(not_present)>0) stop(paste("Input .nc files required are NOT present: ",ncfiles[not_present]," ") )
 
-  # Get extent of aoi and project to same as SST data (lat lon)
+  # Get extent of aoi and project to same as ukcp data (lat lon)
   if(!class(aoi)=='logical'){
     if(!class(aoi)[1] %in% c("SpatRaster","SpatVector","sf")) stop("Parameter aoi NOT of suitable spatial class ")
     if(class(aoi)[1]=="sf") aoi<-vect(aoi)
@@ -151,6 +153,7 @@ download_hadukdaily<-function(dir_out, cedausr, cedapwd, year, month, varn) {
   destfile<-file.path(dir_out,basename(f))
   curl::curl_download(dload_url, destfile, handle = h, quiet=FALSE)
 }
+
 #' Download UKCP18 climate data
 #' ILya comment: function needs fixing to handle cases where length(member) or
 #' length (collection) > 1 (or make clear you only want one at a time).
@@ -179,8 +182,8 @@ download_hadukdaily<-function(dir_out, cedausr, cedapwd, year, month, varn) {
 #' @import curl
 #' @export
 #' @examples
-#' dir_out <- tempdir()
-#' download_ukcp18(dir_out,'ceda_username','ceda_password',as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01'),c('tasmax','tasmin'))
+#' # dir_out <- tempdir()
+#' # download_ukcp18(dir_out,'ceda_username','ceda_password',as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01'),c('tasmax','tasmin'))
 download_ukcp18<-function(
     dir_out,
     cedausr,
@@ -266,6 +269,9 @@ download_ukcp18<-function(
 #' @details Creates a time series from the ncdf file time variable which is not correctly read by R terra package.
 #' UKCP18 time values expressed as hours since 1/1/1970 12.00. Output used by function `correct_ukcp_dates()`
 #' @examples
+#' dir_ukcp<-system.file('extdata/ukcp18rcm',package='mesoclim')
+#' nc<-file.path(dir_ukcp,"tasmax_rcp85_land-rcm_uk_12km_01_day_20101201-20201130.nc")
+#' ukdates<-get_ukcp18_dates(nc)
 get_ukcp18_dates<-function(ncfile){
   netcdf_data <-ncdf4::nc_open(ncfile)
   time_hours <- ncdf4::ncvar_get(netcdf_data,"time")
@@ -283,10 +289,14 @@ get_ukcp18_dates<-function(ncfile){
 #' @description Converts 12 x 30 day monthly data provided by UKCP18 to data corresponding to actual calendar dates
 #' by reassigning invalid dates (eg 29-30 Feb). Does NOT add missing dates (eg 31st May). Output used by `fill_calendar_data()`
 #' @param ukcp_dates vector of POSIXlt UKCP18 dates  as returned by 'get_ukcp18_dates()'.
-#' @return a vector of valid date strings in the form 'yyy-dd-mm'
+#' @return a vector of valid date strings in the form 'yyyy-dd-mm'
 #' @import lubridate
 #' @export
 #' @examples
+#' dir_ukcp<-system.file('extdata/ukcp18rcm',package='mesoclim')
+#' nc<-file.path(dir_ukcp,"tasmax_rcp85_land-rcm_uk_12km_01_day_20101201-20201130.nc")
+#' ukdates<-get_ukcp18_dates(nc)
+#' correctdates<-correct_ukcp_dates(ukdates)
 correct_ukcp_dates<-function(ukcp_dates){
   years<-as.numeric(sapply(strsplit(ukcp_dates,"-"), getElement, 1))
   months<-as.numeric(sapply(strsplit(ukcp_dates,"-"), getElement, 2))
@@ -327,6 +337,12 @@ correct_ukcp_dates<-function(ukcp_dates){
 #' @import terra
 #' @export
 #' @examples
+#' dir_ukcp<-system.file('extdata/ukcp18rcm',package='mesoclim')
+#' nc<-file.path(dir_ukcp,"tasmax_rcp85_land-rcm_uk_12km_01_day_20101201-20201130.nc")
+#' ukdates<-get_ukcp18_dates(nc)
+#' real_dates<-correct_ukcp_dates(ukdates)
+#' r<-rast(nc,subds='tasmax')
+#' r2<-fill_calendar_data(r,real_dates,testplot=TRUE)
 fill_calendar_data<-function(ukcp_r, real_dates, testplot=FALSE, plotdays=c(89:91,242:244)){
   # Assign real dates to layer names and time values
   terra::time(ukcp_r)<-real_dates
@@ -348,6 +364,9 @@ fill_calendar_data<-function(ukcp_r, real_dates, testplot=FALSE, plotdays=c(89:9
 #' @import units
 #' @export
 #' @examples
+#' r<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+#' terra::units(r)<-'m'
+#' r2<-change_rast_units(r,'cm')
 change_rast_units<-function(r,to_unit){
   in_unit<-terra::units(r)
   # Get and convert values
@@ -475,13 +494,11 @@ find_ukcp_decade<-function(collection=c('land-gcm','land-rcm'),startdate,enddate
   return(swdown)
 }
 
-#' @title convert UKCP18  ncdf4 files to format required for model
+#' @title convert UKCP18 ncdf4 files to format required for model
 #' @description Converts UKCP18 global or regional land data in the form of netCDF4 file (as returned
 #' by [ukcp18_downscale()] to the correct data form required for subsequent modelling.
 #' @param dir_ukcp directory holding ALL ncdf files of UKCP18 data required to extract the requested variables and timeseries.
 #' @param dtm SpatRaster object of elevations covering the geographical extent required (see details)
-#' @param toArrays logical determining if climate data returned as list of arrays. If FALSE returns list of Spatrasts.
-#' @param sampleplot if TRUE plots examples of interpolated dates when converting from 360 to 366 day years
 #' @param startdate POSIXlt class defining start date of required timeseries
 #' @param enddate POSIXlt class defining end date of required timeseries
 #' @param collection text string defining UKCP18 collection, either 'land-gcm' or 'land-rcm'
@@ -490,23 +507,35 @@ find_ukcp_decade<-function(collection=c('land-gcm','land-rcm'),startdate,enddate
 #' @param ukcp_vars UKCP18 variable names to be extracted DO NOT CHANGE
 #' @param ukcp_units units of the UKCP18 variables extracted DO NOT CHANGE
 #' @param output_units units required for output DO NOT CHANGE CHECK CORRECT
+#' @param toArrays logical determining if climate data returned as list of arrays. If FALSE returns list of Spatrasts.
+#' @param sampleplot if TRUE plots examples of interpolated dates when converting from 360 to 366 day years
 #'
 #' @return a list of the following:
 #' \describe{
-#'   \item{tme}{POSIXlt object of times corresponding to climate observations}
-#'   \item{climarray}{ either a list of arrays or a list of SpatRasts of daily weather variables
-#'   \item{dtmc}{a coarse resolution digital elevation dataset matching the resolution and crs of the input
-#'   climate data, and an extent matching `dtm`}
-#' }
+#'    \item{dtm}{Digital elevation of downscaled area in metres (as Spatraster)}
+#'    \item{tme}{POSIXlt object of times corresponding to climate observations}
+#'    \item{windheight_m}{Height of windspeed data in metres above ground (as numeric)}
+#'    \item{tempheight_m}{Height of temperature data in metres above ground (as numeric)}
+#'    \item{temp}{Temperature (deg C)}
+#'    \item{relhum}{Relative humidity (Percentage)}
+#'    \item{pres}{Sea-level atmospheric pressure (kPa)}
+#'    \item{swrad}{Total downward shortwave radiation (W/m^2)}
+#'    \item{difrad}{Downward diffuse radiation (W / m^2)}
+#'    \item{lwrad}{Total downward longwave radiation (W/m^2)}
+#'    \item{windspeed at 2m (m/s)}
+#'    \item{winddir}{Wind direction (decimal degrees)}
+#'    \item{prec}{Precipitation (mm)}
+#'  }
 #' @import terra
 #' @export
 #' @details The function converts 360 day UKCP18 to actual calendar data by reassignment and linear interpolation of missing data. Returned climate data will be at the resolution, corrdinate reference system of the UKCP18 data requested, which can vary between domains and collections.
 #' The extent will be provided by the `dtm` which, if necessary, will be re-projected and resampled to the CRS and resolution of UKCP18 data requested.
 #' For regional UKCP18 data, it is recommended that 'dtm' is derived from the original orography data available for download.
 #' @examples
-#' dir_out <- tempdir()
-#' download_ukcp18(dir_out,'ceda_username','ceda_password',as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01','02','03'),c('clt','hurs','huss','pr','psl','rls','rss','tas','tasmax','tasmin','uas','vas'))
-#' climdata<-ukcp18toclimarray()
+#' dir_ukcp<-system.file('extdata/ukcp18rcm',package='mesoclim')
+#' dtm<-terra::rast(system.file('extdata/ukcp18rcm/orog_land-rcm_uk_12km_osgb.nc',package='mesoclim'))
+#' dtm<-crop(dtm,c(28077.86, 339436.5, -57947.13, 204298.7))
+#' ukcpinput<-ukcp18toclimarray(dir_ukcp,dtm,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),collection='land-rcm',domain='uk',member='01')
 ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
                               collection=c('land-gcm','land-rcm'),
                               domain=c('uk','eur','global'),
@@ -614,29 +643,24 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
   # Calculate derived variables: shortwave downward from white & black sky albedo as rast timeseries or fixed land and sea values
   clim_list$swdown<-.swdown(clim_list$rss, clim_list$clt, dtmc, wsalbedo, bsalbedo)
 
-  ### Create ouput list
-  output_list<-list()
-
   # Select and rename climate output rasts MIGHT NEED TO CHANGE THESE TO MATCH THOSE USED BY MESOCLIM FUNCTIONS
   clim_list<-clim_list[c("clt","hurs","pr","psl","lwdown","swdown","tasmax","tasmin", "windspeed","winddir")]
   names(clim_list)<-c('cloud','relhum','prec','pres','lwrad','swrad','tmax','tmin','windspeed','winddir')
-
-  # Add other data
-  output_list$dtmc<-dtmc
-  output_list$windheight_m<-10 # windspeed at 10 metres height
-  output_list$tempheight_m<-1.5 # air temp at 1.5 metres height
 
   # Restrict to dates requested
   filter_times<-function(x,startdate,enddate) x[[which(time(x) >= startdate & time(x) <= enddate)]]
   for(v in names(clim_list))clim_list[[v]]<-filter_times(clim_list[[v]],startdate,enddate)
 
-  # Generate POSIXlt object of times and add to output list
+  ### Create output list
+  output_list<-list()
+  output_list$dtm<-dtmc
   output_list$tme<-as.POSIXlt(time(clim_list$tmax),tz="UTC")
+  output_list$windheight_m<-10 # ukcp windspeed at 10 metres height
+  output_list$tempheight_m<-1.5 # ukcp air temp at 1.5 metres height
 
   # Convert climate data to arrays if required
   if(toArrays) clim_list<-lapply(clim_list,as.array)
 
-  output_list$climarray<-clim_list
-
+  output_list<-c(output_list,clim_list)
   return(output_list)
 }

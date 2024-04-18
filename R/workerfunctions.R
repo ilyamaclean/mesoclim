@@ -111,6 +111,120 @@
   return(ro)
 }
 # ============================================================================ #
+# Replacements of SSTinterpolate
+# spatial_interA is a direct copy of SSTinterpolate code
+# time_interp  uses terra::approximate but valid for any combi of timeseries
+# ============================================================================ #
+#' Spatially interpolate missing values in Spatrasters
+#' @param r 2 or 3D Spatraster
+#' @return Spatraster of same dim as r but without NA
+#' @export
+#' @import terra
+#' @examples
+#' r <- rast(ncols=5, nrows=5, vals=rep(c(1,2,NA,4,5),5))
+#' rout<-spatial_interpNA(r)
+#' plot(c(r,rout))
+.spatinterp<-function(r){
+  tme<-terra::time(r)
+  me<-as.vector(r)
+  n<-which(is.na(me))
+  rout<-r
+  crs(rout)<-crs(r) # prevents superfluous warnings
+  if (length(n) > 0) {
+    dmx<-max(dim(r)[1:2])
+    m1<-.is(r)
+    m2<-.is(resample(aggregate(r,2,na.rm=T),r))
+    s<-which(is.na(m1))
+    m1[s]<-m2[s]
+    if (dmx >= 5) {
+      m2<-.is(resample(aggregate(r,5,na.rm=T),r))
+      m1[s]<-m2[s]
+    }
+    if (dmx >= 10) {
+      m2<-.is(resample(aggregate(r,10,na.rm=T),r))
+      s<-which(is.na(m1))
+      m1[s]<-m2[s]
+    }
+    if (dmx >= 100) {
+      m2<-.is(resample(aggregate(r,100,na.rm=T),r))
+      s<-which(is.na(m1))
+      m1[s]<-m2[s]
+    }
+    s<-which(is.na(m1))
+    if (length(s) > 0) {
+      me<-apply(.is(r),3,mean,na.rm=T)
+      m2<-.vta(me,r[[1]])
+      m1[s]<-m2[s]
+    }
+    rout<-.rast(m1,r)
+  }
+  terra::time(rout)<-tme
+  return(rout)
+}
+#' Temporal interpolation of Spatraster timeseries
+#' @param rin = 3D Spatraster
+#' @param tmein = NA or Date or POSIX vector of datetimes of r - if NA assumes time(r) provides tmein values
+#' @param tmeout = Date or POSIX vector of datetimes required
+#' @return Interpolated (linear) Spatraster stack of nlyrs=length(tmeout)
+#' @export
+#' @import terra
+#' @import lubridate
+#' @examples
+#' r <- rast(ncols=5, nrows=5, vals=rep(1,25))
+#' r<-c(r,r*2,r*3,r*4,r*5)
+#' tmein<-as.Date(seq(17532,17652,30))
+#' terra::time(r)<-tmein
+#' tmeout<-as.Date(seq(17532,17651,1))
+#' rout<-time_interp(r,NA,tmeout)
+#' plot(rout[[c(1,15,31,95,119,120)]])
+.tmeinterp<-function(r,tmein,tmeout){
+  # Check formats of inputs
+  if(class(r)[1]== "PackedSpatRaster") r<-rast(r)
+  if(class(r)[1]!= "SpatRaster") stop("Input r must be a SpatRaster!!!")
+  if(class(tmein)=='Date') tmein<-as.POSIXlt(tmein)
+  if(class(tmeout)[1]=='Date') tmeout<-as.POSIXlt(tmeout)
+  if(class(tmein)[1]=='logical') tmein<-as.POSIXlt(terra::time(r))
+  if(class(tmein)[1]!="POSIXlt" | class(tmeout)[1]!="POSIXlt") stop("Time parameters must be POSIXlt!!!")
+  if(nlyr(r)!=length(tmein)) stop('Number of layers in r does not match length of input times!!!')
+
+  # Check tmeout within tmein
+  if(tail(tmeout,1)<tmein[1] | tmeout[1]>tail(tmein,1)) stop('Output times do not overlap with input times!!!')
+  if(tmeout[1]<tmein[1]|tail(tmeout,1)>tail(tmein,1)) warning('Output times extend beyond input times!!!')
+
+  # If only single tmein - simply replicate across tmeout
+  if(length(tmein)==1){
+    warning('Single input timeseries - returning constant output!!!')
+    rout<-rep(r,length(tmeout))
+  }
+
+  if(length(tmein)>1){
+    # Check relative size of timesteps in tmein and tmeout
+    instep<-as.numeric(tmein[2])-as.numeric(tmein[1])
+    outstep<-as.numeric(tmeout[2])-as.numeric(tmeout[1])
+    if(instep/outstep>744) warning('Input time step MUCH lower than output time step - this may be slow!!!')
+
+    # Extend tmeout to include tmein at or after last tmeout and at or before tmeout[1]
+    if(!tmeout[1] %in% tmein) tstart<-tmein[tail(which(tmein<tmeout[1]),n=1)] else tstart<-tmeout[1]
+    if(!tail(tmeout,1) %in% tmein) tend<-tmein[which(tmein>tail(tmeout,1))[1]] else tend<-tail(tmeout,1)
+    tme<-as.POSIXlt(seq(tstart,tend,outstep))
+
+    # Create output rast
+    rout<-rast(setValues(r[[1]],NA),nlyr=length(tme))
+    terra::time(rout)<-tme
+    names(rout)<-tme
+
+    # Insert and fill missing date layers of output r - could use zoo::na.approx or na.spline
+    rout[[c(which(tme %in% tmein))]]<-r[[which(tmein %in% tme)]]
+    rout<-terra::approximate(rout,method="linear")
+
+    # Return only values in tmeout
+    sel<-which(as.POSIXlt(terra::time(rout)) %in% tmeout)
+
+  }
+  return(rout[[sel]])
+}
+
+# ============================================================================ #
 # ~~~~~~~~~ Climate processing worker functions here ~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
 #' Calculate saturated vapour pressure
@@ -341,6 +455,22 @@
   r<-.rast(index,dtm)
   return(r)
 }
+
+# Applies height correction to wind speed measurements - cf microclima::windheight
+# wspeed numeric value(s) of measured wind speed (\ifelse{html}{\out{m s<sup>-1</sup> }}{\eqn{ m s^{-1}}}) at height `zi` (m).
+# zi a numeric value idicating the height (m) above the ground of `wspeed` input
+# zo a numeric value indicating the height (m) above ground level of output speeds
+# Assumes a logarithmic height profile and imposes a minimum zo of 0.2
+# change_windhgt(3, 10, 1)
+.windhgt<-function (wspeed, zi, zo) {
+  if (zo < 0.2 & zo > (5.42/67.8)){
+    warning("Wind-height profile function performs poorly below 20 cm so output height converted to 20 cm")
+    zo <- 0.2
+  }
+  return(wspeed * log(67.8 * zo - 5.42)/log(67.8 * zi - 5.42))
+}
+
+
 # Calculates horizon angle
 .horizon <- function(dtm, azimuth) {
   reso<-res(dtm)[1]
@@ -784,7 +914,7 @@
   # Convert NA to elevation of 0 in dtm's
   dtmc<-ifel(is.na(dtmc),0,dtmc)
 
-  # Calculate lapse rate
+  # Calculate lapse raster
   n<-dim(tc)[3]
   if (class(rh) == "logical") {
     lrc<-.rta(0.005*.is(dtmc),n)
@@ -827,10 +957,10 @@
   # Calculate lapse-rate multiplication factor
   mu<-edif*.cadpotential(dtmf,basins,refhgt)
   # extract climate variables
-  relhum<-climdata$climarray$relhum
-  pk<-climdata$climarray$pres
-  tc<-climdata$climarray$temp
-  dtmc<-rast(climdata$dtmc)
+  relhum<-climdata$relhum
+  pk<-climdata$pres
+  tc<-climdata$temp
+  dtmc<-rast(climdata$dtm)
   # Calculate lapse rate
   ea<-.satvap(tc)*(relhum/100)
   lr<-lapserate(tc, ea, pk)
@@ -843,9 +973,9 @@
   d<-0.65*0.12
   zm<-0.1*0.12
   # Extract additional ccimate variables
-  u2<-climdata$climarray$windspeed
-  swrad<-climdata$climarray$swrad
-  lwrad<-climdata$climarray$lwrad
+  u2<-climdata$windspeed
+  swrad<-climdata$swrad
+  lwrad<-climdata$lwrad
   uf<-(0.4*u2)/log((refhgt-d)/zm)
   H<-(swrad+lwrad-(5.67*10^-8*0.97*(tc+273.15)^4))*0.5
   st<- -(0.4*9.81*(refhgt-d)*H)/(1241*(tc+273.15)*uf^3)
@@ -858,6 +988,7 @@
   ce<-.rast(cad*st,dtmf)
   return(ce)
 }
+
 .tempcoastal<-function(tc, SST, u2, wdir, dtmf, dtmm, dtmc) {
   # produce land sea mask
   if (crs(dtmm) != crs(dtmf)) dtmm<-project(dtmm,crs(dtmf))

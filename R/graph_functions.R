@@ -10,7 +10,10 @@
 #' @import magrittr
 #'
 #' @examples
-#' plot_timestats_r(ukcp18rcm$climarray$tmax,'tmax',idx='doy',lgd=FALSE)
+#' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+#' r<-.rast(climdata$tmax,climdata$dtm)
+#' terra::time(r)<-climdata$tme
+#' plot_timestats_r(r,'tmax',idx='doy')
 plot_timestats_r<-function(r,var,idx=c('years', 'months', 'week',  'doy', 'yearmonths', 'yearweeks', '7days','hour'),lgd=FALSE){
   if(idx=='hour'){
     time_mean<- global(r,"mean", na.rm=TRUE)
@@ -43,6 +46,10 @@ plot_timestats_r<-function(r,var,idx=c('years', 'months', 'week',  'doy', 'yearm
 #' @export
 #'
 #' @examples
+#' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+#' r<-.rast(climdata$tmax,climdata$dtm)
+#' terra::time(r)<-climdata$tme
+#' plot_q_layers(r)
 plot_q_layers<-function(r,p=c(0, 0.5, 1),fun='mean', common_scale=FALSE){
   par(mfrow=c(1,3), mai=c(1,0.1,0.1,0.1))
   # Find corresponding layers
@@ -79,6 +86,9 @@ plot_q_layers<-function(r,p=c(0, 0.5, 1),fun='mean', common_scale=FALSE){
 #' @import fmsb
 #'
 #' @examples
+#' wdir<-c(357,5,20,45,100,185,265,275,290)
+#' wspeed<-seq(3,27,3)
+#' plot_wind(wdir,wspeed)
 plot_wind<-function(winddir,windspeed){
   # Classify by cardinal group
   dgrp<- .dir_to_cardinal(c(winddir))

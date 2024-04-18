@@ -1,15 +1,3 @@
-#' Calculates latitude and longitude from SpatRaster object
-#' @import terra
-.latlongfromraster<-function (r) {
-  e <- ext(r)
-  xy <- data.frame(x = (e$xmin + e$xmax)/2, y = (e$ymin + e$ymax)/2)
-  xy <- sf::st_as_sf(xy, coords = c("x", "y"),
-                     crs = crs(r))
-  ll <- sf::st_transform(xy, 4326)
-  ll <- data.frame(lat = sf::st_coordinates(ll)[2], long = sf::st_coordinates(ll)[1])
-  return(ll)
-}
-
 #' Check and summarise coarse resolution climate data inputs
 #'
 #' @param input_list list of climate and associated variables as output by functions like 'ukcp18toclimarray'
@@ -22,7 +10,8 @@
 #' @export
 #'
 #' @examples
-#' checkinputs(input_list, tstep = "day")
+#' climdata<- read_climdata(system.file('data/era5input.rds',package='mesoclim'))
+#' chk_climdata<- checkinputs(climdata, tstep = "hour")
 checkinputs <- function(input_list, tstep = c("hour","day")){
   tstep<-match.arg(tstep)
 
@@ -79,14 +68,14 @@ checkinputs <- function(input_list, tstep = c("hour","day")){
   check.names(nms,"winddir")
   check.names(nms,"windheight_m")
   check.names(nms,"tempheight_m")
-  check.names(nms,"dtmc")
+  check.names(nms,"dtm")
   check.names(nms,"tme")
   # Optional cloud cover
   if(!"cloud" %in% nms) warning('No optional cloud cover variable found - continuing...')
 
-  # Check dtmc unpacked and with crs
-  input_list$dtmc<-check.unpack(input_list$dtmc,"dtmc")
-  if (is.na(crs(input_list$dtmc))) stop("dtm must have a coordinate reference system specified")
+  # Check dtm unpacked and with crs
+  input_list$dtm<-check.unpack(input_list$dtm,"dtm")
+  if (is.na(crs(input_list$dtm))) stop("dtm must have a coordinate reference system specified")
 
   # check time and timezone
   sel<-which(is.na(input_list$tme))
@@ -97,8 +86,8 @@ checkinputs <- function(input_list, tstep = c("hour","day")){
   if (attr(input_list$tme,"tzone") != "UTC") stop("timezone of obs_time in weather must be UTC")
 
   # Calculate pressure limits based on elevation
-  mxelev<-max(.is(input_list$dtmc),na.rm=T)
-  mnelev<-min(.is(input_list$dtmc),na.rm=T)
+  mxelev<-max(.is(input_list$dtm),na.rm=T)
+  mnelev<-min(.is(input_list$dtm),na.rm=T)
   mxp<-108.5*((293-0.0065*mnelev)/293)^5.26
   mnp<-87*((293-0.0065*mnelev)/293)^5.26
 
@@ -125,7 +114,7 @@ checkinputs <- function(input_list, tstep = c("hour","day")){
   }
 
   # Calculate clear-sky radiation to compare with downward SW down
-  #ll<-.latlongfromraster(input_list$dtmc)
+  #ll<-.latlongfromraster(input_list$dtm)
   #if(tstep=='day') tmean<-(input_list$tmax+input_list$tmin)/2 else tmean<-input_list$temp
   #csr<-.clearskyrad(input_list$tme,ll$lat,ll$long,tmean,input_list$relhum,input_list$pres)
   #csd<-csr+50
@@ -150,8 +139,8 @@ checkinputs <- function(input_list, tstep = c("hour","day")){
   }
 
   # Print summary stats and figures of input variables?
-  statvars<-nms[!nms %in% c('dtmc','climarray','tme','windheight_m','tempheight_m')]
-  elev<-data.frame(elevation=values(input_list$dtmc,mat=FALSE))
+  statvars<-nms[!nms %in% c('dtm','climarray','tme','windheight_m','tempheight_m')]
+  elev<-data.frame(elevation=values(input_list$dtm,mat=FALSE))
   stats_df<-as.data.frame(t(round(sapply(input_list[statvars],summary),3)))[,c('Min.','Mean','Max.')]
   elev_stat<-round(summary(elev$elevation),3)[c('Min.','Mean','Max.')]
   stats_df<-rbind(stats_df, 'elevation'=elev_stat)
@@ -168,7 +157,7 @@ checkinputs <- function(input_list, tstep = c("hour","day")){
     par(mar=c(1,1,1,1))
     par(mfrow=c(nrow,ncol))
     for(v in vars){
-      r<-.rast(input_list[[v]],input_list$dtmc)
+      r<-.rast(input_list[[v]],input_list$dtm)
       terra::time(r)<-input_list$tme
       plot_timestats_r(r,var,idx='years')
     }  }
@@ -179,7 +168,7 @@ checkinputs <- function(input_list, tstep = c("hour","day")){
     par(mar=c(1,1,1,1))
     par(mfrow=c(nrow,ncol))
     for(v in vars){
-      r<-.rast(input_list[[v]],input_list$dtmc)
+      r<-.rast(input_list[[v]],input_list$dtm)
       terra::time(r)<-input_list$tme
       plot_timestats_r(r,v,idx='months')
     }  }
@@ -190,7 +179,7 @@ checkinputs <- function(input_list, tstep = c("hour","day")){
     par(mar=c(1,1,1,1))
     par(mfrow=c(nrow,ncol))
     for(v in vars){
-      r<-.rast(input_list[[v]],input_list$dtmc)
+      r<-.rast(input_list[[v]],input_list$dtm)
       terra::time(r)<-input_list$tme
       plot_timestats_r(r,v,idx='doy')
     }  }

@@ -10,6 +10,8 @@
 #' @param lon longitude of location (decimal degrees). Only required if `tmn` and
 #' `tmx` are vectors
 #' @param srte a parameter controlling speed of decay of night time temperatures (see details)
+#' @importFrom Rcpp sourceCpp
+#' @export
 #' @details Daytime temperatures are assumed to follow a sine curve with a peak a
 #' short while after solar noon. After dusk, the temperatures are assumed to decay
 #' exponentially reaching a minimum at dawn. The day in which tmx and tmn fall is
@@ -19,48 +21,39 @@
 #' temperatures decay faster than this. The default value of 0.09 is an optimal
 #' value derived using ERA5 data for western Europe, but performs reasonably well
 #' globally
-#' @importFrom Rcpp sourceCpp
-#' @export
 #' @examples
-#' tc<-mesoclim::era5data$climarray$temp
-#' tme <- as.POSIXlt(c(0:30) * 3600 * 24, origin = "2018-05-01", tz = "UTC")
+#' climdata<- read_climdata(system.file('data/era5input.rds',package='mesoclim'))
+#' tc<-climdata$temp
 #' # ========================================================================= #
 #' # ~~~~~~~~~~~~~~~~~~~~ input provided as vector =========================== #
 #' # ========================================================================= #
-#' # Derive tmx and tmn from hourly
+#' # Derive daily tmx and tmn from hourly era5 data
 #' tch <- apply(tc, 3, mean, na.rm = TRUE)
 #' tcm <- matrix(tch, ncol = 24, byrow = TRUE)
 #' tmn <- apply(tcm, 1, min)
 #' tmx <- apply(tcm, 1, max)
+#' tme <- as.POSIXlt(c(0:30) * 3600 * 24, origin = "2018-05-01", tz = "UTC")
 #' # Use interpolation function
 #' tcp <- hourlytemp(tmn, tmx, tme, 50, -5)
-#' tmeh <- as.POSIXct(mesoclim::era5data$tme)
+#' tmeh <- as.POSIXct(climdata$tme)
 #' # Plot results to compare
 #' plot(tch ~ tmeh, type="l", ylim = c(8, 18), xlab = "Date", ylab = "Temperature")
 #' par(new = TRUE)
 #' plot(tcp ~ tmeh, type="l", ylim = c(8, 18), col = "red", xlab = "", ylab = "")
-# as SpatRast input
 #' # ========================================================================= #
 #' # ~~~~~~~~~~~~~~~~~~~~ input provided as SpatRaster ======================= #
 #' # ========================================================================= #
-#' dtmc <- rast(mesoclim::era5data$dtmc)
-#' # Derive tmx and tmn from hourly
-#' tmn <- rast(hourtodayCpp(tc, "min"))
-#' tmx <- rast(hourtodayCpp(tc, "max"))
-#' Convert to SpatRaster
-#' ext(tmn) <- ext(dtmc)
-#' ext(tmx) <- ext(dtmc)
-#' crs(tmn) <- crs(dtmc)
-#' crs(tmx) <- crs(dtmc)
+#' dtmc <- climdata$dtm
+#' # Derive tmx and tmn from hourly and convert to spatraster
+#' tmn <- .rast(.hourtodayCpp(tc, "min"),dtmc)
+#' tmx <- .rast(.hourtodayCpp(tc, "max"),dtmc)
 #' # Use interpolation function
 #' tp <- hourlytemp(tmn, tmx, tme)
 #' # Plot results to compare
-#' tc <- rast(tc)
-#' ext(tc) <- ext(tp)
-#' crs(tc) <- crs(tc)
+#' tc <- .rast(tc,dtmc)
 #' par(mfrow=c(2,1))
-#' plot(tc[[i]])
-#' plot(tp[[i]])
+#' plot(tc[[4]]-tp[[4]],main='Difference (tc-tp) for coldest tc hour')
+#' plot(tc[[665]]-tp[[665]],main='Difference (tc-tp) for hottest tc hour')
 hourlytemp <- function(tmn, tmx, tme = NA, lat = NA, long = NA, srte = 0.09) {
   if (inherits(tmn, "SpatRaster")) {
     tme<-as.POSIXlt(terra::time(tmn))
@@ -92,7 +85,7 @@ hourlytemp <- function(tmn, tmx, tme = NA, lat = NA, long = NA, srte = 0.09) {
 }
 #' @title Blends Met Office and ERA5 data to produce hourly 1km resolution temperature data
 #' @description The function `blendtemp_hadukera5` ERA5 data to 1 km grid resoltuion,
-#' calculates the diurnal cycle in each grid cell, and then adjust this by the
+#' calculates the diurnal cycle in each grid cell, and then adjusts this by the
 #' maximum and minimum daily temperatures in the one km met office data.
 #' @param tasmin a stacked SpatRaster of haduk daily minimum temperatures (deg C)
 #' @param tasmax a stacked SpatRaster of haduk daily maximum temperatures (deg C)
@@ -100,6 +93,7 @@ hourlytemp <- function(tmn, tmx, tme = NA, lat = NA, long = NA, srte = 0.09) {
 #' @import terra
 #' @importFrom Rcpp sourceCpp
 #' @export
+#' @details
 blendtemp_hadukera5<-function(tasmin,tasmax,era5t2m) {
   d1<-dim(tasmin)
   d2<-dim(tasmax)
@@ -111,8 +105,8 @@ blendtemp_hadukera5<-function(tasmin,tasmax,era5t2m) {
   # met office dtr
   dtr<-tasmax-tasmin
   # era5 dtr and min
-  era5min<-hourtodayCpp(.is(era5t2m),"min")
-  era5max<-hourtodayCpp(.is(era5t2m),"max")
+  era5min<-.hourtodayCpp(.is(era5t2m),"min")
+  era5max<-.hourtodayCpp(.is(era5t2m),"max")
   era5dtr<-era5max-era5min
   era5minh<-.ehr(era5min)
   era5dtrh<-.ehr(era5dtr)
@@ -127,31 +121,42 @@ blendtemp_hadukera5<-function(tasmin,tasmax,era5t2m) {
 # ============================================================================ #
 # ~~~~~~~~~~~~~~~~ Relative humidity ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
-# ~~ Function should spline interpolate vapour pressure and use temperature cycle
-# ~~ to calculate relative humidity
-# Derives an array of hourly relative humidity values from daily values.
-# Inputs:
-# relhum - an array of daily relative humidity values (%)
-# tasmin - an array of daily minimum temperature values (deg C)
-# tasmax - an array of daily maximum temperature values (deg C)
-# temph - an array of hourly temperature values (deg C)
-# psl - an array of daily surface-level pressure values(kPa)
-# presh - an aray of hourly surface-level pressure values (kPa)
-# tme - POSIXlt object of dates corresponding to radsw
-# relmin - minimum possible relative humidity value
-# adjust - optional logical which if TRUE ensures that, after interpolation, returned
-#          hourly values, when averaged to daily, match the input
-# Returns an array of hourly relative humidity values (%)
-# Details:
-# Owing to the strong dependence of relative humidity on temperature, the the
-# resulting diurnal patterns, prior to interpolation, relative humidity is first
-# converted to specific humidity using tasmin, tasmax and psl. After interpolation,
-# the data are back-converted to relative humidity, using temph and presh.
+#' @title Daily to hourly relative humidity
+#' @description
+#' @param relhum - an array of daily relative humidity values (%)
+#' @param tasmin - an array of daily minimum temperature values (deg C)
+#' @param tasmax  - an array of daily maximum temperature values (deg C)
+#' @param temph  - an array of hourly temperature values (deg C)
+#' @param psl - an array of daily surface-level pressure values(kPa)
+#' @param presh - an aray of hourly surface-level pressure values (kPa)
+#' @param tme - POSIXlt object of dates corresponding to radsw
+#' @param relmin  - minimum possible relative humidity value
+#' @param adjust - optional logical which if TRUE ensures that, after interpolation, returned
+#'          hourly values, when averaged to daily, match the input
+#' @return an array of hourly relative humidity values (%)
+#' @export
+#' @details #' Owing to the strong dependence of relative humidity on temperature, the
+#' resulting diurnal patterns, prior to interpolation, relative humidity is first
+#' converted to specific humidity using tasmin, tasmax and psl. After interpolation,
+#' the data are back-converted to relative humidity, using temph and presh.
+#' ~~ Function should spline interpolate vapour pressure and use temperature cycle
+#' Derives an array of hourly relative humidity values from daily values.
+#' @examples
+#' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+#' # Get hourly variables required for rel hum downscaling
+#' dtmc<-climdata$dtm
+#' temph<-as.array(hourlytemp(.rast(climdata$tmin,dtmc), .rast(climdata$tmax,dtmc), climdata$tme, 50, -2.5))
+#' presh<-pres_dailytohourly(climdata$pres,climdata$tme)
+#' # Get sea level pressure - MAKE THIS A FUNCTION!!
+#' psl_r<-.rast(climdata$pres,dtmc) / (((293-0.0065*ifel(is.na(dtmc),0,dtmc))/293)^5.26)
+#' psl<-.rta(psl_r,length(climdata$tme))
+#' humh<-hum_dailytohourly(climdata$relhum, climdata$tmin, climdata$tmax, temph, psl, presh, climdata$tme)
+#' plot_q_layers(.rast(humh,dtmc))
 hum_dailytohourly <- function(relhum, tasmin, tasmax, temph, psl, presh, tme, relmin = 2, adjust = TRUE) {
   # Convert to specific humidity
   tc<-(tasmin+tasmax)/2
   hs<-converthumidity(relhum,intype="relative",outtype="specific",tc=tc,pk=psl)
-  hr<-daytohour(hs)
+  hr<- .daytohour(hs)
   # select days in year only
   tmeh <- as.POSIXlt(seq(tme[1],tme[length(tme)]+23*3600, by = 3600))
   sel<-which(tmeh$year==tme$year[2])
@@ -164,10 +169,10 @@ hum_dailytohourly <- function(relhum, tasmin, tasmax, temph, psl, presh, tme, re
       sel2<-c(2:(length(tme)-1))
     } else sel2<-c(1:length(tme))
 
-    reld <- hourtoday(relh)
+    reld <- .hourtoday(relh)
     mult <- relhum[,,sel2] / reld
     mult[is.na(mult)] <- 1
-    mult <- daytohour(mult, Spline = FALSE)
+    mult <- .daytohour(mult, Spline = FALSE)
     relh <- relh * mult
   }
   relh[relh>100]<-100
@@ -177,31 +182,38 @@ hum_dailytohourly <- function(relhum, tasmin, tasmax, temph, psl, presh, tme, re
 # ============================================================================ #
 # ~~~~~~~~~~~~ Atmospheric pressure downscale ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
-# Derives an array of hourly surface-level pressure values from an array of daily
-# surface level pressure values
-# Inputs:
-# pres - an array of daily mean surface-level pressure values (kPa)
-# tme - POSIXlt object of dates corresponding to radsw
-# adjust - optional logical which if TRUE ensures that, after interpolation, returned
-#          hourly values, when averaged to daily, match the input
-# Returns an array of hourly surface-level pressure values (kPa)
-# Details:
-# note that, as in the era5 dataste, these are surface level pressures in kPa corrsponding to
-# the elevation of each geographic location and not sea=level pressures. The
-# conversion to millbars is mb = 10 kPa. The conversion to sea-level pressure (Psl) can be
-# derived by reversing the equation Psl = pres*((293-0.0065z)/293)**5.26
+#' @title Daily to hourly atmospheric pressure
+#' @description
+#' Derives an array of hourly surface-level pressure values from an array of daily
+#' surface level pressure values.
+#'
+#' @param pres  - an array of daily mean surface-level pressure values (kPa)
+#' @param tme  - POSIXlt object of dates corresponding to radsw
+#' @param adjust - optional logical which if TRUE ensures that, after interpolation, returned
+#'          hourly values, when averaged to daily, match the input
+#'
+#' @return an array of hourly surface-level pressure values (kPa)
+#' @export
+#' @details Note that, as in the era5 dataste, these are surface level pressures in kPa corrsponding to
+#' the elevation of each geographic location and not sea=level pressures. The
+#' conversion to millbars is mb = 10 kPa. The conversion to sea-level pressure (Psl) can be
+#' derived by reversing the equation Psl = pres*((293-0.0065z)/293)**5.26
+#' @examples
+#' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+#' presh<-pres_dailytohourly(climdata$pres,climdata$tme)
+#' plot_q_layers(.rast(presh,climdata$dtm))
 pres_dailytohourly <- function(pres, tme, adjust = TRUE) {
   mn<-min(pres,na.rm=T)-1
   mx<-max(pres,na.rm=T)+1
-  presh <- daytohour(pres)
+  presh <- .daytohour(pres)
   presh[presh<mn]<-mn
   presh[presh>mx]<-mx
   # make consistent with daily
   if (adjust) {
-    presd <- hourtoday(presh)
+    presd <- .hourtoday(presh)
     mult <- pres / presd
     mult[is.na(mult)] <- 1
-    mult <- daytohour(mult, Spline = FALSE)
+    mult <- .daytohour(mult, Spline = FALSE)
     presh <- presh * mult
   }
   tmeh <- as.POSIXlt(seq(tme[1],tme[length(tme)]+23*3600, by = 3600))
@@ -210,34 +222,38 @@ pres_dailytohourly <- function(pres, tme, adjust = TRUE) {
   presh<-presh[,,sel]
   return(presh)
 }
+
 # ============================================================================ #
 # ~~~~~~~~~~~~ Downward shortwave radiation downscale ~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
-# NB - this assumes input radiation is downward flux, not net radiation (as assumed in UKCP)
-# to get from net to downward flux we need to recognise that rswnet = (1-alb)*radsw, so
-# radsw = rswnet/(1-alb), where alb is white sky albedo. White-sky albedo changes as a function
-# of solar angle, but in a manner dependent on ground reflectance, leaf area, leaf inclination
-# angles and leaf transmittance and the ratio of diffuse and direct. There are too
-# many vegetation parameter unknowns to reverse engineer, so suggest ignoring this.
-# discrepancies probably quite minor expect in areas with very low cover and will be handled
-# mostly by bias correction anyway
-
-
-# ~~ * Need to spline interpolate clear-sky fraction (bounding by 1 and 0) and
-# ~~   then calculate clear-sky radiation
-# ~~ * Need to spline interpolate sky emissvity (bounding by 1 and 0) and
-# ~~   then calculate longwave
-# Derives an array of hourly radiation values from an array of daily radiation values
-# Inputs:
-# radsw - an array of daily mean radiation values (W/m**2)
-# tme - POSIXlt object of dates corresponding to radsw
-# clearky - optionally an array with dimensions matching radsw of daily clearsky
-#           radiation as returned by clearskyraddaily(). Calculated if not supplied
-# r - a terra::SpatRaster object giving the extent of radsw -
-#     used for deriving the lat and long of grid cells
-# adjust - optional logical which if TRUE ensures that, after interpolation, returned
-#          hourly values, when averaged to daily, match the input
-# Returns an array of hourly radiation values (W/m**2)
+#' @title Daily to hourly shortwave radiation
+#' @description Derives an array of hourly radiation values from an array of daily radiation values.
+#'
+#' @param radsw  - an array of daily mean radiation values (W/m**2)
+#' @param tme  - POSIXlt object of dates corresponding to radsw
+#' @param clearsky - optionally an array with dimensions matching radsw of daily clearsky
+#'           radiation as returned by clearskyraddaily(). Calculated if not supplied
+#' @param r - a terra::SpatRaster object giving the extent of radsw used for deriving the lat and long of grid cells
+#' @param adjust - optional logical which if TRUE ensures that, after interpolation, returned
+#'          hourly values, when averaged to daily, match the input
+#'
+#' @return an array of hourly radiation values (W/m**2)
+#' @export
+#' @details NB - this assumes input radiation is downward flux, not net radiation (as assumed in UKCP)
+#' to get from net to downward flux we need to recognise that rswnet = (1-alb)*radsw, so
+#' radsw = rswnet/(1-alb), where alb is white sky albedo. White-sky albedo changes as a function
+#' of solar angle, but in a manner dependent on ground reflectance, leaf area, leaf inclination
+#' angles and leaf transmittance and the ratio of diffuse and direct. There are too
+#' many vegetation parameter unknowns to reverse engineer, so suggest ignoring this.
+#' discrepancies probably quite minor expect in areas with very low cover and will be handled
+#' mostly by bias correction anyway
+#' ~~ * Need to spline interpolate clear-sky fraction (bounding by 1 and 0) and
+#' ~~   then calculate clear-sky radiation
+#' ~~ * Need to spline interpolate sky emissvity (bounding by 1 and 0) and
+#' ~~   then calculate longwave
+#' @examples
+#' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+#' swh<-swrad_dailytohourly(climdata$swrad,climdata$tme,r=climdata$dtm)
 swrad_dailytohourly <- function(radsw, tme, clearsky = NA, r = r, adjust = TRUE) {
   # Check geo info in either radsw or as r; convert radsw to array
   if(class(radsw)[1]=='SpatRaster') r<-radsw[[1]] else{
@@ -276,7 +292,7 @@ swrad_dailytohourly <- function(radsw, tme, clearsky = NA, r = r, adjust = TRUE)
     radd <- hourtoday(radh)
     mult <- radsw / radd
     mult[is.na(mult)] <- 1
-    mult <- daytohour(mult, Spline = FALSE)
+    mult <- .daytohour(mult, Spline = FALSE)
     radh <- radh * mult
   }
   radh[radh > 1352.778] <- 1352.778
@@ -293,28 +309,33 @@ swrad_dailytohourly <- function(radsw, tme, clearsky = NA, r = r, adjust = TRUE)
 # ============================================================================ #
 # ~~~~~~~~~~~~ Downward longwave radiation downscale ~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
-# NB - more consistent to code this as downward longwave, but will essentially
-# do the calaculations in the function below, but with temperature as an additional
-' input'
-# Derives an array of hourly effective sky-emissivity values
-# Inputs:
-# skyem - an array of daily mean sky-emissivity values values (0-1)
-# tme - POSIXlt object of dates corresponding to radsw
-# adjust - optional logical which if TRUE ensures that, after interpolation, returned
-#          hourly values, when averaged to daily, match the input
-# Returns an array of hourly sky-emissivity values values (0-1)
-# Details:
-#  Effective sky emissvity can be used to calaculate downward longwave radiation (Lwd).
-#  The formula is Lwd = skyem * Lwu where Lwu is upward longwave radiation given
-#  by Lwu=0.97*5.67*10**-8*(tc+273.15). Here tc is average surface temperature (deg C))
-#  but an adequate approximation is derived if subtited by air temperature.
+#' @title Daily to hourly downward longwave radiation
+#' @description Derives an array of hourly effective sky-emissivity values.
+#'
+#' @param skyem - an array of daily mean sky-emissivity values values (0-1)
+#' @param tme - POSIXlt object of dates corresponding to radsw
+#' @param adjust  - optional logical which if TRUE ensures that, after interpolation, returned
+#'          hourly values, when averaged to daily, match the input
+#'
+#' @return an array of hourly sky-emissivity values values (0-1)
+#' @export
+#' @details NB - more consistent to code this as downward longwave, but will essentially
+#' do the calaculations in the function below, but with temperature as an additional
+#'  Effective sky emissvity can be used to calaculate downward longwave radiation (Lwd).
+#'  The formula is Lwd = skyem * Lwu where Lwu is upward longwave radiation given
+#'  by Lwu=0.97*5.67*10**-8*(tc+273.15). Here tc is average surface temperature (deg C))
+#'  but an adequate approximation is derived if subtited by air temperature.
+#' @examples
+#' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+#' lwrad<-skyem_dailytohourly()
+
 skyem_dailytohourly <- function(skyem, tme, adjust = TRUE) {
-  skyemh <- daytohour(skyem)
+  skyemh <- .daytohour(skyem)
   if (adjust) {
     skyemd <- hourtoday(skyemh)
     mult <- skyem / skyemd
     mult[is.na(mult)] <- 1
-    mult <- daytohour(mult, Spline = FALSE)
+    mult <- .daytohour(mult, Spline = FALSE)
     skyemh <- skyemh * mult
   }
   skyem[skyem>1] <- 1
@@ -328,35 +349,43 @@ skyem_dailytohourly <- function(skyem, tme, adjust = TRUE) {
 # ============================================================================ #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Wind speed downscale ~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
-# ~~ * Need to spline interpolate u and v wind vectors. We could simulate
-# ~~   inter-hourly variability. Follows a Weiball distribution so quite easy I
-# ~~   suspect.
-# Derives arrays of hourly wind speed and direction from arrays of daily data
-# Inputs:
-# ws - an array of daily mean wind speed values (m/s)
-# wd - an array of daily mean wind direction values (deg from N)
-# tme - POSIXlt object of dates corresponding to radsw
-# adjust - optional logical which if TRUE ensures that, after interpolation, returned
-#          hourly values, when averaged to daily, match the input
-# Returns an a list of two arrays:
-# (1) hourly wind speed (m/s)
-# (2) hourly wind direction (degrees from north)
-# Details:
-# For interpolation, u and v wind vectors are derived form wind speed andd direction
-# and these are interpolated to hourly, with backward calculations then performed to
-# derive wind speed and direction.
+
+#' @title Daily to hourly wind speed downscake
+#' @description Derives arrays of hourly wind speed and direction from arrays of daily data.
+#'
+#' @param ws - an array of daily mean wind speed values (m/s)
+#' @param wd - an array of daily mean wind direction values (deg from N)
+#' @param tme - POSIXlt object of dates corresponding to radsw
+#' @param adjust - optional logical which if TRUE ensures that, after interpolation, returned
+#'          hourly values, when averaged to daily, match the input
+#'
+#' @return a list of two arrays:
+#' (1) hourly wind speed (m/s)
+#' (2) hourly wind direction (degrees from north)
+#' @export
+#' @details For interpolation, u and v wind vectors are derived form wind speed andd direction
+#' and these are interpolated to hourly, with backward calculations then performed to
+#' derive wind speed and direction.
+#' ~~ * Need to spline interpolate u and v wind vectors. We could simulate
+#' ~~   inter-hourly variability. Follows a Weiball distribution so quite easy I suspect.
+#' @examples
+#' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+#' wh<-wind_dailytohourly(climdata$windspeed, climdata$winddir, climdata$tme, adjust = TRUE)
+#' # Compare daily and hrly
+#' summary(climdata$windspeed); summary(wh$wsh)
+#' summary(climdata$winddir); summary(wh$wdh)
 wind_dailytohourly <- function(ws, wd, tme, adjust = TRUE) {
   u<- -ws*sin(wd*pi/180)
   v<- -ws*cos(wd*pi/180)
-  uh <- daytohour(u)
-  vh <- daytohour(v)
+  uh <- .daytohour(u)
+  vh <- .daytohour(v)
   wdh <- (180+atan2(uh,vh)*(180/pi))%%360
   wsh <- sqrt(uh^2+vh^2)
   if (adjust) {
-    wsd <- hourtoday(wsh)
+    wsd <- .hourtoday(wsh)
     mult <- ws / wsd
     mult[is.na(mult)] <- 1
-    mult <- daytohour(mult, Spline = FALSE)
+    mult <- .daytohour(mult, Spline = FALSE)
     wsh <- wsh * mult
   }
   tmeh <- as.POSIXlt(seq(tme[1],tme[length(tme)]+23*3600, by = 3600))
@@ -473,7 +502,7 @@ wind_dailytohourly <- function(ws, wd, tme, adjust = TRUE) {
   }
   l1
 }
-#' Estimate sub-daily rainfall from daily rainfall
+#' @title Estimate sub-daily rainfall from daily rainfall
 #'
 #' @description
 #' `subdailyrain` estimate sub-daily rainfall using Bartlett-Lewis rectangular pulse rainfall model.
@@ -510,9 +539,9 @@ wind_dailytohourly <- function(ws, wd, tme, adjust = TRUE) {
 #'
 #' @examples
 #' # =========================================== #
-#' # ~~~ Generate hourly data for March 2015 ~~~ #
+#' # ~~~ Generate hourly data for May 2018 ~~~ #
 #' # =========================================== #
-#' # ~~~~ Get paramaters for March
+#' # ~~~~ Get paramaters
 #' tme <- as.POSIXlt(dailyrain$obs_time)
 #' marchrain <- dailyrain$precipitation[which(tme$mon + 1 == 3)]
 #' BLpar <- findBLpar(marchrain) # Takes ~ 30 seconds
@@ -530,7 +559,6 @@ wind_dailytohourly <- function(ws, wd, tme, adjust = TRUE) {
 #' par(new = T)
 #' plot(marchhfd ~ dd, type = "l", ylim = c(0, max(hourlyv)),
 #'      xlab = "", ylab = "", col = "blue", lwd = 2)
-
 #'
 subdailyrain <- function(rain, BLest, dailyvals = 24, dlim = 0.2, maxiter = 1000, splitthreshold = 0.2, trace = TRUE) {
   rain[is.na(rain)] <- 0

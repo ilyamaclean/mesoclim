@@ -2,8 +2,7 @@
 #' @description Downscales coarse-resolution temperature data accounting for elevation
 #' effects and optionally cold air drainage and coastal effects
 #' @param climdata a `climdata` model object containing climate data of the same format as `era5climdata`
-#' @param SST a coarse resolution SpatRast of hourly sea-surface temperature data (deg C) with no NAs, as
-#' returned by [SSTinterpolate()]
+#' @param sst a SpatRast of sea-surface temperature data (deg C) timeseries that overlaps climdata$tme
 #' @param dtmf a high-resolution SpatRast of elevations
 #' @param dtmm a medium-resolution SpatRast of elevations covering a larger area
 #' than dtmf (only needed for coastal effects - see details).
@@ -14,8 +13,9 @@
 #' Calculated if not supplied.
 #' @param cad optional logical indicating whether to calculate cold-air drainage effects
 #' @param coastal optional logical indicating whether to calculate coastal effects
-#' @param refhgt height above ground of temperature measurements in `climdata`.
-#' @param uhgt height above gorund of wind speed measurements in `climdata`
+#' @param tempvar string name of element of climdata holding temperature data (ie 'temp','tmax','tmin')
+#' @param thgto height above ground of output temperature measurements.
+#' @param whgto height above ground of output wind speed measurements.
 #' to resolution of `dtmf`.
 #' @return a multi-layer SpatRast of downscaled temperatures (deg C) matching the
 #' resolution of dtmf.
@@ -31,35 +31,44 @@
 #' @export
 #' @examples
 #' # Takes ~90 seconds to run
-#' tmf <- tempdownscale(era5data, rast(era5sst), rast(dtmf), rast(dtmm))
-#' plot(tmf[[5]]) # Coldest temperature
-tempdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, u2 = NA,
-                        cad = TRUE, coastal = TRUE, refhgt = 2, uhgt = 2) {
+#'  dir_data<-system.file('extdata/ukcp18sst',package='mesoclim')
+#'  sst<-create_ukcpsst_data(dir_data,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),members='01')
+#'  dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+#'  dtmm<-rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
+#'  climdata<-read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+#'  tmf <- tempdownscale(climdata, sst,dtmf, dtmm, NA, NA,TRUE, TRUE,'tmax',2, 2)
+#'  plot_q_layers(tmf)
+tempdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, u2 = NA,
+                        cad = TRUE, coastal = TRUE, tempvar='temp',thgto=2, whgto=2) {
   if (class(dtmm) == "logical" & coastal) stop("dtmm needed for calculating coastal effects")
-  # Calculate elevation effects
-  if (class(climdata$dtmc)[1] == "PackedSpatRaster") dtmc<-rast(climdata$dtmc) else dtmc<-climdata$dtmc
-  rh<-climdata$climarray$relhum
-  pk<-climdata$climarray$pres
-  tc<-climdata$climarray$temp
-  # Calculate elevation effects
-  tcf<-.tempelev(tc,dtmf,dtmc,rh,pk)
+  if (class(climdata$dtm)[1] == "PackedSpatRaster") dtmc<-rast(climdata$dtm) else dtmc<-climdata$dtm
+  rh<-climdata$relhum
+  pk<-climdata$pres
+  tc<-climdata[[tempvar]]
+  thgti<-climdata$tempheight_m
+  whgti<-climdata$windheight_m
+  tme<-climdata$tme
+  dtmc<-climdata$dtm
+
+  # Calculate elevation effects - add input / output heights to elevations
+  tcf<-.tempelev(tc,dtmf+thgto,dtmc+thgti,rh,pk)
+  # Cold air drainage
   if (cad) {
-    tcad<-.tempcad(climdata,dtmf,basins,refhgt)
+    tcad<-.tempcad(climdata,dtmf,basins,thgto) # output temp height defines basin merge
     tcf<-tcf+tcad
   }
+  # Coastal effects
   if (coastal) {
-    te<-mean(.is(SST))
-    if (is.na(te)) {
-      SST<-SSTinterpolate(SST,climdata$tme,climdata$tme)
-    }
-    if (crs(SST) != crs(dtmf)) SST<-project(SST,crs(dtmf))
-    SST<-.resample(SST,dtmf)
-    wspeed<-climdata$climarray$windspeed
-    wdir<-climdata$climarray$winddir
-    u2<-winddownscale(wspeed,wdir,dtmf,dtmm,dtmc,uhgt)
-    tcf<-.tempcoastal(tcf,SST,u2,wdir,dtmf,dtmm,dtmc)
+    # fill any spatial cells without data and interpolate to climdata timeseries
+    if (any(global(sst,anyNA))) sst<-.spatinterp(sst)
+    sst<-.tmeinterp(sst,NA,tme)
+    if (crs(sst) != crs(dtmf)) sst<-project(sst,crs(dtmf))
+    sst<-.resample(sst,dtmf)
+    # Calc windspeed at output height if required
+    if(class(u2)[1] == "logical") u2<-winddownscale(climdata$windspeed,climdata$winddir,dtmf,dtmm,dtmc,whgti,whgto)
+    tcf<-.tempcoastal(tcf,sst,u2,wdir,dtmf,dtmm,dtmc)
   }
-  terra::time(tcf)<-climdata$tme
+  terra::time(tcf)<-tme
   return(tcf)
 }
 #' @title Downscale pressure with elevation effects
@@ -78,7 +87,8 @@ tempdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, u2 = NA,
 #' @import terra
 #' @export
 #' @examples
-#' pk <- presdownscale(era5data$climarray$pres, rast(dtmf), rast(era5data$dtmc))
+#' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+#' pk <- presdownscale(climdata$pres, rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')), climdata$dtm)
 #' plot(pk[[1]])
 presdownscale<-function(pk, dtmf, dtmc, sealevel = TRUE) {
   if (class(pk)[1] == "array") pk<-.rast(pk,dtmc)
@@ -132,15 +142,9 @@ presdownscale<-function(pk, dtmf, dtmc, sealevel = TRUE) {
 #' @export
 #'
 #' @examples
-#' # Extract model inputs form inbuilt datasets
-#' swrad <- mesoclim::era5data$climarray$swrad
-#' tme <- as.POSIXlt(era5data$tme, tz = "UTC")
-#' dtmc <- rast(mesoclim::era5data$dtmc)
-#' dtmf <- rast(mesoclim::dtmf)
-#' # Run with default options
-#' swradf<-swdownscale(swrad, tme, dtmf, dtmc)
-#' # plot output
-#' plot(swradf[[13]], main = as.character(tme)[13])
+#' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+#' swradf<-swdownscale(climdata$swrad, climdata$tme,  rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')), ukcpinput$dtm)
+#' plot_q_layers(swradf)
 swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)[3],
                       terrainshade = FALSE) {
   # Work out whether daily or not
@@ -266,7 +270,8 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)
 #' than dtmf (see details)
 #' @param dtmc a coarse-resolution SpatRast of elevations matching
 #' the resolution, extent and coordinate reference system of `wspeed`.
-#' @param uz height above ground (m) of wind speed measurement in `wspeed`.
+#' @param zi height above ground (m) of `wspeed`.
+#' @param zo height above ground (m) of output windspeeds (corrected to 0.2 if <0.2?)
 #' @return a stacked SpatRast of wind speeds matching the resolution,
 #' coordinate reference system and extent of `dtmf`.
 #' @details Elevation effects are derived by sampling the dtms at intervals in
@@ -285,15 +290,15 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)
 #' @rdname winddownscale
 #' @seealso [windelev()]
 #' @examples
-#' wspeed <- era5data$climarray$windspeed
-#' wdir <- era5data$climarray$winddir
-#' # Takes a few seconds to run
-#' wsfine <- winddownscale(wspeed, wdir, rast(dtmf), rast(dtmm), rast(era5data$dtmc))
-#' plot(wsfine[[1]])
-winddownscale <- function(wspeed, wdir, dtmf, dtmm, dtmc, uz = 2) {
-  # Calculate wind speed in each of 8 directions
+#' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+#' dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+#' dtmm<-rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
+#' wsf <- winddownscale(ukcpinput$windspeed, ukcpinput$winddir, dtmf, dtmm, ukcpinput$dtm, zi=ukcpinput$windheight_m)
+#' plot_q_layers(wsf)
+winddownscale <- function(wspeed, wdir, dtmf, dtmm, dtmc, zi=10, zo = 2) {
+  # Calculate terrain adjustment coefs in each of 8 directions for output wind height zo
   wca<-array(NA,dim=c(dim(dtmf)[1:2],8))
-  for (i in 0:7) wca[,,i+1]<-.is(windelev(dtmf,dtmm,dtmc,i*45,uz))
+  for (i in 0:7) wca[,,i+1]<-.is(windelev(dtmf,dtmm,dtmc,i*45,zo))
   # smooth results
   wca2<-wca
   for (i in 0:7) wca2[,,i+1]<-0.25*wca[,,(i-1)%%8+1]+0.5*wca[,,i%%8+1]+0.25*wca[,,(i+1)%%8+1]
@@ -308,22 +313,23 @@ winddownscale <- function(wspeed, wdir, dtmf, dtmm, dtmc, uz = 2) {
   windmu<-wca2[,,i+1]
   # Resample wind speeds
   wsr<-.rast(wspeed,dtmc)
-  # adjust to 2 m if not 2m
-  if (uz !=2) wsr<-wsr*4.8699/log(67.8*uz-5.42)
+  # Adjust windspeed to output height zo
+  if (zi != zo) wsr<-.windhgt(wsr, zi, zo)
+  #if (uz !=2) wsr<-wsr*4.8699/log(67.8*uz-5.42)
   if (crs(wsr) != crs(dtmf)) {
     ws<-.is(project(wsr,dtmf))
   } else ws<-.is(.resample(wsr,dtmf))
   # Calculate wind speed
   ws<-ws*windmu
-  # adjust back to uz if not 2 m
-  if (uz !=2) ws<-ws*log(67.8*uz-5.42)/4.8699
+  # adjust back to output height if not 2 m NOT NEEDED as already at zo!!
+  #if (uz !=2) ws<-ws*log(67.8*uz-5.42)/4.8699
   ws<-.rast(ws,dtmf)
   return(ws)
 }
 #' @title Downscale relative humidity accounting for downscaled temperature
 #' @description The function `relhumdownscale` is used to spatially downscale relative
 #' @param rh a coarse-resolution array of relative humidities (percentage)
-#' @param tcc a coarse-resolution array of wind temperatures (deg C)
+#' @param tcc a coarse-resolution array of temperatures (deg C)
 #' @param tcf a fine-resolution SpatRast of temperatures (deg C) as returned by
 #' [tempdownscale()]
 #' @param dtmc a coarse-resolution SpatRast of elevations matching
@@ -336,6 +342,12 @@ winddownscale <- function(wspeed, wdir, dtmf, dtmm, dtmc, uz = 2) {
 #' @export
 #' @rdname relhumdownscale
 #' @seealso [tempdownscale()]
+#' @examples
+#' climdata<- read_climdata(system.file('data/era5input.rds',package='mesoclim'))
+#' dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+#' tcf<-tempdownscale(climdata,sst=NA,dtmf=dtmf,cad=FALSE,coastal=FALSE)
+#' rhf<-relhumdownscale(climdata$relhum,climdata$temp,tcf,climdata$dtm)
+#' plot_q_layers(rhf)
 relhumdownscale<-function(rh, tcc, tcf, dtmc, rhmin = 0) {
   eac<-.satvap(tcc)*rh/100
   eac<-.rast(eac,dtmc)
@@ -392,6 +404,11 @@ relhumdownscale<-function(rh, tcc, tcf, dtmc, rhmin = 0) {
 #' @import fields
 #' @import gstat
 #' @export
+#' @examples
+#' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+#' dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+#' prcf<-precipdownscale(ukcpinput$prec, dtmf, ukcpinput$dtm, method='Elev', noraincut=0.01)
+#' plot_q_layers(prcf)
 precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, noraincut = 0, patchsim = FALSE, nsim = dim(prec)[3]) {
   prec<-.rast(prec,dtmc)
   # check how many non NA cells
@@ -492,7 +509,7 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
 #' @title Spatially downscale all climate variables
 #' @description Spatially downscales coarse-resolution climate data
 #' @param climdata a `climdata` model object containing climate data of the same format as `era5climdata`
-#' @param SST a coarse resolution SpatRast of sea-surface temperature data (deg C) without NAs where time(SST) == climdata$tme
+#' @param sst a SpatRast of sea-surface temperature data (deg C) that overlaps with climdata$tme
 #' @param dtmf a high-resolution SpatRast of elevations
 #' @param dtmm a medium-resolution SpatRast of elevations covering a larger area
 #' than dtmf (only needed for coastal effects - see details under [tempdownscale()]).
@@ -501,9 +518,8 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
 #' not supplied.
 #' @param cad optional logical indicating whether to calculate cold-air drainage effects
 #' @param coastal optional logical indicating whether to calculate coastal effects
-#' @param refhgt height above ground of temperature measurements in `climdata`.
-#' @param uhgt height above gorund of wind speed measurements in `climdata`
-#' to resolution of `dtmf`.
+#' @param thgto height above ground of temperature output.
+#' @param whgto height above ground of wind speed output.
 #' @param rhmin minimum relative humidity (set to avoid relative humidity dropping too low
 #' during down-scaling). Default 20 (percent).
 #' @param pksealevel optional logical indicating whether input pressure data represent
@@ -521,8 +537,13 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
 #' down-scaling (see details under [precipdownscale()]).
 #' @param noraincut numeric value below which low precipitation amounts are set to
 #' zero (see details under [precipdownscale()]).
-#' @return a list of multi-layer SpatRast of downscaled climate variables as follows:
+#' @param toArrays if TRUE climate variables are output as 3D arrays if FALSE as Spatarasters
+#' @return a list of multi-layer SpatRast or 3D arrays of downscaled climate variables and metadata as follows:
 #' \describe{
+#'    \item{dtm}{Digital elevation of downscaled area in metres (as Spatraster)}
+#'    \item{tme}{POSIXlt object of times corresponding to climate observations}
+#'    \item{windheight_m}{Height of windspeed data in metres above ground (as numeric)}
+#'    \item{tempheight_m}{Height of temperature data in metres above ground (as numeric)}
 #'    \item{temp}{Temperature (deg C)}
 #'    \item{relhum}{Relative humidity (Percentage)}
 #'    \item{pres}{Sea-level atmospheric pressure (kPa)}
@@ -533,44 +554,53 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
 #'    \item{winddir}{Wind direction (decimal degrees)}
 #'    \item{prec}{Precipitation (mm)}
 #'  }
-#'  If input data are hourly `temp` is replaced with `tmax` and `tmin` representing
-#'  daily maximum and minimum values. The variable `difrad` is not returned unless
-#'  `terrainshade = TRUE`.
-spatialdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, cad = TRUE,
-                           coastal = TRUE, refhgt = 2, uhgt = 2, rhmin = 20,
-                           pksealevel = TRUE, patchsim = TRUE, terrainshade = TRUE, precipmethod = "Elev",
-                           fast = TRUE, noraincut = 0) {
+#'  If input data are hourly, `temp` is replaced with `tmax` and `tmin` representing
+#'  daily maximum and minimum values.
+#'  The variable `difrad` is not returned unless `terrainshade = TRUE`.
+#'  @examples
+#'  dir_data<-system.file('extdata/ukcp18sst',package='mesoclim')
+#'  sst<-create_ukcpsst_data(dir_data,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),members='01')
+#'  dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+#'  dtmm<-rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
+#'  climdata<-read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+#'  dailymesodat<-spatialdownscale(climdata, sst, dtmf, dtmm, noraincut=0.01)
+#'  plot_q_layers(dailymesodat$tmin)
+spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, cad = TRUE,
+                           coastal = TRUE, thgto =2, whgto=2, #refhgt = 2, uhgt = 2,
+                           rhmin = 20, pksealevel = TRUE, patchsim = TRUE, terrainshade = TRUE,
+                           precipmethod = "Elev",fast = TRUE, noraincut = 0, toArrays=FALSE) {
   tme<-as.POSIXlt(climdata$tme,tz="UTC")
-  # Check SST data matches tme
-  if(all(tme!=as.POSIXlt(terra::time(SST)))) stop('SST data not of same timesteps as climdata!!')
+
   # Find out whether daily or hourly
   tint<-as.numeric(tme[2])-as.numeric(tme[1])
   hourly<-TRUE
   if (abs(tint-86400) < 5) hourly=FALSE
-  # SST<-SSTinterpolate(SST,tme,tme)
+
   # Extract variables
-  if(class(climdata$dtmc)[1]=='PackedSpatRaster') dtmc<-rast(climdata$dtmc) else dtmc<-climdata$dtmc
-  climarray<-climdata$climarray
+  if(class(climdata$dtm)[1]=='PackedSpatRaster') dtmc<-rast(climdata$dtm) else dtmc<-climdata$dtm
   if (hourly) {
-    tc<-climarray$temp
+    tc<-climdata$temp
   } else {
-    tmin<-climarray$tmin
-    tmax<-climarray$tmax
+    tmin<-climdata$tmin
+    tmax<-climdata$tmax
   }
-  rh<-climarray$relhum
-  pk<-climarray$pres
-  wspeed<-climarray$windspeed
-  wdir<-climarray$winddir
-  swrad<-climarray$swrad
-  lwrad<-climarray$lwrad
-  prec<-climarray$prec
+  rh<-climdata$relhum
+  pk<-climdata$pres
+  wspeed<-climdata$windspeed
+  wdir<-climdata$winddir
+  swrad<-climdata$swrad
+  lwrad<-climdata$lwrad
+  prec<-climdata$prec
+  whgti<-climdata$windheight_m
+  thgti<-climdata$tempheight_m
+
   # ================== Downscale variables ===============================  #
   message('Downscaling wind...')
-  uzf<-winddownscale(wspeed,wdir,dtmf,dtmm,dtmc,uhgt)
-  if (uhgt!=2) {
-    u2<-.is(uzf)*4.8699/log(67.8*uhgt-5.42)
-    u2<-.rast(u2,dtmf)
-  } else u2<-uzf
+  uzf<-winddownscale(wspeed,wdir,dtmf,dtmm,dtmc,whgti,whgto)
+  #if (uhgt!=2) {   # NOT REQUIRED - use uzf at requested output height whgto
+  #  u2<-.is(uzf)*4.8699/log(67.8*uhgt-5.42)
+  #  u2<-.rast(u2,dtmf)
+  #} else u2<-uzf
   # winddir"
   uu<-.rast(wspeed*cos(wdir*pi/180),dtmc)
   vv<-.rast(wspeed*sin(wdir*pi/180),dtmc)
@@ -584,12 +614,10 @@ spatialdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, cad = TR
 
   message('Downscaling temperature...')
   if (hourly) {
-    tcf<-tempdownscale(climdata,SST,dtmf,dtmm,basins,u2,cad,coastal,refhgt,uhgt)
+    tcf<-tempdownscale(climdata,sst,dtmf,dtmm,basins,uzf,cad,coastal,'temp',thgto,whgto)
   } else {
-    climdata$climarray$temp<-tmin
-    tminf<-tempdownscale(climdata,SST,dtmf,dtmm,basins,u2,cad,coastal,refhgt,uhgt)
-    climdata$climarray$temp<-tmax
-    tmaxf<-tempdownscale(climdata,SST,dtmf,dtmm,basins,u2,cad,coastal,refhgt,uhgt)
+    tminf<-tempdownscale(climdata,sst,dtmf,dtmm,basins,uzf,cad,coastal,'tmin',thgto,whgto)
+    tmaxf<-tempdownscale(climdata,sst,dtmf,dtmm,basins,uzf,cad,coastal,'tmax',thgto,whgto)
   }
 
   message('Downscaling relative humidity')
@@ -635,34 +663,30 @@ spatialdownscale<-function(climdata, SST, dtmf, dtmm = NA, basins = NA, cad = TR
   # return values
   if (hourly) {
     terra::time(tcf)<-climdata$tme
-    tcf<-wrap(tcf)
   } else {
     terra::time(tminf)<-climdata$tme
-    tminf<-wrap(tminf)
     terra::time(tmaxf)<-climdata$tme
-    tmaxf<-wrap(tmaxf)
   }
 
   message('Formatting output...')
   terra::time(rhf)<-climdata$tme
-  rhf<-wrap(rhf)
   terra::time(pkf)<-climdata$tme
-  pkf<-wrap(pkf)
   terra::time(swf)<-climdata$tme
-  swf<-wrap(swf)
   terra::time(lwf)<-climdata$tme
-  lwf<-wrap(lwf)
   terra::time(uzf)<-climdata$tme
-  uzf<-wrap(uzf)
   terra::time(wdf)<-climdata$tme
-  wdf<-wrap(wdf)
   terra::time(precf)<-climdata$tme
-  precf<-wrap(precf)
+
+  out<-list(dtm=dtmf,tme=climdata$tme,windheight_m=whgto,tempheight_m=thgto)
   if (hourly) {
-    out<-list(temp=tcf,relhum=rhf,pres=pkf,swrad=swf,lwrad=lwf,windspeed=uzf,winddir=wdf,prec=precf)
+    climout<-list(temp=tcf,relhum=rhf,pres=pkf,swrad=swf,lwrad=lwf,windspeed=uzf,winddir=wdf,prec=precf)
+    if(toArrays) climout<-lapply(climout,as.array)
+    out<-c(out,climout)
   } else {
-    out<-list(tmin=tminf,tmax=tmaxf,relhum=rhf,pres=pkf,swrad=swf,lwrad=lwf,windspeed=uzf,winddir=wdf,prec=precf)
+    climout<-list( tmin=tminf,tmax=tmaxf,relhum=rhf,pres=pkf,swrad=swf,lwrad=lwf,windspeed=uzf,winddir=wdf,prec=precf)
+    if(toArrays) climout<-lapply(climout,as.array)
+    out<-c(out,climout)
   }
-  if (terrainshade) out$difrad<-wrap(difrad)
+  if (terrainshade) out$difrad<-difrad
   return(out)
 }

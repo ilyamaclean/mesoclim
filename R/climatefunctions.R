@@ -18,8 +18,7 @@
 #' @export
 #' @rdname basindelin
 #' @examples
-#' library(terra)
-#' bsn<-basindelin(rast(dtmf))
+#' bsn<-basindelin(rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')))
 #' plot(bsn)
 basindelin<-function(dtm, boundary = 0) {
   dm<-dim(dtm)
@@ -29,13 +28,10 @@ basindelin<-function(dtm, boundary = 0) {
   return(bsn)
 }
 #' Calculates accumulated flow
-#'
 #' @description
 #' `flowacc` calculates accumulated flow(used to model cold air drainage)
-#'
 #' @param dtm a SpatRast elevations (m).
 #' @param basins optionally a SpatRast of basins numbered as integers (see details).
-#'
 #' @return a SpatRast of accumulated flow (number of cells)
 #' @details Accumulated flow is expressed in terms of number of cells. If `basins`
 #' is provided, accumulated flow to any cell within a basin can only occur from
@@ -44,8 +40,7 @@ basindelin<-function(dtm, boundary = 0) {
 #' @export
 #' @rdname flowacc
 #' @examples
-#' library(terra)
-#' fa <- flowacc(rast(dtmf))
+#' fa <- flowacc(rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')))
 #' plot(fa, main = 'Accumulated flow')
 flowacc <- function (dtm, basins = NA) {
   dm<-.is(dtm)
@@ -69,121 +64,7 @@ flowacc <- function (dtm, basins = NA) {
   fa<-.rast(fa,dtm)
   return(fa)
 }
-#' @title temporally interpolate sea-surface temperature data to hourly
-#' @description The function `SSTinterpolate` spatially infills missing spatial spatial
-#' sea-surface temperature data and then temporally interpolates data to hourly if not
-#' already hourly.
-#' @param SST a SpatRast of hourly, daily or e.g. monthly sea-surface tmeperature data
-#' @param tmein POSIXlt object of times corresponding to each layer of `SST`
-#' @param tmeout POSIXlt object of times for which output sea-surface temperature data are needed (hourly)
-#' @return a SpatRast of sea-surface temperature data wiht the same units as `SST` (usually deg C).
-#' @details Missing grid cells are interpolated using zoo::na.approx. Output sea-surface
-#' temperature data are temporally interpolated to daily values, so the duration of
-#' `tmeout` must be at least that of `tmeout`. Hourly values are returned by replicating
-#' all values within a day as sea-surface temperatures tend to fluctuate slowly.
-#' @import terra
-#' @import zoo
-#' @export
-#' @rdname SSTinterpolate
-SSTinterpolate<-function(SST, tmein, tmeout) {
-  if (length(tmein) != dim(SST)[3]) stop("length of tmein must match dim 3 of SST")
-  if (tmeout[1] < tmein[1] | tmeout[length(tmeout)] > tmein[length(tmein)]) {
-    stop ("tmeout extends beyond time start and/or end of tmein")
-  }
-  tostep<-as.numeric(tmeout[2]) - as.numeric(tmeout[1])
-  if (tostep != 3600 & tostep != (3600*24)) stop("tmeout must be hourly or daily")
-  # ==================================== #
-  # Spatially interpolate missing values #
-  # ==================================== #
-  me<-as.vector(SST)
-  n<-which(is.na(me))
-  SSTn<-SST
-  crs(SSTn)<-crs(SST) # prevents superflious warning
-  if (length(n) > 0) {
-    dmx<-max(dim(SST)[1:2])
-    m1<-.is(SST)
-    m2<-.is(resample(aggregate(SST,2,na.rm=T),SST))
-    s<-which(is.na(m1))
-    m1[s]<-m2[s]
-    if (dmx >= 5) {
-      m2<-.is(resample(aggregate(SST,5,na.rm=T),SST))
-      m1[s]<-m2[s]
-    }
-    if (dmx >= 10) {
-      m2<-.is(resample(aggregate(SST,10,na.rm=T),SST))
-      s<-which(is.na(m1))
-      m1[s]<-m2[s]
-    }
-    if (dmx >= 100) {
-      m2<-.is(resample(aggregate(SST,100,na.rm=T),SST))
-      s<-which(is.na(m1))
-      m1[s]<-m2[s]
-    }
-    s<-which(is.na(m1))
-    if (length(s) > 0) {
-      me<-apply(.is(SST),3,mean,na.rm=T)
-      m2<-.vta(me,SST[[1]])
-      m1[s]<-m2[s]
-    }
-    SSTn<-.rast(m1,SST)
-  }
-  # ==================================== #
-  # Temporally interpolate to hourly     #
-  # ==================================== #
-  if (dim(SST)[3] == 1) {
-    SSTn<-.rta(SSTn,length(tmeout)) # replicate all values if SST is a single layer
-  } else { # Temporally interpolate
-    tstep<-as.numeric(tmein[2])-as.numeric(tmein[1])
-    if (tstep > 86400) {  # checks whether step isn't hourly or daily'
-      # Convert tmeout to daily if hourly
-      if ((as.numeric(tmeout[2])-as.numeric(tmeout[1])) == 3600) {
-        st<-substr(tmeout[1],1,11)
-        n<-length(tmeout)/24
-        tmed<-as.POSIXlt(c(0:n)*24*3600,origin=st,tz="UTC")
-      } else tmed<-tmein
-      # Calculate weights matrix
-      # ** time difference tmein and tmeout
-      wgts<-matrix(NA,nrow=length(tmed),ncol=length(tmein))
-      for (i in 1:length(tmed)) wgts[i,]<-abs((as.numeric(tmed[i])-as.numeric(tmein))/3600)
-      # Select only the two lowest and set others to NA
-      for (i in 1:length(tmed)) {
-        v<-wgts[i,]
-        co<-v[order(v)][2]
-        v[v>co]<-NA
-        wgts[i,]<-v
-      }
-      # Calculate weights
-      for (i in 1:length(tmed)) {
-        v<-wgts[i,]
-        wgts[i,]<-1-v/sum(v,na.rm=T)
-      }
-      wgts[is.na(wgts)]<-0
-      # Convert SST to array
-      a<-as.array(SSTn)
-      ao<-array(NA,dim=c(dim(a)[1:2],length(tmed)))
-      for (i in 1:length(tmed)) {
-        ats<-.vta(wgts[i,],SSTn[[1]])*.is(SSTn)
-        ao[,,i]<-apply(ats,c(1,2),sum)
-      }
-      ao<-.ehr(ao) # convert daily to hourly
-      # Select only those values within tmeout
-      tmih<-seq(as.numeric(tmein[1]),as.numeric(tmein[length(tmein)]),3600)
-      tmih<-as.POSIXlt(round(tmih/3600,0)*3600,origin="1970-01-01 00:00",tz="UTC")
-      s<-which(tmih>=tmeout[1] & tmoh<=tmeout[length(tmeout)])
-      ao<-ao[,,s]
-      SSTn<-.rast(ao,SSTn)
-    } else { # if tstep<= daily or hourly
-      # check whether it is daily oor hourly and stop if not
-      if (tstep!=3600 & tstep!=(3600*24)) stop("tmein must have hourly, daily or >daily time increments")
-      if (tstep > 3600) { # if daily
-        ao<-as.array(SSTn)
-        ao<-.ehr(ao)
-        SSTn<-.rast(ao,SSTn)
-      }
-    } # end else tstep daily or hourly
-  } # end temporal interpolation
-  return(SSTn)
-}
+
 #' @title derive wind terrain adjustment coefficient
 #' @description The function `windelev` is used to spatially downscale wind, and
 #' adjusts wind speed for elevation and applies a terrain shelter coefficient for
@@ -211,7 +92,10 @@ SSTinterpolate<-function(SST, tmein, tmeout) {
 #' @seealso [winddownscale()]
 #' @rdname windelev
 #' @examples
-#' wc <- windelev(rast(dtmf), rast(dtmm), rast(era5data$dtmc), wdir = 0)
+#' dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+#' dtmm<-rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
+#' climdata<-read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+#' wc <- windelev(dtmf, dtmm, climdata$dtm, wdir = 270)
 #' plot(wc)
 windelev <- function(dtmf, dtmm, dtmc, wdir, uz = 2) {
   # Reproject if necessary
@@ -246,7 +130,9 @@ windelev <- function(dtmf, dtmm, dtmc, wdir, uz = 2) {
 #' @description The function `coastalexposure` is used to calculate an inverse
 #' distance^2 weighted ratio of land to sea in a specified upwind direction.
 #'
-#' @param landsea A SpatRast with NAs (representing sea) or any non-NA value (representing land). The object should have a larger extent than that for which land-sea ratio values are needed, as the calculation requires land / sea coverage to be assessed upwind outside the target area.
+#' @param landsea A SpatRast with NAs (representing sea) or any non-NA value (representing land).
+#' The object should have a larger extent than that for which land-sea ratio values are needed,
+#' as the calculation requires land / sea coverage to be assessed upwind outside the target area.
 #' @param e a terra::ext object indicating the region for which land-sea ratios are required.
 #' @param wdir an optional single numeric value specifying the direction (decimal degrees) from which the wind is blowing.
 #' @return a SpatRast of representing values ranging between zero
@@ -262,12 +148,15 @@ windelev <- function(dtmf, dtmm, dtmc, wdir, uz = 2) {
 #' @export
 #'
 #' @examples
-#' library(terra)
-#' e<-ext(rast(dtmf))
-#' ce1 <- coastalexposure(rast(landsea), e, 180)
-#' ce2 <- coastalexposure(rast(landsea), e, 270)
+#' climdata<-read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+#' dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+#' dtmm<-rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
+#' # landsea == e BUT shouldn't if be >>e ??
+#' landsea<- mask(.resample(dtmm,dtmf),dtmf)
+#' ce1 <- coastalexposure(landsea, ext(dtmf), 45)
+#' ce2 <- coastalexposure(landsea, ext(dtmf), 270)
 #' par(mfrow=c(2,1))
-#' plot(ce1, main = "Land to sea weighting, southerly wind")
+#' plot(ce1, main = "Land to sea weighting, northeast wind")
 #' plot(ce2, main = "Land to sea weighting, westerly wind")
 coastalexposure <- function(landsea, e, wdir) {
   # Calculate sample distances
@@ -308,6 +197,14 @@ coastalexposure <- function(landsea, e, wdir) {
 #' If `method = "normal"` no transformation is applied.
 #' @import fields
 #' @export
+#' @examples
+#' climdata<-read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+#' dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+#' rain<-.rast(climdata$prec,climdata$dtm)[[1]]
+#' rainf<-Tpsdownscale(rain, climdata$dtm, dtmf, method = "normal", fast = TRUE)
+#' par(mfrow=c(2,1))
+#' plot(rain,main='Input rain')
+#' plot(rainf,main='Downscaled rain')
 Tpsdownscale<-function(r, dtmc, dtmf, method = "normal", fast = TRUE) {
   # Extract values data.frame
   if (crs(dtmc) != crs(dtmf)) dtmc<-project(dtmc,crs(dtmf))
@@ -381,7 +278,7 @@ Tpsdownscale<-function(r, dtmc, dtmf, method = "normal", fast = TRUE) {
 #'
 #' @examples
 #' rad <- c(1:1352) # typical values of radiation in W/m^2
-#' jd <- julday(2022, 6, 21) # julian day
+#' jd <- .jday(as.POSIXlt("2022-06-21")) # julian day
 #' dfr <- difprop(rad, jd, 12, 50, -5)
 #' plot(dfr ~ rad, type = "l", lwd = 2,
 #' xlab = expression(paste("Incoming shortwave radiation (", W*M^-2, ")")),
@@ -444,85 +341,22 @@ difprop <- function(rad, julian, localtime, lat, long, hourly = FALSE,
 # ~~~~~~~~ Useful functions for processing climate data that we likely
 # ~~~~~~~~ want to document.
 # ====================================================================== #
-#' @title convert era4 ncdf4 file to format required for model
-#' @description The function `era5toclimarray` converts data in a netCDF4 file returned
-#' by [mcera5::request_era5()] to the correct formal required for subsequent modelling.
+
+#' @title Converts between different humidity types
+#' @param h- humidity
+#' @param intype - one of relative, absolute, specific or vapour pressure
+#' @param outtype - one of relative, absolute, specific or vapour pressure
+#' @param tc - temperature
+#' @param pk - surface pressure
 #'
-#' @param ncfile character vector containing the path and filename of the nc file
-#' @param dtm a SpatRaster object of elevations covering the extent of the study area (see details)
-#' @param dtr_cor_fac numeric value to be used in the diurnal temperature range
-#' correction of coastal grid cells. Default = 1.285, based on calibration against UK Met Office
-#' observations. If set to zero, no correction is applied.
-#' @return a list of the following:
-#' \describe{
-#'   \item{tme}{POSIXlt object of times corresponding to climate observations}
-#'   \item{climarray}{a list of arrays of hourly weather variables
-#'   \item{dtmc}{a coarse resolution digital elevation dataset matching the resolution of input
-#'   climate data, but with a coordinate reference system and extent matching `dtm`}
-#' }
+#' @return returns humidity
+#' (Percentage for relative,Kg / Kg for specific, kg / m3 for absolute and kPa for vapour pressure)
 #' @export
-#' @details the model requires that input climate data are projected using a coordinate reference
-#' system in which x and y are in metres. Since values returned by [mcera5::request_era5()]
-#' are in lat long, the output data are reprojected using the coordinate reference system and
-#' extent of dtm (but retain the approximate original grid resolution of the input climate data).
-#' Returned climate data match the resolution, corrdinate reference system and extent of `dtmc`.
-era5toclimarray <- function(ncfile, dtm, dtr_cor_fac = 1.285)  {
-  t2m<-rast(ncfile,subds = "t2m") # Air temperature (K)
-  d2m<-rast(ncfile,subds = "d2m") # Dewpoint temperature (K)
-  sp<-rast(ncfile,subds = "sp") # Surface pressure (Pa)
-  u10<-rast(ncfile,subds = "u10") # U-wind at 10m (m/s)
-  v10<-rast(ncfile,subds = "v10") # V-wind at 10m (m/s)
-  tp<-rast(ncfile,subds = "tp") # Total precipitation (m)
-  msnlwrf<-rast(ncfile,subds = "msnlwrf")   # Mean surface net long-wave radiation flux (W/m^2)
-  msdwlwrf<-rast(ncfile,subds = "msdwlwrf") # Mean surface downward long-wave radiation flux (W/m^2)
-  fdir<-rast(ncfile,subds = "fdir") #  Total sky direct solar radiation at surface (W/m^2)
-  ssrd<-rast(ncfile,subds = "ssrd") # Surface short-wave (solar) radiation downwards (W/m^2)
-  lsm<-rast(ncfile,subds = "lsm") # Land sea mask
-  # Create coarse-resolution dtm to use as template for resampling
-  te<-terra::project(t2m[[1]],crs(dtm))
-  agf<-res(te)[1]/res(dtm)[1]
-  dtmc<-aggregate(dtm,fact=agf,fun=mean,na.rm=T)
-  # Apply coastal correction to temperature data
-  tmn<-.ehr(.hourtoday(as.array(t2m)-273.15,min))
-  mu<-(1-as.array(lsm))*dtr_cor_fac+1
-  tc<-.rast(((as.array(t2m)-273.15)-tmn)*mu+tmn,t2m)
-  # Calculate vapour pressure
-  ea<-.rast(.satvap(as.array(d2m)-273.15),t2m)
-  # Resample all variables to match dtmc
-  tc<-terra::project(tc,dtmc)
-  ea<-terra::project(ea,dtmc)
-  sp<-terra::project(sp,dtmc)
-  u10<-terra::project(u10,dtmc)
-  v10<-terra::project(v10,dtmc)
-  tp<-terra::project(tp,dtmc)
-  msnlwrf<-terra::project(msnlwrf,dtmc)
-  msdwlwrf<-terra::project(msdwlwrf,dtmc)
-  fdir<-terra::project(fdir,dtmc)
-  ssrd<-terra::project(ssrd,dtmc)
-  # Derive varies
-  temp<-as.array(tc) # Temperature (deg c)
-  relhum<-(as.array(ea)/.satvap(temp))*100 # Relative humidity (%)
-  pres<-as.array(sp)/1000  # SEa-level surface pressure (kPa)
-  swrad<-as.array(ssrd)/3600 # Downward shortwave radiation (W/m^2)
-  difrad<-swrad-as.array(fdir)/3600 # Downward diffuse radiation (W/m^2)
-  lwrad<-as.array(msdwlwrf-msnlwrf) # Downward longwave radiation
-  windspeed<-sqrt(as.array(u10)^2+as.array(v10)^2)*log(67.8*2-5.42)/log(67.8*10-5.42) # Wind speed (m/s)
-  winddir<-as.array((terra::atan2(u10,v10)*180/pi+180)%%360) # Wind direction (deg from N - from)
-  prech<-as.array(tp)*1000
-  # Save lists
-  climarray<-list(temp=temp,relhum=relhum,pres=pres,swrad=swrad,difrad=difrad,
-                  lwrad=lwrad,windspeed=windspeed,winddir=winddir,prech=prech)
-  # Generate POSIXlt object of times
-  tme<-as.POSIXlt(time(t2m),tz="UTC")
-  # Output for returning
-  out<-list(tme=tme,climarray=climarray,dtmc=dtmc)
-  return(out)
-}
-# Converts between different humidity types
-# h - humidity
-# intype - one of relative, absolute, specific or vapour pressure
-# outtype - one of relative, absolute, specific or vapour pressure
-# returns humidity (Percentage for relatuive, Kg / Kg for specific, kg / m3 for absolute and kPa for bapur pressure)
+#'
+#' @examples
+#' rh<-c(25,50,75,90,100)
+#' vp<-round(converthumidity(rh),3)
+#' print(paste(rh,' relative humidity converts to',vp,'vapour pressure'))
 converthumidity <- function (h, intype = "relative", outtype = "vapour pressure",
                              tc = 11, pk = 101.3) {
   tk <- tc + 273.15
@@ -557,7 +391,7 @@ converthumidity <- function (h, intype = "relative", outtype = "vapour pressure"
   if (outtype == "vapour pressure") h <- e0 * (hr / 100)
   return(h)
 }
-#' Calculates clear sky radiation
+#' @title Calculates clear sky radiation
 #' @param jd astronomical Julian day
 #' @param lt local time (decimal hours)
 #' @param lat latitude (decimal degrees)
@@ -567,6 +401,11 @@ converthumidity <- function (h, intype = "relative", outtype = "vapour pressure"
 #' @param pk atmospheric pressure (kPa)
 #' @return expected clear-sky radiation (W/m^2)
 #' @export
+#' @examples
+#' jd <- .jday(as.POSIXlt("2022-06-21")) # julian day
+#' tme<-seq(0,23,1)
+#' csr<-clearskyrad(jd,tme,50,-2.5)
+#' plot(csr ~ tme, type = "l", lwd = 2, xlab = expression(paste("Hour")), ylab = "Clearsky radiation")
 clearskyrad <- function(jd, lt, lat, long, tc = 15, rh = 80, pk = 101.3) {
   sa<-.solalt(lt,lat,long,jd)*pi/180
   m<-35*sin(sa)*((1224*sin(sa)^2+1)^(-0.5))
@@ -581,11 +420,16 @@ clearskyrad <- function(jd, lt, lat, long, tc = 15, rh = 80, pk = 101.3) {
   Ic[is.na(Ic)]<-0
   Ic
 }
-# Calculates day length
-# Inputs:
-# julian - astronomical julian day - as returned by julday()
-# lat - latitude (decimal degrees)
-# Returns daylength in decimal hours (0 if 24 hour darkness, 24 if 24 hour daylight)
+
+#' @title Calculates day length
+#' @param julian - astronomical julian day - as returned by .jday()
+#' @param lat - latitude (decimal degrees)
+#' @return Returns daylength in decimal hours (0 if 24 hour darkness, 24 if 24 hour daylight)
+#' @examples
+#' tme<-as.POSIXlt(seq(as.POSIXlt("2022-01-01"),as.POSIXlt("2022-06-30"),60*60*24*8))
+#' jd<-sapply(tme,.jday)
+#' dl<-daylength(jd,50)
+#' plot(dl ~ jd, type = "l", lwd = 8, xlab = "Day", ylab = "Day length")
 daylength <- function(julian, lat) {
   declin <- (pi * 23.5 / 180) * cos(2 * pi * ((julian - 159.5) / 365.25))
   hc <- -0.01453808/(cos(lat*pi/180)*cos(declin)) -
@@ -602,15 +446,20 @@ daylength <- function(julian, lat) {
   dl[sel] <- 0
   return(dl)
 }
-#' Calculate Lapse rates
-#' ea = temperature (deg C)
-#' ea = vapour pressure (kPa)
-#' pk = atmospheric pressure (kPa)
+#' @title Calculate Lapse rates
+#' @param ea = temperature (deg C)
+#' @param ea = vapour pressure (kPa)
+#' @param pk = atmospheric pressure (kPa)
+#' @returns laps rate
+#' @examples
+#' climdata<-read_climdata(system.file('data/era5input.rds',package='mesoclim'))
+#' ea<-converthumidity(climdata$relhum,tc=climdata$temp , pk=climdata$pres)
+#' lr<-lapserate(climdata$temp,ea,climdata$pres)
+#' plot(.rast(lr,climdata$dtm)[[1]])
 lapserate <- function(tc, ea, pk) {
   rv<-0.622*ea/(pk-ea)
   lr<-9.8076*(1+(2501000*rv)/(287*(tc+273.15)))/
     (1003.5+(0.622*2501000^2*rv)/(287*(tc+273.15)^2))
   lr
 }
-#' Calculates the diffuse fraction from incoming shortwave radiation
-#'
+
