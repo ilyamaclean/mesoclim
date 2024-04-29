@@ -20,12 +20,18 @@ Imports:
     curl,
     fields,
     gstat,
+    lubridate,
+    magrittr,
     mgcv,
     ncdf4,
     Rcpp,
+    raster,
     sf,
     terra,
+    units,
     zoo
+Suggests:
+    fmsb
 RoxygenNote: 7.3.1
 Roxygen: list(markdown = TRUE) 
 Suggests: knitr,

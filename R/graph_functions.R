@@ -14,7 +14,7 @@
 #' r<-.rast(climdata$tmax,climdata$dtm)
 #' terra::time(r)<-climdata$tme
 #' plot_timestats_r(r,'tmax',idx='doy')
-plot_timestats_r<-function(r,var,idx=c('years', 'months', 'week',  'doy', 'yearmonths', 'yearweeks', '7days','hour'),lgd=FALSE){
+plot_timestats_r<-function(r,v,idx=c('years', 'months', 'week',  'doy', 'yearmonths', 'yearweeks', '7days','hour'),lgd=FALSE){
   if(idx=='hour'){
     time_mean<- global(r,"mean", na.rm=TRUE)
     time_max<-global(r, "max", na.rm=TRUE)
@@ -29,8 +29,8 @@ plot_timestats_r<-function(r,var,idx=c('years', 'months', 'week',  'doy', 'yearm
   plot_df<-plot_df[order(plot_df$tstep),]
   }
   matplot(plot_df$tstep, plot_df[,2:4], type = "l", lty = 1,
-          col = c("green", "red", "blue"), xlab = idx, ylab = var, font.main = 1,
-          tck = 0.02, cex.main=1, cex.axis=0.7, main = paste(var,'by',idx), cex.main=1)
+          col = c("green", "red", "blue"), xlab = idx, ylab = v, font.main = 1,
+          tck = 0.02, cex.main=1, cex.axis=0.7, main = paste(v,'by',idx), cex.main=1)
   if(lgd==TRUE) legend("topright", legend = c("Mean", "Max", "Min"), cex=0.5,
          col = c("green", "red", "blue"),
          lty = 1)
@@ -40,6 +40,7 @@ plot_timestats_r<-function(r,var,idx=c('years', 'months', 'week',  'doy', 'yearm
 #'
 #' @param r Spatraster stack (time and name values used in plot titles)
 #' @param p vector of quantile probabilities to plot (0:1)
+#' @param vtext variable name string for plots
 #' @param fun = mean or other spatial function used to summaries layers for which quantiles dtermined
 #'
 #' @return plots series of raster plots equal to the length of p
@@ -50,7 +51,7 @@ plot_timestats_r<-function(r,var,idx=c('years', 'months', 'week',  'doy', 'yearm
 #' r<-.rast(climdata$tmax,climdata$dtm)
 #' terra::time(r)<-climdata$tme
 #' plot_q_layers(r)
-plot_q_layers<-function(r,p=c(0, 0.5, 1),fun='mean', common_scale=FALSE){
+plot_q_layers<-function(r,p=c(0, 0.5, 1),vtext,fun='mean', common_scale=FALSE){
   par(mfrow=c(1,3), mai=c(1,0.1,0.1,0.1))
   # Find corresponding layers
   lyrstat<-global(r,fun,na.rm=TRUE)
@@ -60,7 +61,7 @@ plot_q_layers<-function(r,p=c(0, 0.5, 1),fun='mean', common_scale=FALSE){
   # Plot
   out_r<-r[[sel]]
   terra::time(out_r)<-terra::time(r[[sel]])
-  names(out_r)<-paste(names(r[[sel]]),'(q=',names(qtls),')',as.POSIXlt(terra::time(out_r)))
+  names(out_r)<-paste(vtext,names(r[[sel]]),'(q=',names(qtls),')',as.POSIXlt(terra::time(out_r)))
   if(common_scale){
     rng=range(global(out_r,'range',na.rm=TRUE))
     plot(out_r,main=names(out_r),font.main=1, buffer=FALSE,nc=3,nr=1, cex.main=1, range=rng, nc=length(p))

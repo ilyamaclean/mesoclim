@@ -36,7 +36,7 @@
 #'  dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
 #'  dtmm<-rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
 #'  climdata<-read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
-#'  tmf <- tempdownscale(climdata, sst,dtmf, dtmm, NA, NA,TRUE, TRUE,'tmax',2, 2)
+#'  tmf <- tempdownscale(climdata, sst, dtmf, dtmm, NA, NA,TRUE, TRUE,'tmax',2, 2)
 #'  plot_q_layers(tmf)
 tempdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, u2 = NA,
                         cad = TRUE, coastal = TRUE, tempvar='temp',thgto=2, whgto=2) {
@@ -60,13 +60,13 @@ tempdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, u2 = NA,
   # Coastal effects
   if (coastal) {
     # fill any spatial cells without data and interpolate to climdata timeseries
-    if (any(global(sst,anyNA))) sst<-.spatinterp(sst)
-    sst<-.tmeinterp(sst,NA,tme)
-    if (crs(sst) != crs(dtmf)) sst<-project(sst,crs(dtmf))
-    sst<-.resample(sst,dtmf)
+    if (any(global(sst,anyNA))) sstinterp<-.spatinterp(sst) else sstinterp<-sst
+    sstinterp<-.tmeinterp(sstinterp,NA,tme)
+    if (crs(sst) != crs(dtmf)) sstinterp<-project(sstinterp,crs(dtmf))
+    sstf<-.resample(sstinterp,dtmf)
     # Calc windspeed at output height if required
     if(class(u2)[1] == "logical") u2<-winddownscale(climdata$windspeed,climdata$winddir,dtmf,dtmm,dtmc,whgti,whgto)
-    tcf<-.tempcoastal(tcf,sst,u2,wdir,dtmf,dtmm,dtmc)
+    tcf<-.tempcoastal(tcf,sstf,u2,climdata$winddir,dtmf,dtmm,dtmc)
   }
   terra::time(tcf)<-tme
   return(tcf)

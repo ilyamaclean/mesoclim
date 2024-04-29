@@ -22,6 +22,7 @@
 #' @import terra
 #' @import mgcv
 #' @export
+#' @keywords biascorrect
 #' @rdname biascorrect
 #' @seealso [precipcorrect()] for applying corrections to precipitation data and
 #' [biascorrect_apply()] for applying corrections to multiple datasets.
@@ -114,6 +115,7 @@ biascorrect <- function(hist_obs, hist_mod, fut_mod = NA, mod_out = FALSE, range
 #' @importFrom Rcpp sourceCpp
 #' @useDynLib mesoclim, .registration = TRUE
 #' @export
+#' @keywords biascorrect
 #' @rdname biascorrect_apply
 #' @seealso [biascorrect()] for deriving `biasmods` and `precip_correct` for
 #' applying corrections to precipitation datasets.
@@ -176,6 +178,7 @@ biascorrect_apply<-function(fut_mod, biasmods, rangelims = NA) {
 #' @importFrom Rcpp sourceCpp
 #' @useDynLib mesoclim, .registration = TRUE
 #' @export
+#' @keywords biascorrect
 #' @rdname precipcorrect
 #' @seealso [biascorrect()] for applying corrections to other climate variables and
 #' [precipcorrect_apply()] for applying correction coefficients to multiple datasets.
@@ -263,6 +266,7 @@ precipcorrect <- function(hist_obs, hist_mod, fut_mod, mod_out = FALSE, rangelim
 #' @importFrom Rcpp sourceCpp
 #' @useDynLib mesoclim, .registration = TRUE
 #' @export
+#' @keywords biascorrect
 #' @rdname precipcorrect_apply
 #' @seealso [precipcorrect()] for deriving `biasmods` and `biascorrect_apply` for
 #' applying corrections to other climate variables
@@ -302,7 +306,6 @@ precipcorrect_apply<-function(fut_mod, biasmods) {
 }
 
 
-
 #' @title Applies bias correction to UK era5 temperature data
 #' @description The function `correct_era5temps` applies automatic bias correction to era5
 #' temperature data data to correct for unaturally low diurnal temperature
@@ -318,6 +321,7 @@ precipcorrect_apply<-function(fut_mod, biasmods) {
 #' @import terra
 #' @import mgcv
 #' @export
+#' @keywords biascorrect
 #' @rdname correct_era5temps
 correct_era5temps<-function(era5hourly,era5correctmodels) {
   # Check whether in Kelvin or degrees
@@ -395,6 +399,7 @@ savenc<-function(r,baseyear,shortname,longname,unit,fileout) {
   writeCDF(r,fileout,overwrite=TRUE,compression=9,varname=shortname,
            longname=longname,unit=unit)
 }
+
 # Applies biascorrectukcpone (precipcorrect) to all ukcp variables for one tile and model run
 # and saves data to disk as nc files per decade
 # pathtoera - directory with 2018 daily era5 data (as returned by era5todaily)

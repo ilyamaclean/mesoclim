@@ -93,7 +93,6 @@ hourlytemp <- function(tmn, tmx, tme = NA, lat = NA, long = NA, srte = 0.09) {
 #' @import terra
 #' @importFrom Rcpp sourceCpp
 #' @export
-#' @details
 blendtemp_hadukera5<-function(tasmin,tasmax,era5t2m) {
   d1<-dim(tasmin)
   d2<-dim(tasmax)
@@ -122,7 +121,6 @@ blendtemp_hadukera5<-function(tasmin,tasmax,era5t2m) {
 # ~~~~~~~~~~~~~~~~ Relative humidity ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
 #' @title Daily to hourly relative humidity
-#' @description
 #' @param relhum - an array of daily relative humidity values (%)
 #' @param tasmin - an array of daily minimum temperature values (deg C)
 #' @param tasmax  - an array of daily maximum temperature values (deg C)

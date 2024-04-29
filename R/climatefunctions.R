@@ -55,10 +55,11 @@ flowacc <- function (dtm, basins = NA) {
     x2<-x+(f-1)%%3-1
     y2<-y+(f-1)%/%3-1
     # If basin file provided only add flow accumulation of from same basin
-    if (class(basins) != "logical") {
+    if (class(basins) != "logical" & x2>0 & y2>0) {
       b1<-ba[x,y]
       b2<-ba[x2,y2]
-      if (b1==b2 & x2>0 & x2<dim(dm)[1] & y2>0 & y2<dim(dm)[2]) fa[x2,y2]<-fa[x,y]+1
+      if(!is.na(b1) && !is.na(b2)){ # Check if both b1 and b2 valid basins
+        if(b1==b2 & x2>0 & x2<dim(dm)[1] & y2>0 & y2<dim(dm)[2]) fa[x2,y2]<-fa[x,y]+1 }
     } else if (x2>0 & x2<dim(dm)[1] & y2>0 & y2<dim(dm)[2]) fa[x2,y2]<-fa[x,y]+1
   }
   fa<-.rast(fa,dtm)

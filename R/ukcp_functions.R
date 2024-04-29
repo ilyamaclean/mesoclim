@@ -1,4 +1,186 @@
-#' @title Download 1km albedo data
+# ------------------------------------ ------------------------------------ ------------------
+# ------------------------------------ DOWNLOAD FUNCTIONS ------------------------------------
+# ------------------------------------ ------------------------------------ ------------------
+
+#' @title Downloads 1km gridded historic climata data for the UK
+#' @description The function `download_hadukdaily` downloads HadUK-Grid Gridded
+#' Climate Observation data on a 1km grid over the UK from CEDA.
+#' @param dir_out directory to which to save data
+#' @param cedausr string of ceda username
+#' @param cedapwd string of ceda username
+#' @param startdate - POSIXlt value indicating start date for data required
+#' @param enddate - POSIXlt value indicating end date for data required
+#' @param varn vector of variables required, one or more of: 'rainfall','tasmax','tasmin','hurs','psl','pv','sun','sfsWind'.
+#'  NOTE: Only `rainfall` (precipitation in mm), `tasmax`(maximum daily temperature, deg C) and
+#' `tasmin` (minimum daily temperature, deg C) are available at daily time steps (all other monthly only).
+#' @param freq - string of frequency required - either 'day' or 'mon' (monthly)
+#' @param cedaprot - ceda protocol used is https  - DO NOT CHANGE
+#' @param cedaserv - ceda service is dap - DO NOT CHANGE
+#' @return database detailing download details and success of all requested files
+#' @details Uses ceda dap https service that does not require username or password.
+#' @import curl
+#' @export
+#' @keywords download
+download_hadukdaily<-function(dir_out,
+                              startdate, enddate,
+                              varn=v('rainfall','tasmax','tasmin','hurs','psl','pv','sun','sfsWind'),
+                              freq=c('day','mon'),
+                              cedaprot="https://",
+                              cedaserv="dap.ceda.ac.uk"
+) {
+  # Checks
+  varn<-match.arg(varn, several.ok=TRUE)
+  freq<-match.arg(freq)
+  if (any(!varn %in% c("rainfall","tasmax","tasmin")) & freq=='day') stop("Daily data are not available for chosen variables!!" )
+  if(class(startdate)[1]!="POSIXlt" | class(enddate)[1]!="POSIXlt") stop("Date parameters NOT POSIXlt class!!")
+
+  # Derive months of data required
+  dateseq<-seq(startdate,enddate,'month')
+  yrs<-year(dateseq)
+  mnths<-month(dateseq)
+
+  # Check time period requested
+  tme<-as.POSIXlt(Sys.time())
+  yr<-tme$year+1900
+  if (any(yrs > yr)) stop("Function downloads observed data. Cannot be used for future years")
+  if (any(yrs == yr)) warning("Data may not yet be available for current year")
+  if (varn == "rainfall") {
+    if (year < 1891) stop("Rainfall data not available prior to 1891")
+  } else {
+    if (year < 1960) stop("Temperature data not available prior to 1960")
+  }
+
+  # Get date text used in file names
+  mtxt<-ifelse(mnths<10,paste0("0",mnths),paste0("",mnths))
+  daysofmonth<-c(31,28,31,30,31,30,31,31,30,31,30,31)
+  mdays<-daysofmonth[mnths]
+  mdays<-ifelse((yrs%%4==0 & mnths==2),29,mdays)
+
+  # Create base url
+  urlbase<-paste0(cedaprot, cedaserv,"/badc/ukmo-hadobs/data/insitu/MOHC/HadOBS/HadUK-Grid/v1.2.0.ceda/1km/")
+  fullreport_df<-data.frame()
+  for (v in varns){
+    urlvar<-file.path(urlbase,v,"day","latest")
+    fnames<-paste0(v,"_hadukgrid_uk_1km_day_",yrs,mtxt,"01-",yrs,mtxt,mdays,".nc")
+    destfiles<-file.path(dir_out,fnames)
+    dload_urls<-file.path(urlvar,fnames)
+    success_df<-curl::multi_download(urls=dload_urls, destfiles=destfiles )
+    if(any(success_df$success==FALSE)) print(paste('UNSUCCESSFUL file downloads:',fnames[which(!success_df$success)])) else print('All downloads successful')
+    if(nrow(fullreport_df)==0) fullreport_df<-success_df else fullreport_df<-rbind(fullreport_df,success_df)
+  }
+  return(fullreport_df)
+}
+
+#' Download UKCP18 climate data
+#' @description
+#' Using parameters the function will downloaded from ftp.ceda.ac.uk all available UCKP18 files containing relevant data to the user defined output directory
+#' @param dir_out Output directory to which files are downloaded
+#' @param startdate POSIXlt class defining start date of required timeseries
+#' @param enddate POSIXlt class defining end date of required timeseries
+#' @param collection text string defining UKCP18 collection, either 'land-gcm' or 'land-rcm'
+#' @param domain text string defining UKCP18 domain, either 'uk' or 'eur'(land-rcm collection only) or 'global'
+#' @param rcp text string iof RCP scenario to be downloaded
+#' @param member vector of strings defining the climate model member to be downloaded. Available members vary between UKCP18 collections.
+#' @param vars vector of strings corresponding to UKCP18 short variable names to download
+#' @param cedaprot - string of ceda protocol, set to https DO NOT CHANGE
+#' @param download_dtm - if TRUE and orography (elevation) available will also download to dir_out
+#' @param cedaserv - string of the ceda server url, uses dap DO NOT CHANGE
+#' @return downloads files to `dir_out`
+#' @details To obtain a username and password, first register at https://services.ceda.ac.uk/.
+#' Your username will be the same as that given for your main CEDA account.
+#' Your FTP password is separate from the password for your CEDA web account. If
+#' you do not already have a password, or if you want to reset your FTP password
+#' go to MyCEDA and click on the 'Configure FTP account' button.
+#' @import curl
+#' @export
+#' @keywords download ukcp18
+#' @examples
+#' # dir_out <- tempdir()
+#' # download_ukcp18(dir_out,as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01'),c('tasmax','tasmin'),download_dtm=TRUE)
+download_ukcp18<-function(
+    dir_out,
+    startdate,
+    enddate,
+    collection=c('land-gcm','land-rcm'),
+    domain=c('uk','eur','global'),
+    rcp=c('rcp85', 'rcp26'),
+    member=c('01','02','03','04','05','06','07','08','09','10','11','12','13','14','15',
+             '16','17','18','19','20','21','22','23','24','25','26','27','28'),
+    vars=c('clt','hurs','huss','pr','prsn','psl','rls','rss','tasmax','tasmin','uas','vas'),
+    download_dtm=FALSE,
+    cedausr,
+    cedapwd,
+    cedaprot= "ftp://",        #"https://",
+    cedaserv="ftp.ceda.ac.uk"  #"dap.ceda.ac.uk"
+){
+  # Check parameters
+  if(!dir.exists(dir_out)) stop(paste("Output directory does not exist:",dir_out))
+  collection<-match.arg(collection)
+  domain<-match.arg(domain)
+  rcp<-match.arg(rcp)
+  member<-match.arg(member,several.ok=TRUE)
+  vars<-match.arg(vars,several.ok=TRUE)
+  if(collection=='land-rcm' & !any(member %in% c('01','04','05','06','07','08','09','10','11','12','13','15'))){
+    warning('Invalid member for land-rcm - retricting to only those valid!!')
+    member<-member[which(modelsruns %in% c('01','04','05','06','07','08','09','10','11','12','13','15'))]
+  }
+  if(collection=='land-gcm' & !domain %in% c('uk','global')){
+    warning('Invalid area for global data - downloading global data!!')
+    domain<-'global'
+  }
+  if(collection=='land-rcm' & !domain %in% c('uk','eur')){
+    warning('Invalid area for regional data - downloading Europe data!!')
+    domain<-'eur'
+  }
+  if(download_dtm & (collection!='land-rcm'|domain!='uk')){
+    warning('DTM only downloadable land-rcm collection and uk domain - will not download!!! ')
+    download_dtm<-FALSE
+  }
+  # Identify which decades are required
+  decades<-.find_ukcp_decade(collection,startdate,enddate)
+
+  # Get tiled data according to resolution
+  if(collection=='land-rcm') res<-"12km"
+  if(collection=='land-gcm') res<-"60km"
+
+  url<-file.path(paste0(cedaprot,cedaserv),"badc","ukcp18","data",collection,domain,res,rcp)
+
+  print('Parameters chosen:')
+  print(collection)
+  print(domain)
+  print(rcp)
+  print(member)
+  print(vars)
+  print(decades)
+  print(paste('Downloading from',url))
+
+  # Download files - loop over model runs and vars - use lapply to download all decades
+  fullreport_df<-data.frame()
+  for(run in member){
+    for(v in vars){
+      fnames<-paste0(v,'_',rcp,'_',collection,'_',domain,'_',res,'_',run,'_day_',decades,'.nc')
+      dload_urls<-file.path(url,run,v,'day','latest',fnames)
+      destfiles<-file.path(dir_out,fnames)
+      print(length(destfiles)==length(dload_urls))
+      #h <- curl::new_handle()
+      #curl::handle_setopt(h, userpwd = paste0(cedausr,":",cedapwd))
+      success_df<-curl::multi_download(urls=dload_urls, destfiles=destfiles, userpwd = paste0(cedausr,":",cedapwd))
+      if(any(success_df$success==FALSE)) print(paste('UNSUCCESSFUL file downloads:',fnames[which(!success_df$success)])) else print('All downloads successful')
+      if(nrow(fullreport_df)==0) fullreport_df<-success_df else fullreport_df<-rbind(fullreport_df,success_df)
+    }
+  }
+  # Download orography if requested
+  if(download_dtm){
+    print('Downloading orography for UK rcm...')
+    fnames<-'orog_land-rcm_uk_12km_osgb.nc'
+    destfiles<-file.path(dir_out,fnames)
+    dload_urls<-paste0(cedaprot,cedaserv,'/badc/ukcp18/data/land-rcm/ancil.orog/',fnames)
+    success_df<-curl::multi_download(urls=dload_urls, destfiles=destfiles )
+    if(any(success_df$success==FALSE)) print(paste('UNSUCCESSFUL file downloads:',fnames[which(!success_df$success)])) else print('All downloads successful')
+    if(nrow(fullreport_df)==0) fullreport_df<-success_df else fullreport_df<-rbind(fullreport_df,success_df)
+  }
+  return(fullreport_df)
+}#' @title Download 1km albedo data
 #' @description The function `download_globalbedo` downloads monthly GlobAlbedo tiled
 #' albedo data from Jasmin available for the years 1998-2011. Whole of the UK covered by default tiles. For further information see:
 #' \url{http://www.globalbedo.org/index.php}
@@ -7,47 +189,115 @@
 #' @param month string vector  indicating the month for which data are required
 #' @param tiles vector of strings of the file name in the format 'h##v##'. Whole of the UK covered by default tiles.
 #' @details No username or password currently required.
+#' @return database detailing download details and success of all requested files
 #' @import curl
 #' @export
+#' @keywords download
 download_globalbedo<-function(dir_out,
                               tiles=c('h17v03','h17v04','h18v03'),
                               months=c('01','02','03','04','05','06','07','08','09','10','11','12'),
                               years=seq(1998,2011),
-                              url='http://gws-access.jasmin.ac.uk',
-                              path='/public/qa4ecv/albedo/netcdf_cf/1km/monthly' ){
+                              url='http://gws-access.jasmin.ac.uk'
+                               ){
   # Check parameters
   if(!dir.exists(dir_out)) stop(paste("Output directory does not exist:",dir_out))
   months<-match.arg(months,several.ok=TRUE)
   years<-years(domain,several.ok=TRUE)
   tiles<-match.arg(tiles,several.ok=TRUE)
 
+  path<-'public/qa4ecv/albedo/netcdf_cf/1km/monthly'
+  fullreport_df<-data.frame()
+
   for(t in tiles){
     for(y in years){
       print(paste('Downloading files for ',t,'-',y))
-      fp<-file.path(path,t,y)
-      fnames<-do.call(paste0, c(expand.grid(fp,'/','GlobAlbedo.merge.albedo.',y,months,'.',t,'.nc')))
-      print(fnames)
+      fnames<-paste0('GlobAlbedo.merge.albedo.',y,months,'.',t,'.nc')
+      dload_urls<-file.path(url,path,t,y,fnames)
+      destfiles<-file.path(dir_out,fnames)
 
-      h <- curl::new_handle()
-      curl::handle_setopt(h)
-      lapply(fnames, FUN=.multi_download, url=url,dir_out=dir_out,h=h)
+      success_df<-curl::multi_download(urls=dload_urls, destfiles=destfiles )
+      if(any(success_df$success==FALSE)) print(paste('UNSUCCESSFUL file downloads:',fnames[which(!success_df$success)])) else print('All downloads successful')
+      if(nrow(fullreport_df)==0) fullreport_df<-success_df else fullreport_df<-rbind(fullreport_df,success_df)
     }
   }
+  return(fullreport_df)
 }
+
+#' @title Download UKCP18rcm driven sea surface temperature predictions
+#' @description For description of the modelling used to produce sea surface temperatures then see:
+#'  `https://www.metoffice.gov.uk/binaries/content/assets/metofficegovuk/pdf/research/ukcp/ukcp18-guidance-data-availability-access-and-formats.pdf`
+#' @param dir_out - local directory to which files written
+#' @param startdate - start date as POSIXlt
+#' @param enddate  - end date as POSIXlt
+#' @param modelruns - vector of two character strings of model numbers
+#' @param cedaprot - string of ceda protocol, set to https DO NOT CHANGE
+#' @param cedaserv - string of the ceda server url, uses dap DO NOT CHANGE
+#'
+#' @return database detailing download details and success of all requested files
+#' @export
+#' @keywords download ukcp18
+#' @examples
+#' startdate<-as.POSIXlt('2017/12/31')
+#' enddate<-as.POSIXlt('2018/12/31')
+#' modelruns<-c('01')
+#' dir_out<-tempdir()
+#' download_ukcpsst(dir_out,startdate,enddate,modelruns)
+download_ukcpsst<-function(
+    dir_out,
+    startdate,
+    enddate,
+    modelruns=c('01','02','03','04','05','06','07','08','09','10','11','12','13','14','15',
+                '16','17','18','19','20','21','22','23','24','25','26','27','28'),
+    cedaprot="https://",
+    cedaserv="dap.ceda.ac.uk"
+){
+  # Check parameters
+  modelruns<-match.arg(modelruns,several.ok=TRUE)
+  # Get member ID used in file names from mesoclim lookup table
+  memberid<-ukcp18lookup$PP_ID[which(ukcp18lookup$Member_ID %in% modelruns)]
+  if("" %in% memberid) warning(paste("Model members",members[which(memberid=="")],"NOT available for sea surface temperature - ignoring!!"))
+  memberid<-memberid[which(memberid!="")]
+
+  if(!dir.exists(dir_out))(stop(paste("Directory",dir_out,"does not exist!!!")))
+  if(class(startdate)[1]!="POSIXlt" | class(enddate)[1]!="POSIXlt") stop("Date parameters NOT POSIXlt class!!")
+
+  # Derive months of data required - will output month before and after start and end dates for interpolation
+  start<-startdate %m-% months(1)
+  end<-enddate %m+% months(1)
+  yrs<-unique(c(year(start):year(end)))
+  fullreport_df<-data.frame()
+
+  for(id in memberid){
+    url<-paste0(cedaprot,cedaserv,"/badc/deposited2023/marine-nwsclim/NWSPPE/",id,"/annual")
+    fnames<-paste0("NWSClim_NWSPPE_",id,"_",yrs,"_gridT.nc")
+    dload_urls<-file.path(url,fnames)
+    destfiles<-file.path(dir_out,fnames)
+    # Handles Multifile Download from server
+    success_df<-curl::multi_download(urls=dload_urls, destfiles=destfiles )
+    if(any(success_df$success==FALSE)) print(paste('UNSUCCESSFUL file downloads:',fnames[which(!success_df$success)])) else print('All downloads successful')
+    if(nrow(fullreport_df)==0) fullreport_df<-success_df else fullreport_df<-rbind(fullreport_df,success_df)
+  }
+  return(fullreport_df)
+}
+
+# ------------------------------------ ------------------------------------ ------------------
+# --------------------------------- PRE PROCESSING FUNCTIONS ---------------------------------
+# ------------------------------------ ------------------------------------ ------------------
 
 #' @title Create UKCP sea surface temperature rast stack from ncdf files
 #'
 #' @param dir_data directory holding SST .nc files downloaded from ceda
 #' @param startdate start date as POSIXlt
 #' @param enddate end date as POSIXlt
-#' @param aoi SpatRaster, SpatVector or sf object defining area of interest to crop data. NA no corpping occurs
+#' @param aoi SpatRaster, SpatVector or sf object defining area of interest to crop data. NA no cropping occurs
 #' @param members model members to be included
 #' @param v = SST sea surface temperature
 #'
-#' @return
+#' @return Spatraster timeseris of sea surface temperatures
 #' @export
 #' @import terra
 #' @import lubridate
+#' @keywords preprocess ukcp18
 #' @examples
 #' dir_data<-system.file('extdata/ukcp18sst',package='mesoclim')
 #' sst<-create_ukcpsst_data(dir_data,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),members='01')
@@ -56,10 +306,10 @@ create_ukcpsst_data<-function(
     startdate,
     enddate,
     aoi=NA,
-    members=c('01','02','03','04','05','06','07','08','09','10','11','12','13','14','15') ,
+    member=c('01','02','03','04','05','06','07','08','09','10','11','12','13','14','15') ,
     v='SST' ){
   # Check parameters
-  members<-match.arg(members,several.ok=TRUE)
+  member<-match.arg(member)
   if(!dir.exists(dir_data))(stop(paste("Directory",dir_data,"does not exist!!!")))
   if(class(startdate)[1]!="POSIXlt" | class(enddate)[1]!="POSIXlt") stop("Date parameters NOT POSIXlt class!!")
 
@@ -70,8 +320,8 @@ create_ukcpsst_data<-function(
 
   # Get member ID used in file names from mesoclim lookup table
   # Ref: https://www.metoffice.gov.uk/binaries/content/assets/metofficegovuk/pdf/research/ukcp/ukcp18-guidance-data-availability-access-and-formats.pdf
-  memberid<-ukcp18lookup$PP_ID[which(ukcp18lookup$Member_ID %in% members)]
-  if("" %in% memberid) warning(paste("Model members",members[which(memberid=="")],"NOT available for sea surface temperature - ignoring!!"))
+  memberid<-ukcp18lookup$PP_ID[which(ukcp18lookup$Member_ID == member)]
+  if("" %in% memberid) stop(paste("Model NOT available for sea surface temperature!!"))
   memberid<-memberid[which(memberid!="")]
 
   # Check input files all present in dir_data
@@ -104,159 +354,6 @@ create_ukcpsst_data<-function(
   return(var_r)
 }
 
-#' @title Downloads 1km historic climata data for the UK
-#' @description The function `download_hadukdaily` downloads HadUK-Grid Gridded
-#' Climate Observation data on a 1km grid over the UK from CEDA.
-#' @param dir_out directory to which to save data
-#' @param cedausr string of ceda username
-#' @param cedapwd string of ceda username
-#' @param year numeric value indicating the year for which data are required
-#' @param month numeric value (1-12) indicating the month for which data are required
-#' @param varn. Variable required. One of `rainfall` (precipitation in mm), `tasmax`
-#' (maximum daily temperature, deg C) or `tasmin` (minimum daily temperature, deg C).
-#' @details To obtain a username and password, first register at https://services.ceda.ac.uk/.
-#' Your username will be the same as that given for your main CEDA account.
-#' Your FTP password is separate from the password for your CEDA web account. If
-#' you do not already have a password, or if you want to reset your FTP password
-#' go to MyCEDA and click on the 'Configure FTP account' button.
-#' @import curl
-#' @export
-download_hadukdaily<-function(dir_out, cedausr, cedapwd, year, month, varn) {
-  # Checks
-  if (varn != "rainfall" & varn != "tasmax" & varn != "tasmin") stop("daily data are not available for this variable")
-  tme<-as.POSIXlt(Sys.time())
-  yr<-tme$year+1900
-  if (year > yr) stop("Function downloads observed data. Cannot be used for future years")
-  if (year == yr) warning("Data may not yet be available for current year")
-  if (varn == "rainfall") {
-    if (year < 1891) stop("Rainfall data not available prior to 1891")
-  } else {
-    if (year < 1960) stop("Temperature data not available prior to 1960")
-  }
-  mtxt<-ifelse(month<10,paste0("0",month),paste0("",month))
-  mdays<-c(31,28,31,30,31,30,31,31,30,31,30,31)
-  if (year%%4==0) mdays[2]<-29
-  mday<-mdays[month]
-  # Create url
-  urlbase<-paste0("ftp.ceda.ac.uk/badc/ukmo-hadobs/data/insitu/MOHC/HadOBS/HadUK-Grid/v1.2.0.ceda/1km/")
-  varbase<-paste0(urlbase,varn,"/day/latest/")
-  fname<-paste0(varn,"_hadukgrid_uk_1km_day_",year,mtxt,"01-",year,mtxt,mday,".nc")
-  destfile<-paste0(dir_out,fname)
-  dload_url<-paste0(varbase,fname)
-  h <- curl::new_handle()
-  curl::handle_setopt(h, userpwd = paste0(cedausr,":",cedapwd))
-  curl::curl_download(dload_url, destfile, handle = h)
-}
-#' ILya: Have changed this to an internal function, including calls to it.
-.multi_download<-function(f,url,dir_out,h){
-  dload_url<-paste(url, f, sep = "")
-  destfile<-file.path(dir_out,basename(f))
-  curl::curl_download(dload_url, destfile, handle = h, quiet=FALSE)
-}
-
-#' Download UKCP18 climate data
-#' ILya comment: function needs fixing to handle cases where length(member) or
-#' length (collection) > 1 (or make clear you only want one at a time).
-#' Note that with collection='land-rcm', it can download 12 model runs numbered, 1 & 4-15.
-#' I.e. 2 & 3 don't exist
-#' @description
-#' Using parameters the function will downloaded from ftp.ceda.ac.uk all available UCKP18 files containing relevant data to the user defined output directory
-#' @param dir_out Output directory to which files are downloaded
-#' @param cedausr string of ceda user name
-#' @param cedapwd string of ceda user pasword
-#' @param startdate POSIXlt class defining start date of required timeseries
-#' @param enddate POSIXlt class defining end date of required timeseries
-#' @param collection text string defining UKCP18 collection, either 'land-gcm' or 'land-rcm'
-#' @param domain text string defining UKCP18 domain, either 'uk' or 'eur'(land-rcm collection only) or 'global'
-#' @param rcp text string iof RCP scenario to be downloaded
-#' @param member vector of strings defining the climate model member to be downloaded. Available members vary between UKCP18 collections.
-#' @param vars vector of strings corresponding to UKCP18 short variable names to download
-#' @param cedaprot string of ceda protocol set to ftp DO NOT CHANGE
-#' @param cedaserv string of the ceda server url DO NOT CHANGE
-#' @return downloads files to `dir_out`
-#' @details To obtain a username and password, first register at https://services.ceda.ac.uk/.
-#' Your username will be the same as that given for your main CEDA account.
-#' Your FTP password is separate from the password for your CEDA web account. If
-#' you do not already have a password, or if you want to reset your FTP password
-#' go to MyCEDA and click on the 'Configure FTP account' button.
-#' @import curl
-#' @export
-#' @examples
-#' # dir_out <- tempdir()
-#' # download_ukcp18(dir_out,'ceda_username','ceda_password',as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01'),c('tasmax','tasmin'))
-download_ukcp18<-function(
-    dir_out,
-    cedausr,
-    cedapwd,
-    startdate,
-    enddate,
-    collection=c('land-gcm','land-rcm'),
-    domain=c('uk','eur','global'),
-    rcp=c('rcp85', 'rcp26'),
-    member=c('01','02','03','04','05','06','07','08','09','10','11','12','13','14','15',
-             '16','17','18','19','20','21','22','23','24','25','26','27','28'),
-    vars=c('clt','hurs','huss','pr','prsn','psl','rls','rss','snw','tasmax','tasmin','uas','vas'), # 'tas',
-    cedaprot="ftp://",
-    cedaserv="ftp.ceda.ac.uk"
-){
-  # Check parameters
-  if(!dir.exists(dir_out)) stop(paste("Output directory does not exist:",dir_out))
-  collection<-match.arg(collection)
-  domain<-match.arg(domain)
-  rcp<-match.arg(rcp)
-  member<-match.arg(member,several.ok=TRUE)
-  vars<-match.arg(vars,several.ok=TRUE)
-  if(collection=='land-rcm' & !any(member %in% c('01','04','05','06','07','08','09','10','11','12','13','15'))){
-    warning('Invalid member for land-rcm - retricting to only those valid!!')
-    member<-member[which(modelsruns %in% c('01','04','05','06','07','08','09','10','11','12','13','15'))]
-  }
-  if(collection=='land-gcm' & !domain %in% c('uk','global')){
-    warning('Invalid area for global data - downloading global data!!')
-    domain<-'global'
-  }
-  if(collection=='land-rcm' & !domain %in% c('uk','eur')){
-    warning('Invalid area for regional data - downloading Europe data!!')
-    domain<-'eur'
-  }
-
-  # Identify which decades are required
-  decades<-find_ukcp_decade(collection,startdate,enddate)
-
-  # Get tiled data according to resolution
-  if(collection=='land-rcm') res<-"12km"
-  if(collection=='land-gcm') res<-"60km"
-
-  url<-paste0(cedaprot,cedaserv)
-  dir_ukcp18<-paste0("/badc/ukcp18/data/",collection,"/",domain,"/",res,"/",rcp)
-
-  print('Parameters chosen:')
-  print(collection)
-  print(domain)
-  print(rcp)
-  print(member)
-  print(vars)
-  print(decades)
-  print(paste('Downloading from',dir_ukcp18))
-
-  # Download files - loop over model runs and vars - use lapply to download all decades
-  n<-1
-  for(run in member){
-    for(v in vars){
-      print(n)
-      # Get pathways
-      dir_dload<-file.path(dir_ukcp18,run,v,'day','latest')
-      files<-paste0(v,'_',rcp,'_',collection,'_',domain,'_',res,'_',run,'_day_',decades,'.nc')
-      dload_files<-file.path(dir_dload,files)
-      print(dload_files)
-      n<-n+1
-      # Handles Multifile Download from server
-      h <- curl::new_handle()
-      curl::handle_setopt(h, userpwd = paste0(cedausr,":",cedapwd))
-      lapply(dload_files, FUN=.multi_download, url=url,dir_out=dir_out,h=h)
-    }
-  }
-  # TO ADD Get ancillary data if available?? ie original DEM for regional data
-}
 
 #' @title Gets dates of UKCP18 ncdf file
 #' @description The function `era5toclimarray` converts data in a netCDF4 file returned
@@ -267,12 +364,13 @@ download_ukcp18<-function(
 #' @import lubridate
 #' @export
 #' @details Creates a time series from the ncdf file time variable which is not correctly read by R terra package.
-#' UKCP18 time values expressed as hours since 1/1/1970 12.00. Output used by function `correct_ukcp_dates()`
+#' UKCP18 time values expressed as hours since 1/1/1970 12.00. Output used by function `.correct_ukcp_dates()`
+#' @keywords internal
 #' @examples
 #' dir_ukcp<-system.file('extdata/ukcp18rcm',package='mesoclim')
 #' nc<-file.path(dir_ukcp,"tasmax_rcp85_land-rcm_uk_12km_01_day_20101201-20201130.nc")
-#' ukdates<-get_ukcp18_dates(nc)
-get_ukcp18_dates<-function(ncfile){
+#' ukdates<-.get_ukcp18_dates(nc)
+.get_ukcp18_dates<-function(ncfile){
   netcdf_data <-ncdf4::nc_open(ncfile)
   time_hours <- ncdf4::ncvar_get(netcdf_data,"time")
   ncdf4::nc_close(netcdf_data)
@@ -287,17 +385,18 @@ get_ukcp18_dates<-function(ncfile){
 
 #' @title Corrects time series of UKCP18 360 day year data to valid calendar dates
 #' @description Converts 12 x 30 day monthly data provided by UKCP18 to data corresponding to actual calendar dates
-#' by reassigning invalid dates (eg 29-30 Feb). Does NOT add missing dates (eg 31st May). Output used by `fill_calendar_data()`
-#' @param ukcp_dates vector of POSIXlt UKCP18 dates  as returned by 'get_ukcp18_dates()'.
+#' by reassigning invalid dates (eg 29-30 Feb). Does NOT add missing dates (eg 31st May). Output used by `.fill_calendar_data()`
+#' @param ukcp_dates vector of POSIXlt UKCP18 dates  as returned by '.get_ukcp18_dates()'.
 #' @return a vector of valid date strings in the form 'yyyy-dd-mm'
 #' @import lubridate
 #' @export
+#' @keywords internal
 #' @examples
 #' dir_ukcp<-system.file('extdata/ukcp18rcm',package='mesoclim')
 #' nc<-file.path(dir_ukcp,"tasmax_rcp85_land-rcm_uk_12km_01_day_20101201-20201130.nc")
-#' ukdates<-get_ukcp18_dates(nc)
-#' correctdates<-correct_ukcp_dates(ukdates)
-correct_ukcp_dates<-function(ukcp_dates){
+#' ukdates<-.get_ukcp18_dates(nc)
+#' correctdates<-.correct_ukcp_dates(ukdates)
+.correct_ukcp_dates<-function(ukcp_dates){
   years<-as.numeric(sapply(strsplit(ukcp_dates,"-"), getElement, 1))
   months<-as.numeric(sapply(strsplit(ukcp_dates,"-"), getElement, 2))
   days<-as.numeric(sapply(strsplit(ukcp_dates,"-"), getElement, 3))
@@ -330,20 +429,21 @@ correct_ukcp_dates<-function(ukcp_dates){
 #' @description
 #' Reassigns data and interpolates missing days of UKCP18 (360 day years) SpatRast data to create a new set of rasters corresponding to actual calendar dates.
 #' @param ukcp_r SpatRaster timeseries stack loaded from UKCP18 .ncdf file
-#' @param real_dates vector of valid date strings, as output by `correct_ukcp_dates()` corresponding to the time period of 'ukcp_r'
+#' @param real_dates vector of valid date strings, as output by `.correct_ukcp_dates()` corresponding to the time period of 'ukcp_r'
 #' @param testplot logical if TRUE plots example data of missing then interpolated days
 #' @param plotdays the example days of years to plot DO NOT CHANGE
 #' @return a SpatRaster timeseries corresponding to actual calendar dates with invalid, no missing/empty days
 #' @import terra
 #' @export
+#' @keywords internal
 #' @examples
 #' dir_ukcp<-system.file('extdata/ukcp18rcm',package='mesoclim')
 #' nc<-file.path(dir_ukcp,"tasmax_rcp85_land-rcm_uk_12km_01_day_20101201-20201130.nc")
-#' ukdates<-get_ukcp18_dates(nc)
-#' real_dates<-correct_ukcp_dates(ukdates)
+#' ukdates<-.get_ukcp18_dates(nc)
+#' real_dates<-.correct_ukcp_dates(ukdates)
 #' r<-rast(nc,subds='tasmax')
-#' r2<-fill_calendar_data(r,real_dates,testplot=TRUE)
-fill_calendar_data<-function(ukcp_r, real_dates, testplot=FALSE, plotdays=c(89:91,242:244)){
+#' r2<-.fill_calendar_data(r,real_dates,testplot=TRUE)
+.fill_calendar_data<-function(ukcp_r, real_dates, testplot=FALSE, plotdays=c(89:91,242:244)){
   # Assign real dates to layer names and time values
   terra::time(ukcp_r)<-real_dates
   names(ukcp_r)<-real_dates
@@ -363,11 +463,12 @@ fill_calendar_data<-function(ukcp_r, real_dates, testplot=FALSE, plotdays=c(89:9
 #' @import terra
 #' @import units
 #' @export
+#' @keywords internal
 #' @examples
 #' r<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
 #' terra::units(r)<-'m'
-#' r2<-change_rast_units(r,'cm')
-change_rast_units<-function(r,to_unit){
+#' r2<-.change_rast_units(r,'cm')
+.change_rast_units<-function(r,to_unit){
   in_unit<-terra::units(r)
   # Get and convert values
   v<-units::set_units(terra::values(r),terra::units(r)[1],mode="standard")
@@ -387,10 +488,11 @@ change_rast_units<-function(r,to_unit){
 #' @return a vector of strings corresponding to the decade part of UKCP18 files containing the entire requested timeseries
 #' @export
 #' @import lubridate
+#' @keywords internal
 #' @examples
-#' find_ukcp_decade('land-rcm',as.POSIXlt("2030/01/01"),as.POSIXlt("2039/12/31"))
+#' .find_ukcp_decade('land-rcm',as.POSIXlt("2030/01/01"),as.POSIXlt("2039/12/31"))
 #'
-find_ukcp_decade<-function(collection=c('land-gcm','land-rcm'),startdate,enddate){
+.find_ukcp_decade<-function(collection=c('land-gcm','land-rcm'),startdate,enddate){
   collection<-match.arg(collection)
   if(class(startdate)[1]!="POSIXlt" | class(enddate)[1]!="POSIXlt") stop("Date parameters NOT POSIXlt class!!")
   rcm_decades<-c('19801201-19901130','19901201-20001130','20001201-20101130','20101201-20201130',
@@ -406,27 +508,41 @@ find_ukcp_decade<-function(collection=c('land-gcm','land-rcm'),startdate,enddate
   return(decades)
 }
 
-#Function to calculate LWup from temperature
-# tc=temperature in C, sb = stefan boltzman, em=emissivity of surface
-# emissivity of surface c. 0.97 if not metal
+#' @title Function to calculate LWup from temperature
+#'
+#' @param tc temperature in C
+#' @param sb stefan boltzman
+#' @param em emissivity of surface c. 0.97 if not metal
+#'
+#' @return upward longwave radiation
+#' @export
+#' @keywords internal
 .lwup<-function(tc,sb=5.67*10^-8,em=0.97){
   lwup<-sb*em*(tc+273.15)^4
   return(lwup)
 }
 
-# Function to calculate SW down from SW net, cloud cover and white & black sky albedo
-# swnet Spatrast of net SW
-# cloud Spatrast of cld cover as %
-# dtmc - elevation (sea as NA) matching climate data
-# wsalbedo - white sky albedo - can be a constant of fixed land albedo or a Spat raster of values.
+
+#' @title Shortwave net to shortwave down
+#' @description  Function to calculate SW down from SW net, cloud cover and white & black sky albedo
+#' @param swnet Spatrast of net SW
+#' @param cloud Spatrast of cld cover as %
+#' @param dtmc elevation (sea as NA) matching climate data
+#' @param wsalbedo white sky albedo - can be a constant of fixed land albedo or a Spat raster of values.
 #           if >1 layer rast then must have time values as either numeric Day of Year or as Date
 #           interpolates missing days of year - SHOULD be either values for single year or
 #           mean monthly (or other step across multiple years)
-# bsalbedo - as wsalbedo but black sky
-#swdown_r<-.swdown(clim_list$rss,clim_list$clt,dtmc,wsalbedo,bsalbedo)
-#plot(swdown_r[[contrast_layers(swdown_r)]])
-# swdown_r<-.swdown(clim_list$rss,clim_list$clt,dtmc,NA,NA)
-# plot(swdown_r[[contrast_layers(swdown_r)]])
+#' @param bsalbedo as wsalbedo but black sky
+#' @param seaalb sea albedo value to be used
+#'
+#' @return Spatraster timeseries of Downward shortwave radiation
+#' @export
+#' @keywords internal
+#' @examples
+#' #swdown_r<-.swdown(clim_list$rss,clim_list$clt,dtmc,wsalbedo,bsalbedo)
+#' plot(swdown_r[[contrast_layers(swdown_r)]])
+#' swdown_r<-.swdown(clim_list$rss,clim_list$clt,dtmc,NA,NA)
+#' plot(swdown_r[[contrast_layers(swdown_r)]])
 .swdown<-function(swnet,cloud,dtmc,wsalbedo=0.19,bsalbedo=0.22,seaalb=0.065){
 
   if(class(wsalbedo)[1]!='SpatRaster' ||  class(bsalbedo)[1] != "SpatRaster"){
@@ -528,9 +644,11 @@ find_ukcp_decade<-function(collection=c('land-gcm','land-rcm'),startdate,enddate
 #'  }
 #' @import terra
 #' @export
-#' @details The function converts 360 day UKCP18 to actual calendar data by reassignment and linear interpolation of missing data. Returned climate data will be at the resolution, corrdinate reference system of the UKCP18 data requested, which can vary between domains and collections.
+#' @details The function converts 360 day UKCP18 to actual calendar data by reassignment and linear interpolation of missing data.
+#' Returned climate data will be at the extent, corrdinate reference system of the UKCP18 data requested, which can vary between domains and collections.
 #' The extent will be provided by the `dtm` which, if necessary, will be re-projected and resampled to the CRS and resolution of UKCP18 data requested.
 #' For regional UKCP18 data, it is recommended that 'dtm' is derived from the original orography data available for download.
+#' @keywords preprocess ukcp18
 #' @examples
 #' dir_ukcp<-system.file('extdata/ukcp18rcm',package='mesoclim')
 #' dtm<-terra::rast(system.file('extdata/ukcp18rcm/orog_land-rcm_uk_12km_osgb.nc',package='mesoclim'))
@@ -542,11 +660,11 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
                               member=c('01','02','03','04','05','06','07','08','09','10','11','12','13','14','15',
                                        '16','17','18','19','20','21','22','23','24','25','26','27','28'),
                               wsalbedo=0.19, bsalbedo=0.22,
-                              ukcp_vars=c('clt','hurs','huss','pr','psl','rls','rss',
+                              ukcp_vars=c('clt','hurs','pr','psl','rls','rss',
                                           'tasmax','tasmin','uas','vas'),
-                              ukcp_units=c('%','%','1','mm/day','hPa','watt/m^2','watt/m^2',
+                              ukcp_units=c('%','%','mm/day','hPa','watt/m^2','watt/m^2',
                                            'degC','degC','m/s','m/s'),
-                              output_units=c('%','%','1','mm/day','kPa','watt/m^2','watt/m^2',
+                              output_units=c('%','%','mm/day','kPa','watt/m^2','watt/m^2',
                                              'degC','degC','m/s','m/s'),
                               toArrays=TRUE, sampleplot=FALSE){
   # Parameter check
@@ -567,7 +685,7 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
   if(!dir.exists(dir_ukcp)) stop(paste("Directory does NOT exist:",dir_ukcp))
 
   # Identify which decades are required
-  decades<-find_ukcp_decade(collection,startdate,enddate)
+  decades<-.find_ukcp_decade(collection,startdate,enddate)
 
   # Get ukcp files names and check all exist in dir_ukcp before loading
   if(collection=='land-gcm') collres<-'60km' else collres<-'12km'
@@ -604,9 +722,9 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
       r<-terra::crop(r,dtmc)
 
       # If requested then convert to real calendar dates and fill missing dates
-      ukcp_dates<-get_ukcp18_dates(ncfile)
-      real_dates<-correct_ukcp_dates(ukcp_dates)
-      r<-fill_calendar_data(r, real_dates, testplot=sampleplot)
+      ukcp_dates<-.get_ukcp18_dates(ncfile)
+      real_dates<-.correct_ukcp_dates(ukcp_dates)
+      r<-.fill_calendar_data(r, real_dates, testplot=sampleplot)
 
       # Correct units
       terra::units(r)<-ukcp_u
@@ -620,7 +738,7 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
       terra::add(var_r)<-r
     }
     # Check & convert units, check all rasters geoms are same
-    if(ukcp_u!=out_u) var_r<-change_rast_units(var_r, out_u)
+    if(ukcp_u!=out_u) var_r<-.change_rast_units(var_r, out_u)
     if(!terra::compareGeom(dtmc,var_r)) warning(paste(v,"Spatrast NOT comparable to DTM!!") )
     clim_list[[v]]<-var_r
   }

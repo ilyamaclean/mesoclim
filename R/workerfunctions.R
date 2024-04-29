@@ -181,7 +181,7 @@
   # Check formats of inputs
   if(class(r)[1]== "PackedSpatRaster") r<-rast(r)
   if(class(r)[1]!= "SpatRaster") stop("Input r must be a SpatRaster!!!")
-  if(class(tmein)=='Date') tmein<-as.POSIXlt(tmein)
+  if(class(tmein)[1]=='Date') tmein<-as.POSIXlt(tmein)
   if(class(tmeout)[1]=='Date') tmeout<-as.POSIXlt(tmeout)
   if(class(tmein)[1]=='logical') tmein<-as.POSIXlt(terra::time(r))
   if(class(tmein)[1]!="POSIXlt" | class(tmeout)[1]!="POSIXlt") stop("Time parameters must be POSIXlt!!!")
@@ -989,12 +989,28 @@
   return(ce)
 }
 
-.tempcoastal<-function(tc, SST, u2, wdir, dtmf, dtmm, dtmc) {
+# downscaled sst without NA and same timesteps as tc and at same res as dtmf
+
+
+#' @title Coastal temperature effects
+#'
+#' @param tc - downscaled temperature at same res as dtmf
+#' @param sstf - downscaled sea surface temperature to dtmf resolution and extent - no NA and timeseries matches tc
+#' @param u2 - downscaled windspeed at 2m height
+#' @param wdir - wind direction (coarse resolution) - same value for all of dtmf extent will be used
+#' @param dtmf - fine dtm spatraster
+#' @param dtmm - medium dtm spatraster
+#' @param dtmc - coarse dtm spatraster
+#'
+#' @return Spatraster of temperature that includes coastal effect
+#' @export
+#' @keywords internal
+.tempcoastal<-function(tc, sstf, u2, wdir, dtmf, dtmm, dtmc) {
   # produce land sea mask
   if (crs(dtmm) != crs(dtmf)) dtmm<-project(dtmm,crs(dtmf))
   if (crs(dtmc) != crs(dtmf)) dtmc<-project(dtmc,crs(dtmf))
-  if (crs(SST) != crs(dtmf)) SST<-project(SST,crs(dtmf))
-  landsea<-.resample(dtmm,dtmf)
+  if (crs(sstf) != crs(dtmf)) sstf<-project(sstf,crs(dtmf))
+  landsea<-.resample(ifel(is.na(dtmm),0,dtmm),dtmf)
   landsea<-mask(landsea,dtmf)
   lsr<-array(NA,dim=c(dim(dtmf)[1:2],8))
   for (i in 0:7) {
@@ -1017,7 +1033,7 @@
     # Calculate array land-sea ratios for every hour
     i<-round(wdir/45)%%8
     lsr<-lsr2[,,i+1]
-    # Calculate SST weighting upwind
+    # Calculate sstf weighting upwind
     # derive power scaling coefficient from wind speed
     p2<-0.10420*sqrt(.is(u2))-0.47852
     # calculate logit lsr and lsm
@@ -1033,7 +1049,7 @@
     # predict logit swgt
     lswgt<- -0.1095761+p2*(llsr+3.401197)-0.1553487*llsm
     swgt<-.rast(1/(1+exp(-lswgt)),tc)
-    tcp<-swgt*SST+(1-swgt)*tc
+    tcp<-swgt*sstf+(1-swgt)*tc
     # calculate aggregation factor
     af<-res(dtmc)[1]/res(dtmf)[1]
     tcc<-resample(aggregate(tcp,af,na.rm=TRUE),tcp)
