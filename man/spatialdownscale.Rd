@@ -86,19 +86,20 @@ a list of multi-layer SpatRast or 3D arrays of downscaled climate variables and 
 \item{swrad}{Total downward shortwave radiation (W/m^2)}
 \item{difrad}{Downward diffuse radiation (W / m^2) - not returned unless \code{terrainshade = TRUE}}
 \item{lwrad}{Total downward longwave radiation (W/m^2)}
-\item{windspeed at 2m (m/s)}
+\item{windspeed}{at 2m (m/s)}
 \item{winddir}{Wind direction (decimal degrees)}
 \item{prec}{Precipitation (mm)}
 }
-@examples
-dir_data<-system.file('extdata/ukcp18sst',package='mesoclim')
-sst<-create_ukcpsst_data(dir_data,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),members='01')
-dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
-dtmm<-rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
-climdata<-read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
-dailymesodat<-spatialdownscale(climdata, sst, dtmf, dtmm, noraincut=0.01)
-plot_q_layers(dailymesodat$tmin)
 }
 \description{
 Spatially downscales coarse-resolution climate data
+}
+\examples{
+ dir_data<-system.file('extdata/ukcp18sst',package='mesoclim')
+ sst<-create_ukcpsst_data(dir_data,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),members='01')
+ dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+ dtmm<-rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
+ climdata<-read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+ dailymesodat<-spatialdownscale(climdata, sst, dtmf, dtmm, noraincut=0.01)
+ plot_q_layers(dailymesodat$tmin)
 }

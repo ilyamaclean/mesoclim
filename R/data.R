@@ -15,7 +15,7 @@
 #'  \item{pres}{Sea-level atmospheric pressure (kPa)}
 #'  \item{swnet}{Net downward shortwave radiation (W/m^2)}
 #'  \item{lwnet}{Net downward longwave radiation (W/m^2)}
-#'  \item{windspeed at 2m (m/s)}
+#'  \item{windspeed}{at 2m (m/s)}
 #'  \item{winddir}{Wind direction (decimal degrees)}
 #'  \item{prec}{Precipitation (mm)}
 #' }
@@ -57,7 +57,7 @@
 #'  \item{pres}{Sea-level atmospheric pressure (kPa)}
 #'  \item{swnet}{Net downward shortwave radiation (W/m^2)}
 #'  \item{lwnet}{Net downward longwave radiation (W/m^2)}
-#'  \item{windspeed at 2m (m/s)}
+#'  \item{windspeed}{at 2m (m/s)}
 #'  \item{winddir}{Wind direction (decimal degrees)}
 #'  \item{prec}{Precipitation (mm)}
 #' }

@@ -550,11 +550,11 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
 #'    \item{swrad}{Total downward shortwave radiation (W/m^2)}
 #'    \item{difrad}{Downward diffuse radiation (W / m^2) - not returned unless `terrainshade = TRUE`}
 #'    \item{lwrad}{Total downward longwave radiation (W/m^2)}
-#'    \item{windspeed at 2m (m/s)}
+#'    \item{windspeed}{at 2m (m/s)}
 #'    \item{winddir}{Wind direction (decimal degrees)}
 #'    \item{prec}{Precipitation (mm)}
 #'  }
-#'  @examples
+#' @examples
 #'  dir_data<-system.file('extdata/ukcp18sst',package='mesoclim')
 #'  sst<-create_ukcpsst_data(dir_data,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),members='01')
 #'  dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
