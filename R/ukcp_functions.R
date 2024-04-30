@@ -14,6 +14,8 @@
 #'  NOTE: Only `rainfall` (precipitation in mm), `tasmax`(maximum daily temperature, deg C) and
 #' `tasmin` (minimum daily temperature, deg C) are available at daily time steps (all other monthly only).
 #' @param freq - string of frequency required - either 'day' or 'mon' (monthly)
+#' @param cedausr ceda username string
+#' @param cedapwd ceda password sting
 #' @param cedaprot - ceda protocol used is https  - DO NOT CHANGE
 #' @param cedaserv - ceda service is dap - DO NOT CHANGE
 #' @return database detailing download details and success of all requested files
@@ -21,10 +23,16 @@
 #' @import curl
 #' @export
 #' @keywords download
+#' @examples
+#' # dir_out <- tempdir()
+#' # cedausr<-"your_user_name"
+#' # cedapwd <- "your_password"
+#' #download_hadukdaily(dir_out,as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),varn=c('tasmax','tasmin'),freq='day', cedausr,cedapwd)
 download_hadukdaily<-function(dir_out,
                               startdate, enddate,
-                              varn=v('rainfall','tasmax','tasmin','hurs','psl','pv','sun','sfsWind'),
+                              varn=c('rainfall','tasmax','tasmin','hurs','psl','pv','sun','sfsWind'),
                               freq=c('day','mon'),
+                              cedausr,cedapwd,
                               cedaprot="https://",
                               cedaserv="dap.ceda.ac.uk"
 ) {
@@ -64,7 +72,7 @@ download_hadukdaily<-function(dir_out,
     fnames<-paste0(v,"_hadukgrid_uk_1km_day_",yrs,mtxt,"01-",yrs,mtxt,mdays,".nc")
     destfiles<-file.path(dir_out,fnames)
     dload_urls<-file.path(urlvar,fnames)
-    success_df<-curl::multi_download(urls=dload_urls, destfiles=destfiles )
+    success_df<-curl::multi_download(urls=dload_urls, destfiles=destfiles, userpwd = paste0(cedausr,":",cedapwd) )
     if(any(success_df$success==FALSE)) print(paste('UNSUCCESSFUL file downloads:',fnames[which(!success_df$success)])) else print('All downloads successful')
     if(nrow(fullreport_df)==0) fullreport_df<-success_df else fullreport_df<-rbind(fullreport_df,success_df)
   }
@@ -82,8 +90,10 @@ download_hadukdaily<-function(dir_out,
 #' @param rcp text string iof RCP scenario to be downloaded
 #' @param member vector of strings defining the climate model member to be downloaded. Available members vary between UKCP18 collections.
 #' @param vars vector of strings corresponding to UKCP18 short variable names to download
-#' @param cedaprot - string of ceda protocol, set to https DO NOT CHANGE
 #' @param download_dtm - if TRUE and orography (elevation) available will also download to dir_out
+#' @param cedausr ceda username string
+#' @param cedapwd ceda password sting
+#' @param cedaprot - string of ceda protocol, set to https DO NOT CHANGE
 #' @param cedaserv - string of the ceda server url, uses dap DO NOT CHANGE
 #' @return downloads files to `dir_out`
 #' @details To obtain a username and password, first register at https://services.ceda.ac.uk/.
@@ -96,8 +106,8 @@ download_hadukdaily<-function(dir_out,
 #' @keywords download ukcp18
 #' @examples
 #' # dir_ukcp <- tempdir()
-#' # cedausr<-"jrmosedale"
-#' # cedapwd <- "T${5Q9Z<9ef'"
+#' # cedausr<-"your_user_name"
+#' # cedapwd <- "your_password"
 #' # download_ukcp18(dir_out,as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01'),c('tasmax','tasmin'),download_dtm=TRUE, cedausr,cedapwd)
 download_ukcp18<-function(
     dir_out,
@@ -232,6 +242,8 @@ download_globalbedo<-function(dir_out,
 #' @param startdate - start date as POSIXlt
 #' @param enddate  - end date as POSIXlt
 #' @param modelruns - vector of two character strings of model numbers
+#' @param cedausr ceda username string
+#' @param cedapwd ceda password sting
 #' @param cedaprot - string of ceda protocol, set to https DO NOT CHANGE
 #' @param cedaserv - string of the ceda server url, uses dap DO NOT CHANGE
 #'
@@ -250,6 +262,8 @@ download_ukcpsst<-function(
     enddate,
     modelruns=c('01','02','03','04','05','06','07','08','09','10','11','12','13','14','15',
                 '16','17','18','19','20','21','22','23','24','25','26','27','28'),
+    cedausr,
+    cedapwd,
     cedaprot="https://",
     cedaserv="dap.ceda.ac.uk"
 ){
@@ -275,7 +289,7 @@ download_ukcpsst<-function(
     dload_urls<-file.path(url,fnames)
     destfiles<-file.path(dir_out,fnames)
     # Handles Multifile Download from server
-    success_df<-curl::multi_download(urls=dload_urls, destfiles=destfiles )
+    success_df<-curl::multi_download(urls=dload_urls, destfiles=destfiles, userpwd = paste0(cedausr,":",cedapwd) )
     if(any(success_df$success==FALSE)) print(paste('UNSUCCESSFUL file downloads:',fnames[which(!success_df$success)])) else print('All downloads successful')
     if(nrow(fullreport_df)==0) fullreport_df<-success_df else fullreport_df<-rbind(fullreport_df,success_df)
   }
@@ -645,6 +659,7 @@ create_ukcpsst_data<-function(
 #'    \item{prec}{Precipitation (mm)}
 #'  }
 #' @import terra
+#' @import units
 #' @export
 #' @details The function converts 360 day UKCP18 to actual calendar data by reassignment and linear interpolation of missing data.
 #' Returned climate data will be at the extent, corrdinate reference system of the UKCP18 data requested, which can vary between domains and collections.
