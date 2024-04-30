@@ -51,7 +51,7 @@ plot_timestats_r<-function(r,v,idx=c('years', 'months', 'week',  'doy', 'yearmon
 #' r<-.rast(climdata$tmax,climdata$dtm)
 #' terra::time(r)<-climdata$tme
 #' plot_q_layers(r)
-plot_q_layers<-function(r,p=c(0, 0.5, 1),vtext,fun='mean', common_scale=FALSE){
+plot_q_layers<-function(r,p=c(0, 0.5, 1),vtext='',fun='mean', common_scale=FALSE){
   par(mfrow=c(1,3), mai=c(1,0.1,0.1,0.1))
   # Find corresponding layers
   lyrstat<-global(r,fun,na.rm=TRUE)

@@ -248,7 +248,6 @@ create_parcel_list<-function(climdata,parcels,id='gid',
   if(any(!input_names %in% names(climdata))) stop('Input name NOT found in climate dataset provided')
   if(length(input_names)!=length(output_names)) stop('Different number of input and output names!!!')
   if(length(roundings)!=length(output_names)) stop('Different number of rounding values and output names!!!')
-  parcel_names<-parcels[,id]
   dtmf<-climdata$dtm
 
   # Create empty df for a parcel
@@ -258,7 +257,8 @@ create_parcel_list<-function(climdata,parcels,id='gid',
   parcel_df$date=as.Date(as.character(climdata$tme))
 
   # Create a list of parcel_dfs
-  parcel_list<- lapply(1:length(parcel_names), function(x) parcel_df)
+  parcel_list<- lapply(1:length(parcels), function(x) parcel_df)
+  names(parcel_list)<-values(parcels_v)[,id]
 
   # Extract weighted means for each parcel by climate variable
   for (n in 1:length(input_names)){
@@ -268,7 +268,7 @@ create_parcel_list<-function(climdata,parcels,id='gid',
     print(vin)
     r<-climdata[[vin]]
     vals<-t(terra::extract(r,parcels,fun=mean,weights=TRUE,raw=TRUE,na.rm=TRUE, ID=FALSE)) # matrix of timestep x parcel
-    for(n in 1:length(parcel_names)) parcel_list[[n]][[vout]]<-round(vals[,n],rnd)
+    for(n in 1:length(parcels)) parcel_list[[n]][[vout]]<-round(vals[,n],rnd)
   }
   return(parcel_list)
 }
@@ -286,11 +286,12 @@ create_parcel_list<-function(climdata,parcels,id='gid',
 #' @export
 #'
 write_parcels<-function(parcel_list, dir_out, overwrite=c('none','append','replace')){
-  match(overwrite,c('none','append','replace'))
+  overwrite<-match.arg(overwrite)
+  parcel_names<-names(parcel_list)
   # If overwrite= none then check if any output files already exist and stop if true
   if(overwrite=='none'){
     fnames<-file.path( dir_out, paste0("parcel_",parcel_names[n],"_mesoclim.csv") )
-    if(any(file.exists(fnames))) stop('Output file exists already!!! Use overwrite=TRUE to replace.')
+    if(any(file.exists(fnames))) stop('Output file exists already!!! Use overwrite=replace to replace.')
   }
   # Write files
   for(n in 1:length(parcel_list)){
