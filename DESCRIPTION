@@ -30,13 +30,12 @@ Imports:
     terra,
     units,
     zoo
-Suggests:
-    fmsb
 RoxygenNote: 7.3.1
 Roxygen: list(markdown = TRUE) 
 Suggests: knitr,
     rmarkdown,
-	testthat
+    fmsb,
+	  testthat
 VignetteBuilder: knitr
 URL: https://github.com/ilyamaclean/mesoclim
 BugReports: http://github.com/mesoclim/issues
