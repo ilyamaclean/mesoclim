@@ -6,27 +6,28 @@
 \usage{
 spatialdownscale(
   climdata,
-  SST,
+  sst,
   dtmf,
   dtmm = NA,
   basins = NA,
   cad = TRUE,
   coastal = TRUE,
-  refhgt = 2,
-  uhgt = 2,
+  thgto = 2,
+  whgto = 2,
   rhmin = 20,
   pksealevel = TRUE,
   patchsim = TRUE,
   terrainshade = TRUE,
   precipmethod = "Elev",
   fast = TRUE,
-  noraincut = 0
+  noraincut = 0,
+  toArrays = FALSE
 )
 }
 \arguments{
 \item{climdata}{a \code{climdata} model object containing climate data of the same format as \code{era5climdata}}
 
-\item{SST}{a coarse resolution SpatRast of sea-surface temperature data (deg C) without NAs where time(SST) == climdata$tme}
+\item{sst}{a SpatRast of sea-surface temperature data (deg C) that overlaps with climdata$tme}
 
 \item{dtmf}{a high-resolution SpatRast of elevations}
 
@@ -41,10 +42,9 @@ not supplied.}
 
 \item{coastal}{optional logical indicating whether to calculate coastal effects}
 
-\item{refhgt}{height above ground of temperature measurements in \code{climdata}.}
+\item{thgto}{height above ground of temperature output.}
 
-\item{uhgt}{height above gorund of wind speed measurements in \code{climdata}
-to resolution of \code{dtmf}.}
+\item{whgto}{height above ground of wind speed output.}
 
 \item{rhmin}{minimum relative humidity (set to avoid relative humidity dropping too low
 during down-scaling). Default 20 (percent).}
@@ -65,6 +65,8 @@ down-scaling (see details under \code{\link[=precipdownscale]{precipdownscale()}
 \item{noraincut}{numeric value below which low precipitation amounts are set to
 zero (see details under \code{\link[=precipdownscale]{precipdownscale()}}).}
 
+\item{toArrays}{if TRUE climate variables are output as 3D arrays if FALSE as Spatarasters}
+
 \item{pathsim}{optional logical indicating whether to simulate cloud cover and
 rainfall patchiness see details under \code{\link[=swdownscale]{swdownscale()}} and \code{\link[=precipdownscale]{precipdownscale()}}.}
 
@@ -72,8 +74,12 @@ rainfall patchiness see details under \code{\link[=swdownscale]{swdownscale()}} 
 default TRUE).}
 }
 \value{
-a list of multi-layer SpatRast of downscaled climate variables as follows:
+a list of multi-layer SpatRast or 3D arrays of downscaled climate variables and metadata as follows:
 \describe{
+\item{dtm}{Digital elevation of downscaled area in metres (as Spatraster)}
+\item{tme}{POSIXlt object of times corresponding to climate observations}
+\item{windheight_m}{Height of windspeed data in metres above ground (as numeric)}
+\item{tempheight_m}{Height of temperature data in metres above ground (as numeric)}
 \item{temp}{Temperature (deg C)}
 \item{relhum}{Relative humidity (Percentage)}
 \item{pres}{Sea-level atmospheric pressure (kPa)}
@@ -84,9 +90,17 @@ a list of multi-layer SpatRast of downscaled climate variables as follows:
 \item{winddir}{Wind direction (decimal degrees)}
 \item{prec}{Precipitation (mm)}
 }
-If input data are hourly \code{temp} is replaced with \code{tmax} and \code{tmin} representing
-daily maximum and minimum values. The variable \code{difrad} is not returned unless
-\code{terrainshade = TRUE}.
+If input data are hourly, \code{temp} is replaced with \code{tmax} and \code{tmin} representing
+daily maximum and minimum values.
+The variable \code{difrad} is not returned unless \code{terrainshade = TRUE}.
+@examples
+dir_data<-system.file('extdata/ukcp18sst',package='mesoclim')
+sst<-create_ukcpsst_data(dir_data,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),members='01')
+dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+dtmm<-rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
+climdata<-read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+dailymesodat<-spatialdownscale(climdata, sst, dtmf, dtmm, noraincut=0.01)
+plot_q_layers(dailymesodat$tmin)
 }
 \description{
 Spatially downscales coarse-resolution climate data

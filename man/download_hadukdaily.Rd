@@ -2,32 +2,57 @@
 % Please edit documentation in R/ukcp_functions.R
 \name{download_hadukdaily}
 \alias{download_hadukdaily}
-\title{Downloads 1km historic climata data for the UK}
+\title{Downloads 1km gridded historic climata data for the UK}
 \usage{
-download_hadukdaily(dir_out, cedausr, cedapwd, year, month, varn)
+download_hadukdaily(
+  dir_out,
+  startdate,
+  enddate,
+  varn = v("rainfall", "tasmax", "tasmin", "hurs", "psl", "pv", "sun", "sfsWind"),
+  freq = c("day", "mon"),
+  cedaprot = "https://",
+  cedaserv = "dap.ceda.ac.uk"
+)
 }
 \arguments{
 \item{dir_out}{directory to which to save data}
 
+\item{startdate}{\itemize{
+\item POSIXlt value indicating start date for data required
+}}
+
+\item{enddate}{\itemize{
+\item POSIXlt value indicating end date for data required
+}}
+
+\item{varn}{vector of variables required, one or more of: 'rainfall','tasmax','tasmin','hurs','psl','pv','sun','sfsWind'.
+NOTE: Only \code{rainfall} (precipitation in mm), \code{tasmax}(maximum daily temperature, deg C) and
+\code{tasmin} (minimum daily temperature, deg C) are available at daily time steps (all other monthly only).}
+
+\item{freq}{\itemize{
+\item string of frequency required - either 'day' or 'mon' (monthly)
+}}
+
+\item{cedaprot}{\itemize{
+\item ceda protocol used is https  - DO NOT CHANGE
+}}
+
+\item{cedaserv}{\itemize{
+\item ceda service is dap - DO NOT CHANGE
+}}
+
 \item{cedausr}{string of ceda username}
 
 \item{cedapwd}{string of ceda username}
-
-\item{year}{numeric value indicating the year for which data are required}
-
-\item{month}{numeric value (1-12) indicating the month for which data are required}
-
-\item{varn.}{Variable required. One of \code{rainfall} (precipitation in mm), \code{tasmax}
-(maximum daily temperature, deg C) or \code{tasmin} (minimum daily temperature, deg C).}
+}
+\value{
+database detailing download details and success of all requested files
 }
 \description{
 The function \code{download_hadukdaily} downloads HadUK-Grid Gridded
 Climate Observation data on a 1km grid over the UK from CEDA.
 }
 \details{
-To obtain a username and password, first register at https://services.ceda.ac.uk/.
-Your username will be the same as that given for your main CEDA account.
-Your FTP password is separate from the password for your CEDA web account. If
-you do not already have a password, or if you want to reset your FTP password
-go to MyCEDA and click on the 'Configure FTP account' button.
+Uses ceda dap https service that does not require username or password.
 }
+\keyword{download}

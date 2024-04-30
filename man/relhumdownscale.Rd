@@ -9,7 +9,7 @@ relhumdownscale(rh, tcc, tcf, dtmc, rhmin = 0)
 \arguments{
 \item{rh}{a coarse-resolution array of relative humidities (percentage)}
 
-\item{tcc}{a coarse-resolution array of wind temperatures (deg C)}
+\item{tcc}{a coarse-resolution array of temperatures (deg C)}
 
 \item{tcf}{a fine-resolution SpatRast of temperatures (deg C) as returned by
 \code{\link[=tempdownscale]{tempdownscale()}}}
@@ -26,6 +26,13 @@ resolution, coordinate reference system and extent of \code{tcf}.
 }
 \description{
 The function \code{relhumdownscale} is used to spatially downscale relative
+}
+\examples{
+climdata<- read_climdata(system.file('data/era5input.rds',package='mesoclim'))
+dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+tcf<-tempdownscale(climdata,sst=NA,dtmf=dtmf,cad=FALSE,coastal=FALSE)
+rhf<-relhumdownscale(climdata$relhum,climdata$temp,tcf,climdata$dtm)
+plot_q_layers(rhf)
 }
 \seealso{
 \code{\link[=tempdownscale]{tempdownscale()}}

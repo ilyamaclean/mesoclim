@@ -2,16 +2,24 @@
 % Please edit documentation in R/climatefunctions.R
 \name{lapserate}
 \alias{lapserate}
-\title{Calculate Lapse rates
-ea = temperature (deg C)
-ea = vapour pressure (kPa)
-pk = atmospheric pressure (kPa)}
+\title{Calculate Lapse rates}
 \usage{
 lapserate(tc, ea, pk)
 }
+\arguments{
+\item{ea}{= vapour pressure (kPa)}
+
+\item{pk}{= atmospheric pressure (kPa)}
+}
+\value{
+laps rate
+}
 \description{
 Calculate Lapse rates
-ea = temperature (deg C)
-ea = vapour pressure (kPa)
-pk = atmospheric pressure (kPa)
+}
+\examples{
+climdata<-read_climdata(system.file('data/era5input.rds',package='mesoclim'))
+ea<-converthumidity(climdata$relhum,tc=climdata$temp , pk=climdata$pres)
+lr<-lapserate(climdata$temp,ea,climdata$pres)
+plot(.rast(lr,climdata$dtm)[[1]])
 }

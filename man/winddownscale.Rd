@@ -4,7 +4,7 @@
 \alias{winddownscale}
 \title{Downscale wind speed accounting for elevation and terrain sheltering effects}
 \usage{
-winddownscale(wspeed, wdir, dtmf, dtmm, dtmc, uz = 2)
+winddownscale(wspeed, wdir, dtmf, dtmm, dtmc, zi = 10, zo = 2)
 }
 \arguments{
 \item{wspeed}{a coarse-resolution array of wind speeds (m/s)}
@@ -19,7 +19,9 @@ than dtmf (see details)}
 \item{dtmc}{a coarse-resolution SpatRast of elevations matching
 the resolution, extent and coordinate reference system of \code{wspeed}.}
 
-\item{uz}{height above ground (m) of wind speed measurement in \code{wspeed}.}
+\item{zi}{height above ground (m) of \code{wspeed}.}
+
+\item{zo}{height above ground (m) of output windspeeds (corrected to 0.2 if <0.2?)}
 }
 \value{
 a stacked SpatRast of wind speeds matching the resolution,
@@ -44,11 +46,11 @@ To enhance computational efficiency, Wind direction is assumed constant over the
 \code{dtmf}.
 }
 \examples{
-wspeed <- era5data$climarray$windspeed
-wdir <- era5data$climarray$winddir
-# Takes a few seconds to run
-wsfine <- winddownscale(wspeed, wdir, rast(dtmf), rast(dtmm), rast(era5data$dtmc))
-plot(wsfine[[1]])
+climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+dtmm<-rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
+wsf <- winddownscale(ukcpinput$windspeed, ukcpinput$winddir, dtmf, dtmm, ukcpinput$dtm, zi=ukcpinput$windheight_m)
+plot_q_layers(wsf)
 }
 \seealso{
 \code{\link[=windelev]{windelev()}}

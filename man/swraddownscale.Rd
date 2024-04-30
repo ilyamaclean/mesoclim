@@ -58,13 +58,7 @@ clouds within each hour retain a degree of inter-dependence more realistically
 simulating the trajectory of cloud as they move across the landscape.
 }
 \examples{
-# Extract model inputs form inbuilt datasets
-swrad <- mesoclim::era5data$climarray$swrad
-tme <- as.POSIXlt(era5data$tme, tz = "UTC")
-dtmc <- rast(mesoclim::era5data$dtmc)
-dtmf <- rast(mesoclim::dtmf)
-# Run with default options
-swradf<-swdownscale(swrad, tme, dtmf, dtmc)
-# plot output
-plot(swradf[[13]], main = as.character(tme)[13])
+climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+swradf<-swdownscale(climdata$swrad, climdata$tme,  rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')), ukcpinput$dtm)
+plot_q_layers(swradf)
 }

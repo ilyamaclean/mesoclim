@@ -7,13 +7,11 @@
 \format{
 A Dataframe object with 28 rows, 6 columns
 }
-\source{
-\url{}
-}
 \usage{
 ukcp18lookup
 }
 \description{
 Matches member number with model name and in which collections / domains it is avaiolble
+See: https://www.metoffice.gov.uk/binaries/content/assets/metofficegovuk/pdf/research/ukcp/ukcp18-guidance-data-availability-access-and-formats.pdf
 }
 \keyword{datasets}

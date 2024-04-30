@@ -45,9 +45,9 @@ directly from here: http://www.itia.ntua.gr/en/softinfo/3/.
 }
 \examples{
 # =========================================== #
-# ~~~ Generate hourly data for March 2015 ~~~ #
+# ~~~ Generate hourly data for May 2018 ~~~ #
 # =========================================== #
-# ~~~~ Get paramaters for March
+# ~~~~ Get paramaters
 tme <- as.POSIXlt(dailyrain$obs_time)
 marchrain <- dailyrain$precipitation[which(tme$mon + 1 == 3)]
 BLpar <- findBLpar(marchrain) # Takes ~ 30 seconds

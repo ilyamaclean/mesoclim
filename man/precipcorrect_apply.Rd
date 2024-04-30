@@ -32,3 +32,4 @@ overlap with that of \code{hist_obs} when running \code{precipcorrect} as correc
 \code{\link[=precipcorrect]{precipcorrect()}} for deriving \code{biasmods} and \code{biascorrect_apply} for
 applying corrections to other climate variables
 }
+\keyword{biascorrect}

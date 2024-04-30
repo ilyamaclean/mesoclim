@@ -2,16 +2,10 @@
 % Please edit documentation in R/ukcp_functions.R
 \name{download_ukcp18}
 \alias{download_ukcp18}
-\title{Download UKCP18 climate data
-ILya comment: function needs fixing to handle cases where length(member) or
-length (collection) > 1 (or make clear you only want one at a time).
-Note that with collection='land-rcm', it can download 12 model runs numbered, 1 & 4-15.
-I.e. 2 & 3 don't exist}
+\title{Download UKCP18 climate data}
 \usage{
 download_ukcp18(
   dir_out,
-  cedausr,
-  cedapwd,
   startdate,
   enddate,
   collection = c("land-gcm", "land-rcm"),
@@ -20,18 +14,17 @@ download_ukcp18(
   member = c("01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12",
     "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26",
     "27", "28"),
-  vars = c("clt", "hurs", "huss", "pr", "prsn", "psl", "rls", "rss", "snw", "tasmax",
-    "tasmin", "uas", "vas"),
+  vars = c("clt", "hurs", "huss", "pr", "prsn", "psl", "rls", "rss", "tasmax", "tasmin",
+    "uas", "vas"),
+  download_dtm = FALSE,
+  cedausr,
+  cedapwd,
   cedaprot = "ftp://",
   cedaserv = "ftp.ceda.ac.uk"
 )
 }
 \arguments{
 \item{dir_out}{Output directory to which files are downloaded}
-
-\item{cedausr}{string of ceda user name}
-
-\item{cedapwd}{string of ceda user pasword}
 
 \item{startdate}{POSIXlt class defining start date of required timeseries}
 
@@ -47,9 +40,17 @@ download_ukcp18(
 
 \item{vars}{vector of strings corresponding to UKCP18 short variable names to download}
 
-\item{cedaprot}{string of ceda protocol set to ftp DO NOT CHANGE}
+\item{download_dtm}{\itemize{
+\item if TRUE and orography (elevation) available will also download to dir_out
+}}
 
-\item{cedaserv}{string of the ceda server url DO NOT CHANGE}
+\item{cedaprot}{\itemize{
+\item string of ceda protocol, set to https DO NOT CHANGE
+}}
+
+\item{cedaserv}{\itemize{
+\item string of the ceda server url, uses dap DO NOT CHANGE
+}}
 }
 \value{
 downloads files to \code{dir_out}
@@ -65,6 +66,8 @@ you do not already have a password, or if you want to reset your FTP password
 go to MyCEDA and click on the 'Configure FTP account' button.
 }
 \examples{
-dir_out <- tempdir()
-download_ukcp18(dir_out,'ceda_username','ceda_password',as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01'),c('tasmax','tasmin'))
+# dir_out <- tempdir()
+# download_ukcp18(dir_out,as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01'),c('tasmax','tasmin'),download_dtm=TRUE)
 }
+\keyword{download}
+\keyword{ukcp18}

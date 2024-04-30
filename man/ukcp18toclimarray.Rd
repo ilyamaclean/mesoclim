@@ -2,7 +2,7 @@
 % Please edit documentation in R/ukcp_functions.R
 \name{ukcp18toclimarray}
 \alias{ukcp18toclimarray}
-\title{convert UKCP18  ncdf4 files to format required for model}
+\title{convert UKCP18 ncdf4 files to format required for model}
 \usage{
 ukcp18toclimarray(
   dir_ukcp,
@@ -16,12 +16,12 @@ ukcp18toclimarray(
     "27", "28"),
   wsalbedo = 0.19,
   bsalbedo = 0.22,
-  ukcp_vars = c("clt", "hurs", "huss", "pr", "psl", "rls", "rss", "tasmax", "tasmin",
-    "uas", "vas"),
-  ukcp_units = c("\%", "\%", "1", "mm/day", "hPa", "watt/m^2", "watt/m^2", "degC",
-    "degC", "m/s", "m/s"),
-  output_units = c("\%", "\%", "1", "mm/day", "kPa", "watt/m^2", "watt/m^2", "degC",
-    "degC", "m/s", "m/s"),
+  ukcp_vars = c("clt", "hurs", "pr", "psl", "rls", "rss", "tasmax", "tasmin", "uas",
+    "vas"),
+  ukcp_units = c("\%", "\%", "mm/day", "hPa", "watt/m^2", "watt/m^2", "degC", "degC",
+    "m/s", "m/s"),
+  output_units = c("\%", "\%", "mm/day", "kPa", "watt/m^2", "watt/m^2", "degC", "degC",
+    "m/s", "m/s"),
   toArrays = TRUE,
   sampleplot = FALSE
 )
@@ -54,10 +54,19 @@ ukcp18toclimarray(
 \value{
 a list of the following:
 \describe{
+\item{dtm}{Digital elevation of downscaled area in metres (as Spatraster)}
 \item{tme}{POSIXlt object of times corresponding to climate observations}
-\item{climarray}{ either a list of arrays or a list of SpatRasts of daily weather variables
-\item{dtmc}{a coarse resolution digital elevation dataset matching the resolution and crs of the input
-climate data, and an extent matching \code{dtm}}
+\item{windheight_m}{Height of windspeed data in metres above ground (as numeric)}
+\item{tempheight_m}{Height of temperature data in metres above ground (as numeric)}
+\item{temp}{Temperature (deg C)}
+\item{relhum}{Relative humidity (Percentage)}
+\item{pres}{Sea-level atmospheric pressure (kPa)}
+\item{swrad}{Total downward shortwave radiation (W/m^2)}
+\item{difrad}{Downward diffuse radiation (W / m^2)}
+\item{lwrad}{Total downward longwave radiation (W/m^2)}
+\item{windspeed at 2m (m/s)}
+\item{winddir}{Wind direction (decimal degrees)}
+\item{prec}{Precipitation (mm)}
 }
 }
 \description{
@@ -65,12 +74,16 @@ Converts UKCP18 global or regional land data in the form of netCDF4 file (as ret
 by \code{\link[=ukcp18_downscale]{ukcp18_downscale()}} to the correct data form required for subsequent modelling.
 }
 \details{
-The function converts 360 day UKCP18 to actual calendar data by reassignment and linear interpolation of missing data. Returned climate data will be at the resolution, corrdinate reference system of the UKCP18 data requested, which can vary between domains and collections.
+The function converts 360 day UKCP18 to actual calendar data by reassignment and linear interpolation of missing data.
+Returned climate data will be at the extent, corrdinate reference system of the UKCP18 data requested, which can vary between domains and collections.
 The extent will be provided by the \code{dtm} which, if necessary, will be re-projected and resampled to the CRS and resolution of UKCP18 data requested.
 For regional UKCP18 data, it is recommended that 'dtm' is derived from the original orography data available for download.
 }
 \examples{
-dir_out <- tempdir()
-download_ukcp18(dir_out,'ceda_username','ceda_password',as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01','02','03'),c('clt','hurs','huss','pr','psl','rls','rss','tas','tasmax','tasmin','uas','vas'))
-climdata<-ukcp18toclimarray()
+dir_ukcp<-system.file('extdata/ukcp18rcm',package='mesoclim')
+dtm<-terra::rast(system.file('extdata/ukcp18rcm/orog_land-rcm_uk_12km_osgb.nc',package='mesoclim'))
+dtm<-crop(dtm,c(28077.86, 339436.5, -57947.13, 204298.7))
+ukcpinput<-ukcp18toclimarray(dir_ukcp,dtm,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),collection='land-rcm',domain='uk',member='01')
 }
+\keyword{preprocess}
+\keyword{ukcp18}

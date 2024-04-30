@@ -67,3 +67,9 @@ increments of say and hour, the location and magnitude of these local precipitat
 events within each hour retain a degree of inter-dependence more realistically
 simulating the trajectory of low pressure systems.
 }
+\examples{
+climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+prcf<-precipdownscale(ukcpinput$prec, dtmf, ukcpinput$dtm, method='Elev', noraincut=0.01)
+plot_q_layers(prcf)
+}

@@ -38,19 +38,20 @@ value derived using ERA5 data for western Europe, but performs reasonably well
 globally
 }
 \examples{
-tc<-mesoclim::era5data$climarray$temp
-tme <- as.POSIXlt(c(0:30) * 3600 * 24, origin = "2018-05-01", tz = "UTC")
+climdata<- read_climdata(system.file('data/era5input.rds',package='mesoclim'))
+tc<-climdata$temp
 # ========================================================================= #
 # ~~~~~~~~~~~~~~~~~~~~ input provided as vector =========================== #
 # ========================================================================= #
-# Derive tmx and tmn from hourly
+# Derive daily tmx and tmn from hourly era5 data
 tch <- apply(tc, 3, mean, na.rm = TRUE)
 tcm <- matrix(tch, ncol = 24, byrow = TRUE)
 tmn <- apply(tcm, 1, min)
 tmx <- apply(tcm, 1, max)
+tme <- as.POSIXlt(c(0:30) * 3600 * 24, origin = "2018-05-01", tz = "UTC")
 # Use interpolation function
 tcp <- hourlytemp(tmn, tmx, tme, 50, -5)
-tmeh <- as.POSIXct(mesoclim::era5data$tme)
+tmeh <- as.POSIXct(climdata$tme)
 # Plot results to compare
 plot(tch ~ tmeh, type="l", ylim = c(8, 18), xlab = "Date", ylab = "Temperature")
 par(new = TRUE)
@@ -58,22 +59,15 @@ plot(tcp ~ tmeh, type="l", ylim = c(8, 18), col = "red", xlab = "", ylab = "")
 # ========================================================================= #
 # ~~~~~~~~~~~~~~~~~~~~ input provided as SpatRaster ======================= #
 # ========================================================================= #
-dtmc <- rast(mesoclim::era5data$dtmc)
-# Derive tmx and tmn from hourly
-tmn <- rast(hourtodayCpp(tc, "min"))
-tmx <- rast(hourtodayCpp(tc, "max"))
-Convert to SpatRaster
-ext(tmn) <- ext(dtmc)
-ext(tmx) <- ext(dtmc)
-crs(tmn) <- crs(dtmc)
-crs(tmx) <- crs(dtmc)
+dtmc <- climdata$dtm
+# Derive tmx and tmn from hourly and convert to spatraster
+tmn <- .rast(.hourtodayCpp(tc, "min"),dtmc)
+tmx <- .rast(.hourtodayCpp(tc, "max"),dtmc)
 # Use interpolation function
 tp <- hourlytemp(tmn, tmx, tme)
 # Plot results to compare
-tc <- rast(tc)
-ext(tc) <- ext(tp)
-crs(tc) <- crs(tc)
+tc <- .rast(tc,dtmc)
 par(mfrow=c(2,1))
-plot(tc[[i]])
-plot(tp[[i]])
+plot(tc[[4]]-tp[[4]],main='Difference (tc-tp) for coldest tc hour')
+plot(tc[[665]]-tp[[665]],main='Difference (tc-tp) for hottest tc hour')
 }

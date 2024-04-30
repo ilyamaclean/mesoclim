@@ -9,8 +9,7 @@ download_globalbedo(
   tiles = c("h17v03", "h17v04", "h18v03"),
   months = c("01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"),
   years = seq(1998, 2011),
-  url = "http://gws-access.jasmin.ac.uk",
-  path = "/public/qa4ecv/albedo/netcdf_cf/1km/monthly"
+  url = "http://gws-access.jasmin.ac.uk"
 )
 }
 \arguments{
@@ -22,6 +21,9 @@ download_globalbedo(
 
 \item{month}{string vector  indicating the month for which data are required}
 }
+\value{
+database detailing download details and success of all requested files
+}
 \description{
 The function \code{download_globalbedo} downloads monthly GlobAlbedo tiled
 albedo data from Jasmin available for the years 1998-2011. Whole of the UK covered by default tiles. For further information see:
@@ -30,3 +32,4 @@ albedo data from Jasmin available for the years 1998-2011. Whole of the UK cover
 \details{
 No username or password currently required.
 }
+\keyword{download}

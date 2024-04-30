@@ -23,7 +23,6 @@ is provided, accumulated flow to any cell within a basin can only occur from
 other cells within that basin.
 }
 \examples{
-library(terra)
-fa <- flowacc(rast(dtmf))
+fa <- flowacc(rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')))
 plot(fa, main = 'Accumulated flow')
 }

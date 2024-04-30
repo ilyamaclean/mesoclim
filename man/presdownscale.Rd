@@ -27,6 +27,7 @@ resolution of dtmf.
 Downscales an array of pressure data applying elevation effects
 }
 \examples{
-pk <- presdownscale(era5data$climarray$pres, rast(dtmf), rast(era5data$dtmc))
+climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+pk <- presdownscale(climdata$pres, rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')), climdata$dtm)
 plot(pk[[1]])
 }

@@ -6,22 +6,22 @@
 \usage{
 tempdownscale(
   climdata,
-  SST,
+  sst,
   dtmf,
   dtmm = NA,
   basins = NA,
   u2 = NA,
   cad = TRUE,
   coastal = TRUE,
-  refhgt = 2,
-  uhgt = 2
+  tempvar = "temp",
+  thgto = 2,
+  whgto = 2
 )
 }
 \arguments{
 \item{climdata}{a \code{climdata} model object containing climate data of the same format as \code{era5climdata}}
 
-\item{SST}{a coarse resolution SpatRast of hourly sea-surface temperature data (deg C) with no NAs, as
-returned by \code{\link[=SSTinterpolate]{SSTinterpolate()}}}
+\item{sst}{a SpatRast of sea-surface temperature data (deg C) timeseries that overlaps climdata$tme}
 
 \item{dtmf}{a high-resolution SpatRast of elevations}
 
@@ -39,9 +39,11 @@ Calculated if not supplied.}
 
 \item{coastal}{optional logical indicating whether to calculate coastal effects}
 
-\item{refhgt}{height above ground of temperature measurements in \code{climdata}.}
+\item{tempvar}{string name of element of climdata holding temperature data (ie 'temp','tmax','tmin')}
 
-\item{uhgt}{height above gorund of wind speed measurements in \code{climdata}
+\item{thgto}{height above ground of output temperature measurements.}
+
+\item{whgto}{height above ground of output wind speed measurements.
 to resolution of \code{dtmf}.}
 }
 \value{
@@ -63,6 +65,11 @@ sea outside the boundaries of the study area.
 }
 \examples{
 # Takes ~90 seconds to run
-tmf <- tempdownscale(era5data, rast(era5sst), rast(dtmf), rast(dtmm))
-plot(tmf[[5]]) # Coldest temperature
+ dir_data<-system.file('extdata/ukcp18sst',package='mesoclim')
+ sst<-create_ukcpsst_data(dir_data,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),members='01')
+ dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+ dtmm<-rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
+ climdata<-read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+ tmf <- tempdownscale(climdata, sst, dtmf, dtmm, NA, NA,TRUE, TRUE,'tmax',2, 2)
+ plot_q_layers(tmf)
 }
