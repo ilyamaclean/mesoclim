@@ -544,19 +544,16 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
 #'    \item{tme}{POSIXlt object of times corresponding to climate observations}
 #'    \item{windheight_m}{Height of windspeed data in metres above ground (as numeric)}
 #'    \item{tempheight_m}{Height of temperature data in metres above ground (as numeric)}
-#'    \item{temp}{Temperature (deg C)}
+#'    \item{temp}{Temperature (deg C) - is replaced with `tmax` and `tmin` if input data is daily.}
 #'    \item{relhum}{Relative humidity (Percentage)}
 #'    \item{pres}{Sea-level atmospheric pressure (kPa)}
 #'    \item{swrad}{Total downward shortwave radiation (W/m^2)}
-#'    \item{difrad}{Downward diffuse radiation (W / m^2)}
+#'    \item{difrad}{Downward diffuse radiation (W / m^2) - not returned unless `terrainshade = TRUE`}
 #'    \item{lwrad}{Total downward longwave radiation (W/m^2)}
 #'    \item{windspeed at 2m (m/s)}
 #'    \item{winddir}{Wind direction (decimal degrees)}
 #'    \item{prec}{Precipitation (mm)}
 #'  }
-#'  If input data are hourly, `temp` is replaced with `tmax` and `tmin` representing
-#'  daily maximum and minimum values.
-#'  The variable `difrad` is not returned unless `terrainshade = TRUE`.
 #'  @examples
 #'  dir_data<-system.file('extdata/ukcp18sst',package='mesoclim')
 #'  sst<-create_ukcpsst_data(dir_data,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),members='01')

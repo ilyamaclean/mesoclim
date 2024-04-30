@@ -28,7 +28,7 @@
 #' (xmin, xmax, ymin, ymax) with the WGS84 lat long coordinate reference system (EPSG:4326)
 #'
 #' @format A PackedSpatRaster object with 8 rows, 8 columns and 744 layers
-#' @source \urlhttps://cds.climate.copernicus.eu//}
+#' @source \url{https://cds.climate.copernicus.eu//}
 "era5sst"
 #' A 100m grid resolution landsea mask
 #'

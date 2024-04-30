@@ -638,7 +638,7 @@ create_ukcpsst_data<-function(
 #'    \item{swrad}{Total downward shortwave radiation (W/m^2)}
 #'    \item{difrad}{Downward diffuse radiation (W / m^2)}
 #'    \item{lwrad}{Total downward longwave radiation (W/m^2)}
-#'    \item{windspeed at 2m (m/s)}
+#'    \item{windspeed}{At `windheight_m` above ground` (m/s)}
 #'    \item{winddir}{Wind direction (decimal degrees)}
 #'    \item{prec}{Precipitation (mm)}
 #'  }

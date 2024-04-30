@@ -20,11 +20,12 @@
 #'    \item{swrad}{Total downward shortwave radiation (W/m^2)}
 #'    \item{difrad}{Downward diffuse radiation (W / m^2)}
 #'    \item{lwrad}{Total downward longwave radiation (W/m^2)}
-#'    \item{windspeed at 2m (m/s)}
+#'    \item{windspeed} {at 2m above ground (m/s)}
 #'    \item{winddir}{Wind direction (decimal degrees)}
 #'    \item{prec}{Precipitation (mm)}
 #'  }
 #' @export
+#' @keywords preprocess era5
 #' @details the model requires that input climate data are projected using a coordinate reference
 #' system in which x and y are in metres. Since values returned by [mcera5::request_era5()]
 #' are in lat long, the output data are reprojected using the coordinate reference system and
