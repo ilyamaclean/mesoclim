@@ -7,7 +7,9 @@
 coastalexposure(landsea, e, wdir)
 }
 \arguments{
-\item{landsea}{A SpatRast with NAs (representing sea) or any non-NA value (representing land). The object should have a larger extent than that for which land-sea ratio values are needed, as the calculation requires land / sea coverage to be assessed upwind outside the target area.}
+\item{landsea}{A SpatRast with NAs (representing sea) or any non-NA value (representing land).
+The object should have a larger extent than that for which land-sea ratio values are needed,
+as the calculation requires land / sea coverage to be assessed upwind outside the target area.}
 
 \item{e}{a terra::ext object indicating the region for which land-sea ratios are required.}
 
@@ -28,11 +30,14 @@ SpatRast, weighted using an inverse distance squared function,
 such that nearby pixels have a greater influence on the coefficient.
 }
 \examples{
-library(terra)
-e<-ext(rast(dtmf))
-ce1 <- coastalexposure(rast(landsea), e, 180)
-ce2 <- coastalexposure(rast(landsea), e, 270)
+climdata<-read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+dtmm<-rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
+# landsea == e BUT shouldn't if be >>e ??
+landsea<- mask(.resample(dtmm,dtmf),dtmf)
+ce1 <- coastalexposure(landsea, ext(dtmf), 45)
+ce2 <- coastalexposure(landsea, ext(dtmf), 270)
 par(mfrow=c(2,1))
-plot(ce1, main = "Land to sea weighting, southerly wind")
+plot(ce1, main = "Land to sea weighting, northeast wind")
 plot(ce2, main = "Land to sea weighting, westerly wind")
 }

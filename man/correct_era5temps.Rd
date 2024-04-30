@@ -26,3 +26,4 @@ fluctuations in coastal grid cells.
 \code{era5correctmodels} was derived by applying \code{\link[=biascorrect]{biascorrect()}} to a 2018
 dataset of era5 temperature data, calibrating against Met office data
 }
+\keyword{biascorrect}

@@ -29,3 +29,4 @@ The spatial extent of \code{fut_mod} must at least partially overlap with that o
 \code{\link[=biascorrect]{biascorrect()}} for deriving \code{biasmods} and \code{precip_correct} for
 applying corrections to precipitation datasets.
 }
+\keyword{biascorrect}

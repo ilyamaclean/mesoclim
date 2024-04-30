@@ -40,7 +40,7 @@ hourly data are unavailable, an average variability is determined from radiation
 }
 \examples{
 rad <- c(1:1352) # typical values of radiation in W/m^2
-jd <- julday(2022, 6, 21) # julian day
+jd <- .jday(as.POSIXlt("2022-06-21")) # julian day
 dfr <- difprop(rad, jd, 12, 50, -5)
 plot(dfr ~ rad, type = "l", lwd = 2,
 xlab = expression(paste("Incoming shortwave radiation (", W*M^-2, ")")),

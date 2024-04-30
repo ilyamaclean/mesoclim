@@ -34,3 +34,12 @@ and then back-transformed. Use this method if input and output data must always 
 bounded by 0 and 1. In both instances, the spacial case where input data are 0 or 1 is handled.
 If \code{method = "normal"} no transformation is applied.
 }
+\examples{
+climdata<-read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+rain<-.rast(climdata$prec,climdata$dtm)[[1]]
+rainf<-Tpsdownscale(rain, climdata$dtm, dtmf, method = "normal", fast = TRUE)
+par(mfrow=c(2,1))
+plot(rain,main='Input rain')
+plot(rainf,main='Downscaled rain')
+}

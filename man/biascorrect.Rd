@@ -40,3 +40,4 @@ climate dataset
 \code{\link[=precipcorrect]{precipcorrect()}} for applying corrections to precipitation data and
 \code{\link[=biascorrect_apply]{biascorrect_apply()}} for applying corrections to multiple datasets.
 }
+\keyword{biascorrect}

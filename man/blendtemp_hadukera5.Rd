@@ -15,6 +15,6 @@ blendtemp_hadukera5(tasmin, tasmax, era5t2m)
 }
 \description{
 The function \code{blendtemp_hadukera5} ERA5 data to 1 km grid resoltuion,
-calculates the diurnal cycle in each grid cell, and then adjust this by the
+calculates the diurnal cycle in each grid cell, and then adjusts this by the
 maximum and minimum daily temperatures in the one km met office data.
 }
