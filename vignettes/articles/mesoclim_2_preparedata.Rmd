@@ -7,11 +7,13 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
 )
+# To run in developer mode: devtools::build_rmd('vignettes/articles/mesoclim_addtrees.Rmd')
 ```
 
-```{r setup, include=FALSE}
-# library(mesoclim)
-devtools::load_all(quiet=TRUE)
+```{r setup}
+library(lubridate)
+library(terra)
+library(mesoclim)
 ```
 
 # 2 Preprocessing coarse resolution climate data

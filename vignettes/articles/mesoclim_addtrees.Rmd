@@ -1,5 +1,5 @@
 ---
-title: "ADDTREES Workflow"
+title: "ADDTREES Workflow without bias correction"
 ---
 
 ```{r, include = FALSE}
@@ -7,13 +7,15 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
 )
+# To run in developer mode: devtools::build_rmd('vignettes/articles/mesoclim_addtrees.Rmd')
 ```
 
 ```{r setup}
-#library(mesoclim)
-devtools::load_all(quiet=TRUE)
 library(lubridate)
 library(terra)
+library(mesoclim)
+#devtools::load_all(quiet=TRUE)
+
 tbegin<-now()
 ```
 
@@ -21,17 +23,15 @@ tbegin<-now()
 # Setup & Inputs
 Following required files & directories:
 
-* Filepath to vector file of parcels - as output by ellicitor app.
+* Filepath to vector file of parcels output by ellicitor app.
 
 * Filepath to coastline boundary polygon (not necessary if dtm already masked)
+
+* Filepath to 50m DTM of UK (OS Terrain50 -  which has advantages in having a .vrt raster that can be queried to enhance cropping and extraction of relevant area to match aoi etc. Subdirectories within hold actual tiled data.)
 
 * Directory holding UKCP18 RCM climate data files - holding raw .nc files (by variable and decade) as downloaded from ceda. Must include files for historic UKCP18 rcm data for use in bias correction, as well as future files.
 
 * Directory holding UKCP18 derived sea surface temperature data files - holding .nc files as downloaded from ceda
-
-* Directory holding OS 50m DTM - which has advantages in having a .vrt raster that can be queried to enhance cropping and extraction of relevant area to match aoi etc. Subdirectories within hold actual tiled data.
-
-* Directory of observed data - to be used for bias correction.
 
 * Directory for outputs of parcel climate timeseries - to which individual parcel .csv files are written.
 
@@ -57,7 +57,6 @@ ukdtm_file<-file.path(dir_root,'mesoclim_inputs','dtm',"GBdem50.vrt") # 50m dtm 
 
 dir_ukcp<-file.path(dir_root,'mesoclim_inputs/ukcp18rcm') # also holds ukcp rcm elevation data
 dir_sst<-file.path(dir_root,'mesoclim_inputs/ukcp18sst')
-dir_obs<-file.path(dir_root,'mesoclim_inputs/obs')
 dir_out<-file.path(dir_root,'mesoclim_inputs/outputs')
 
 # Parameters chosen to work with this data

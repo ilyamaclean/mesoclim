@@ -8,7 +8,7 @@
 A PackedSpatRaster object with 8 rows, 8 columns and 744 layers
 }
 \source{
-\urlhttps://cds.climate.copernicus.eu//}
+\url{https://cds.climate.copernicus.eu//}
 }
 \usage{
 era5sst
