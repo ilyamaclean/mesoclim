@@ -4,7 +4,13 @@
 \alias{plot_q_layers}
 \title{Plots chosen layers from raster stack corresponding to selected quantiles of spatial mean}
 \usage{
-plot_q_layers(r, p = c(0, 0.5, 1), vtext, fun = "mean", common_scale = FALSE)
+plot_q_layers(
+  r,
+  p = c(0, 0.5, 1),
+  vtext = "",
+  fun = "mean",
+  common_scale = FALSE
+)
 }
 \arguments{
 \item{r}{Spatraster stack (time and name values used in plot titles)}

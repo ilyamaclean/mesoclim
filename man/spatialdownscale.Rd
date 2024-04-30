@@ -80,19 +80,16 @@ a list of multi-layer SpatRast or 3D arrays of downscaled climate variables and 
 \item{tme}{POSIXlt object of times corresponding to climate observations}
 \item{windheight_m}{Height of windspeed data in metres above ground (as numeric)}
 \item{tempheight_m}{Height of temperature data in metres above ground (as numeric)}
-\item{temp}{Temperature (deg C)}
+\item{temp}{Temperature (deg C) - is replaced with \code{tmax} and \code{tmin} if input data is daily.}
 \item{relhum}{Relative humidity (Percentage)}
 \item{pres}{Sea-level atmospheric pressure (kPa)}
 \item{swrad}{Total downward shortwave radiation (W/m^2)}
-\item{difrad}{Downward diffuse radiation (W / m^2)}
+\item{difrad}{Downward diffuse radiation (W / m^2) - not returned unless \code{terrainshade = TRUE}}
 \item{lwrad}{Total downward longwave radiation (W/m^2)}
 \item{windspeed at 2m (m/s)}
 \item{winddir}{Wind direction (decimal degrees)}
 \item{prec}{Precipitation (mm)}
 }
-If input data are hourly, \code{temp} is replaced with \code{tmax} and \code{tmin} representing
-daily maximum and minimum values.
-The variable \code{difrad} is not returned unless \code{terrainshade = TRUE}.
 @examples
 dir_data<-system.file('extdata/ukcp18sst',package='mesoclim')
 sst<-create_ukcpsst_data(dir_data,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),members='01')

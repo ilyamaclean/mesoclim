@@ -36,7 +36,7 @@ a list of the following:
 \item{swrad}{Total downward shortwave radiation (W/m^2)}
 \item{difrad}{Downward diffuse radiation (W / m^2)}
 \item{lwrad}{Total downward longwave radiation (W/m^2)}
-\item{windspeed at 2m (m/s)}
+\item{windspeed} {at 2m above ground (m/s)}
 \item{winddir}{Wind direction (decimal degrees)}
 \item{prec}{Precipitation (mm)}
 }
@@ -60,3 +60,5 @@ era5input<-era5toclimarray(ncfile, dtm=NA, aoi=aoi)
 plot_q_layers(.rast(era5input$temp,era5input$dtm))
 checkinputs(era5input,'hour')
 }
+\keyword{era5}
+\keyword{preprocess}
