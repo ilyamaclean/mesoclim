@@ -95,8 +95,10 @@ download_hadukdaily<-function(dir_out,
 #' @export
 #' @keywords download ukcp18
 #' @examples
-#' # dir_out <- tempdir()
-#' # download_ukcp18(dir_out,as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01'),c('tasmax','tasmin'),download_dtm=TRUE)
+#' # dir_ukcp <- tempdir()
+#' # cedausr<-"jrmosedale"
+#' # cedapwd <- "T${5Q9Z<9ef'"
+#' # download_ukcp18(dir_out,as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01'),c('tasmax','tasmin'),download_dtm=TRUE, cedausr,cedapwd)
 download_ukcp18<-function(
     dir_out,
     startdate,
@@ -175,7 +177,7 @@ download_ukcp18<-function(
     fnames<-'orog_land-rcm_uk_12km_osgb.nc'
     destfiles<-file.path(dir_out,fnames)
     dload_urls<-paste0(cedaprot,cedaserv,'/badc/ukcp18/data/land-rcm/ancil.orog/',fnames)
-    success_df<-curl::multi_download(urls=dload_urls, destfiles=destfiles )
+    success_df<-curl::multi_download(urls=dload_urls, destfiles=destfiles, userpwd = paste0(cedausr,":",cedapwd) )
     if(any(success_df$success==FALSE)) print(paste('UNSUCCESSFUL file downloads:',fnames[which(!success_df$success)])) else print('All downloads successful')
     if(nrow(fullreport_df)==0) fullreport_df<-success_df else fullreport_df<-rbind(fullreport_df,success_df)
   }
