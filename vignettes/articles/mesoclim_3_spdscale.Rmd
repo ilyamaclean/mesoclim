@@ -50,7 +50,7 @@ ukcp18rcm<-read_climdata(file.path(system.file('extdata/preprepdata',package='me
 
 # Load sea surface data 
 dir_sst<-system.file('extdata/ukcp18sst',package='mesoclim')
-ukcp18sst<-create_ukcpsst_data(dir_sst,startdate,enddate,ukcp18rcm$dtmc,member)
+ukcp18sst<-create_ukcpsst_data(dir_sst,startdate,enddate,ukcp18rcm$dtm,member)
 
 # Interpolate SST data to required timesteps
 sst<-spatial_interpNA(ukcp18sst)
@@ -148,7 +148,7 @@ _Note:_ for individual functions, outputs may need further processing to ensure 
 
 ### Pressure 
 ```{r pressure_dscale}
-pres<-presdownscale(ukcp18rcm$climarray$pres, dtmf, ukcp18rcm$dtmc, sealevel = TRUE)
+pres<-presdownscale(ukcp18rcm$pres, dtmf, ukcp18rcm$dtm, sealevel = TRUE)
 names(pres)<-rep('pres',nlyr(pres))
 terra::time(pres)<-ukcp18rcm$tme
 
@@ -167,7 +167,7 @@ plot(basins,main='basins')
 For the chosen study area, cold air drainage has very little effect on local temperatures:
 ```{r calc_cad}
 # Calculate using tmin to illustrate
-ukcp18rcm$climarray$temp<-ukcp18rcm$climarray$tmin
+ukcp18rcm$temp<-ukcp18rcm$tmin
 tcad<-.tempcad(ukcp18rcm,dtmf,basins,refhgt=ukcp18rcm$tempheight_m)
 
 names(tcad)<-rep('temp_cad',nlyr(tcad))
@@ -179,8 +179,8 @@ plot_q_layers(tcad)
 ### Temperature elevation downscaling
 Variable lapse rates derived from temperature, humidity and pressure are applied to correct for elevation effects when downscaling. For daily  temperatures this can be carried out for min and max daily values.
 ```{r temp_elev_dscale}
-tminelev<-.tempelev(ukcp18rcm$climarray$tmin,dtmf,ukcp18rcm$dtmc,ukcp18rcm$climarray$relhum,ukcp18rcm$climarray$pres)
-tmaxelev<-.tempelev(ukcp18rcm$climarray$tmax,dtmf,ukcp18rcm$dtmc,ukcp18rcm$climarray$relhum,ukcp18rcm$climarray$pres)
+tminelev<-.tempelev(ukcp18rcm$tmin,dtmf,ukcp18rcm$dtm,ukcp18rcm$relhum,ukcp18rcm$pres)
+tmaxelev<-.tempelev(ukcp18rcm$tmax,dtmf,ukcp18rcm$dtm,ukcp18rcm$relhum,ukcp18rcm$pres)
 
 names(tminelev)<-rep('tmin_elev',nlyr(tminelev))
 terra::time(tminelev)<-ukcp18rcm$tme
@@ -202,7 +202,7 @@ plot_q_layers(diurnaltmp)
 Windspeed downscaling aims to capture the effect of both elevation and the sheltering effects of topography that are in turn dependent on wind direction and height above ground. 
 
 ```{r wind_dscale}
-windspeed<-winddownscale(ukcp18rcm$climarray$windspeed, ukcp18rcm$climarray$winddir, dtmf, dtmm, ukcp18rcm$dtmc, uz = ukcp18rcm$windheight_m)
+windspeed<-winddownscale(ukcp18rcm$windspeed, ukcp18rcm$winddir, dtmf, dtmm, ukcp18rcm$dtm, zi = ukcp18rcm$windheight_m, zo=2)
 
 names(windspeed)<-rep('windspeed',nlyr(windspeed))
 terra::time(windspeed)<-ukcp18rcm$tme
@@ -218,9 +218,16 @@ Coarse, medium and fine resolution DTMs are used to determine effects of upwind 
 _ADD:_ Guidance on selection of the extent of dtmm - how far should dtms extend from the downscaling area to adequately capture coastal effects??
 
 ```{r coastal}
-sstf<-.resample(sst,dtmf)
-tmincoast<-.tempcoastal(tminelev,sstf,windspeed,ukcp18rcm$climarray$winddir,dtmf,dtmm,ukcp18rcm$dtmc)
-tmaxcoast<-.tempcoastal(tmaxelev,sstf,windspeed,ukcp18rcm$climarray$winddir,dtmf,dtmm,ukcp18rcm$dtmc)
+# Interpolate - filling NAs and ensuring timesteps match climate inputs - MOVE THIS TO DATA PREP FUNCTION FOR SST??
+if (any(global(sst,anyNA))) sstinterp<-.spatinterp(sst) else sstinterp<-sst
+sstinterp<-.tmeinterp(sstinterp,NA,ukcp18rcm$tme)
+# Resample to dtmf
+if (crs(sstinterp) != crs(dtmf)) sstinterp<-project(sstinterp,crs(dtmf))
+sstf<-.resample(sstinterp,dtmf)
+
+# Calculate coastal temp effects - uses already downscaled windspeed
+tmincoast<-.tempcoastal(tminelev,sstf,windspeed,ukcp18rcm$winddir,dtmf,dtmm,ukcp18rcm$dtm)
+tmaxcoast<-.tempcoastal(tmaxelev,sstf,windspeed,ukcp18rcm$winddir,dtmf,dtmm,ukcp18rcm$dtm)
 
 names(tmincoast)<-rep('tmin_coastef',nlyr(tmincoast))
 terra::time(tmincoast)<-ukcp18rcm$tme
@@ -276,14 +283,14 @@ The `precipdownscale()` function provides various options and methods to downsca
 ```{r precip-dscale}
 method<-'Elev'
 precelev<-precipdownscale(
-  ukcp18rcm$climarray$prec,
+  ukcp18rcm$prec,
   dtmf,
-  ukcp18rcm$dtmc,
+  ukcp18rcm$dtm,
   method = method,
   fast = TRUE,
   noraincut = 0.01,
   patchsim = FALSE,
-  nsim = dim( ukcp18rcm$climarray$prec)[3]
+  nsim = dim( ukcp18rcm$prec)[3]
 )
 names(precelev)<-rep('prec_elev',nlyr(precelev))
 terra::time(precelev)<-ukcp18rcm$tme
@@ -291,14 +298,14 @@ plot_q_layers(precelev)
 
 method<-'Tps'
 prectps<-precipdownscale(
-  ukcp18rcm$climarray$prec,
+  ukcp18rcm$prec,
   dtmf,
-  ukcp18rcm$dtmc,
+  ukcp18rcm$dtm,
   method = method,
   fast = TRUE,
   noraincut = 0.01,
   patchsim = FALSE,
-  nsim = dim( ukcp18rcm$climarray$prec)[3]
+  nsim = dim( ukcp18rcm$prec)[3]
 )
 names(prectps)<-rep('prec_tps',nlyr(prectps))
 terra::time(prectps)<-ukcp18rcm$tme
@@ -312,7 +319,7 @@ prec<-prectps
 Longwave downscaling accounts for the effects of terrain shading effect on skyview.
 ```{r lw-dscale}
 # simple downscaling
-lwf<-.resample(.rast(ukcp18rcm$climarray$lwrad,ukcp18rcm$dtmc), dtmf, msk=TRUE)
+lwf<-.resample(.rast(ukcp18rcm$lwrad,ukcp18rcm$dtm), dtmf, msk=TRUE)
 # corrected for skyview  
 svf<-.rta(.skyview(dtmf),dim(lwf)[3])
 lwrad<-.rast(.is(lwf)*svf,dtmf)
@@ -326,7 +333,7 @@ plot_q_layers(lwrad)
 ### Shortwave radiation downscale
 Can be carried out without cloud patchiness or terrain shading...
 ```{r sw-dscale}
-swrad<-swdownscale(ukcp18rcm$climarray$swrad,as.POSIXlt(ukcp18rcm$tme, tz = "UTC"),dtmf,ukcp18rcm$dtmc,patchsim = FALSE,terrainshade = FALSE)
+swrad<-swdownscale(ukcp18rcm$swrad,as.POSIXlt(ukcp18rcm$tme, tz = "UTC"),dtmf,ukcp18rcm$dtm,patchsim = FALSE,terrainshade = FALSE)
 
 names(swrad)<-rep('swrad',nlyr(swrad))
 terra::time(swrad)<-ukcp18rcm$tme
@@ -336,7 +343,7 @@ plot_q_layers(swrad)
 
 ... or with cloud patchiness...
 ```{r sw-patchdscale}
-swradp<-swdownscale(ukcp18rcm$climarray$swrad,ukcp18rcm$tme,dtmf,ukcp18rcm$dtmc,patchsim = TRUE,nsim= length(ukcp18rcm$tme),terrainshade = FALSE)
+swradp<-swdownscale(ukcp18rcm$swrad,ukcp18rcm$tme,dtmf,ukcp18rcm$dtm,patchsim = TRUE,nsim= length(ukcp18rcm$tme),terrainshade = FALSE)
 
 names(swradp)<-rep('swrad_with_patchiness',nlyr(swradp))
 terra::time(swradp)<-ukcp18rcm$tme

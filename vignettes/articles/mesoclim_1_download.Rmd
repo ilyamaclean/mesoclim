@@ -39,10 +39,11 @@ enddate<-as.POSIXlt('2018/12/31')
 
 download_ukcp18(
     dir_ukcp18,
-    cedausr,cedapwd,
+    #cedausr,cedapwd,
     startdate,enddate,
     collection, domain, rcp, member,
-    vars=c('clt','hurs','pr','prsn','psl','rls','rss','tasmax','tasmin','uas','vas')
+    vars=c('clt','hurs','pr','prsn','psl','rls','rss','tasmax','tasmin','uas','vas'),
+    download_dtm=TRUE
 )
 
 list.files(dir_ukcp18)
