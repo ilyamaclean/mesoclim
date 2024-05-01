@@ -41,3 +41,4 @@ par(mfrow=c(2,1))
 plot(ce1, main = "Land to sea weighting, northeast wind")
 plot(ce2, main = "Land to sea weighting, westerly wind")
 }
+\keyword{spatial}

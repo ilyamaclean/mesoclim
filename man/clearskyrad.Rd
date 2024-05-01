@@ -33,3 +33,4 @@ tme<-seq(0,23,1)
 csr<-clearskyrad(jd,tme,50,-2.5)
 plot(csr ~ tme, type = "l", lwd = 2, xlab = expression(paste("Hour")), ylab = "Clearsky radiation")
 }
+\keyword{climate}

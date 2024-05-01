@@ -23,3 +23,4 @@ wdir<-c(357,5,20,45,100,185,265,275,290)
 wspeed<-seq(3,27,3)
 plot_wind(wdir,wspeed)
 }
+\keyword{graph}

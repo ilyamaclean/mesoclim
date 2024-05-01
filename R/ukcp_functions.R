@@ -108,7 +108,7 @@ download_hadukdaily<-function(dir_out,
 #' # dir_ukcp <- tempdir()
 #' # cedausr<-"your_user_name"
 #' # cedapwd <- "your_password"
-#' # download_ukcp18(dir_out,as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01'),c('tasmax','tasmin'),download_dtm=TRUE, cedausr,cedapwd)
+#' # download_ukcp18(dir_ukcp,as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01'),c('tasmax','tasmin'),download_dtm=TRUE, cedausr,cedapwd)
 download_ukcp18<-function(
     dir_out,
     startdate,
@@ -251,11 +251,13 @@ download_globalbedo<-function(dir_out,
 #' @export
 #' @keywords download ukcp18
 #' @examples
-#' startdate<-as.POSIXlt('2017/12/31')
-#' enddate<-as.POSIXlt('2018/12/31')
-#' modelruns<-c('01')
-#' dir_out<-tempdir()
-#' download_ukcpsst(dir_out,startdate,enddate,modelruns)
+#' # cedausr<-"your_user_name"
+#' # cedapwd <- "your_password"
+#' # startdate<-as.POSIXlt('2017/12/31')
+#' # enddate<-as.POSIXlt('2018/12/31')
+#' # modelruns<-c('01')
+#' # dir_out<-tempdir()
+#' # download_ukcpsst(dir_out,startdate,enddate,modelruns, cedausr,cedapwd)
 download_ukcpsst<-function(
     dir_out,
     startdate,
@@ -316,7 +318,7 @@ download_ukcpsst<-function(
 #' @keywords preprocess ukcp18
 #' @examples
 #' dir_data<-system.file('extdata/ukcp18sst',package='mesoclim')
-#' sst<-create_ukcpsst_data(dir_data,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),members='01')
+#' sst<-create_ukcpsst_data(dir_data,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),member='01')
 create_ukcpsst_data<-function(
     dir_data,
     startdate,
@@ -350,7 +352,7 @@ create_ukcpsst_data<-function(
   if(!class(aoi)=='logical'){
     if(!class(aoi)[1] %in% c("SpatRaster","SpatVector","sf")) stop("Parameter aoi NOT of suitable spatial class ")
     if(class(aoi)[1]=="sf") aoi<-vect(aoi)
-    target_crs<-crs(rast(ncfiles[1]))
+    target_crs<-terra::crs(rast(ncfiles[1]))
     aoi_e<-ext( project(aoi,target_crs) )
   }
   # Get spatrast stack
@@ -382,6 +384,7 @@ create_ukcpsst_data<-function(
 #' @details Creates a time series from the ncdf file time variable which is not correctly read by R terra package.
 #' UKCP18 time values expressed as hours since 1/1/1970 12.00. Output used by function `.correct_ukcp_dates()`
 #' @keywords internal
+#' @noRd
 #' @examples
 #' dir_ukcp<-system.file('extdata/ukcp18rcm',package='mesoclim')
 #' nc<-file.path(dir_ukcp,"tasmax_rcp85_land-rcm_uk_12km_01_day_20101201-20201130.nc")
@@ -407,6 +410,7 @@ create_ukcpsst_data<-function(
 #' @import lubridate
 #' @export
 #' @keywords internal
+#' @noRd
 #' @examples
 #' dir_ukcp<-system.file('extdata/ukcp18rcm',package='mesoclim')
 #' nc<-file.path(dir_ukcp,"tasmax_rcp85_land-rcm_uk_12km_01_day_20101201-20201130.nc")
@@ -452,6 +456,7 @@ create_ukcpsst_data<-function(
 #' @import terra
 #' @export
 #' @keywords internal
+#' @noRd
 #' @examples
 #' dir_ukcp<-system.file('extdata/ukcp18rcm',package='mesoclim')
 #' nc<-file.path(dir_ukcp,"tasmax_rcp85_land-rcm_uk_12km_01_day_20101201-20201130.nc")
@@ -480,6 +485,7 @@ create_ukcpsst_data<-function(
 #' @import units
 #' @export
 #' @keywords internal
+#' @noRd
 #' @examples
 #' r<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
 #' terra::units(r)<-'m'
@@ -505,6 +511,7 @@ create_ukcpsst_data<-function(
 #' @export
 #' @import lubridate
 #' @keywords internal
+#' @noRd
 #' @examples
 #' .find_ukcp_decade('land-rcm',as.POSIXlt("2030/01/01"),as.POSIXlt("2039/12/31"))
 #'
@@ -533,6 +540,7 @@ create_ukcpsst_data<-function(
 #' @return upward longwave radiation
 #' @export
 #' @keywords internal
+#' @noRd
 .lwup<-function(tc,sb=5.67*10^-8,em=0.97){
   lwup<-sb*em*(tc+273.15)^4
   return(lwup)
@@ -554,6 +562,7 @@ create_ukcpsst_data<-function(
 #' @return Spatraster timeseries of Downward shortwave radiation
 #' @export
 #' @keywords internal
+#' @noRd
 #' @examples
 #' #swdown_r<-.swdown(clim_list$rss,clim_list$clt,dtmc,wsalbedo,bsalbedo)
 #' plot(swdown_r[[contrast_layers(swdown_r)]])
@@ -783,8 +792,8 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
   names(clim_list)<-c('cloud','relhum','prec','pres','lwrad','swrad','tmax','tmin','windspeed','winddir')
 
   # Restrict to dates requested
-  filter_times<-function(x,startdate,enddate) x[[which(time(x) >= startdate & time(x) <= enddate)]]
-  for(v in names(clim_list))clim_list[[v]]<-filter_times(clim_list[[v]],startdate,enddate)
+  filter_times<-function(x,startdate,enddate) x[[which(date(time(x)) >= date(startdate) & date(time(x)) <= date(enddate))]]
+  for(v in names(clim_list)) clim_list[[v]]<-filter_times(clim_list[[v]],startdate,enddate)
 
   ### Create output list
   output_list<-list()

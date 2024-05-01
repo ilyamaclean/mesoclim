@@ -43,3 +43,4 @@ rh<-c(25,50,75,90,100)
 vp<-round(converthumidity(rh),3)
 print(paste(rh,' relative humidity converts to',vp,'vapour pressure'))
 }
+\keyword{climate}

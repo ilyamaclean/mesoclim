@@ -2,11 +2,12 @@
 # available as stand-alone documented functions in here. Precede by dot as R
 # studio won't then expect oxygen2 when documenting package
 # ** These are functions that are definately used, checked and working
+
 #' Check if input is a SpatRaster or PackedSpatRaster and convert to matrix or array
 #' if it is
-#' @import terra
+#'@noRd
 .is <- function(r) {
-  if (class(r)[1] == "PackedSpatRaster") r<-rast(r)
+  if (class(r)[1] == "PackedSpatRaster") r<-terra::rast(r)
   if (class(r)[1] == "SpatRaster") {
     if (dim(r)[3] == 1) {
       m<-as.matrix(r,wide=TRUE)
@@ -17,12 +18,14 @@
   return(m)
 }
 #' Convert matrix or rast to array
+#'@noRd
 .rta <- function(r,n) {
   m<-.is(r)
   a<-array(rep(m,n),dim=c(dim(r)[1:2],n))
   a
 }
 #' Convert vector to array
+#'@noRd
 .vta <- function(v,r) {
   m<-.is(r)
   va<-rep(v,each=dim(m)[1]*dim(m)[2])
@@ -31,6 +34,7 @@
 }
 #' Create SpatRaster object using a template
 #' @import terra
+#'@noRd
 .rast <- function(m,tem) {
   r<-rast(m)
   ext(r)<-ext(tem)
@@ -38,6 +42,7 @@
   r
 }
 #' expand daily array to hourly array
+#'@noRd
 .ehr<-function(a) {
   n<-dim(a)[1]*dim(a)[2]
   o1<-rep(c(1:n),24*dim(a)[3])
@@ -50,6 +55,7 @@
   ah
 }
 #' Calculate moving average
+#'@noRd
 .mav <- function(x, n = 5) {
   y <- stats::filter(x, rep(1 / n, n), circular = TRUE, sides = 1)
   y
@@ -58,6 +64,7 @@
 #' Inputs:
 #' r - a terra::SpatRaster object
 #' Returns a matrix of latidues
+#'@noRd
 .latsfromr <- function(r) {
   e <- ext(r)
   lts <- rep(seq(e$ymax - res(r)[2] / 2, e$ymin + res(r)[2] / 2, length.out = dim(r)[1]), dim(r)[2])
@@ -68,6 +75,7 @@
 #' Inputs:
 #' r - a terra::SpatRaster object
 #' Returns a matrix of longitudes
+#'@noRd
 .lonsfromr <- function(r) {
   e <- ext(r)
   lns <- rep(seq(e$xmin + res(r)[1] / 2, e$xmax - res(r)[1] / 2, length.out = dim(r)[2]), dim(r)[1])
@@ -75,7 +83,7 @@
   lns <- array(lns, dim = dim(r)[1:2])
   lns
 }
-#' @import terra
+#'@noRd
 .latslonsfromr <- function(r) {
   lats<-.latsfromr(r)
   lons<-.lonsfromr(r)
@@ -89,21 +97,22 @@
   return(list(lats=lats,lons=lons))
 }
 #' version of terra resample that equates to NA.RM = TRUE
-#' r1 resampled to same geometry as r2
-#' msk=TRUE if output to be masked out where r2 cells = NA
-#' method for resample and project can be set
-#' @import terra
+#' @param r1 - is resampled to same geometry as r2
+#' @param r2 - target geometry
+#' @param msk=TRUE if output to be masked out where r2 cells = NA
+#' @param method for resample and project can be set
+#'@noRd
 .resample <- function(r1,r2, msk=FALSE, method='bilinear'){
-  if (crs(r1) != crs(r2)) r1<-project(r1, crs(r2), method)
-  af<-res(r2)[1] /res(r1)[1]
+  if (terra::crs(r1) != terra::crs(r2)) r1<-terra::project(r1, terra::crs(r2), method)
+  af<-terra::res(r2)[1] /terra::res(r1)[1]
   if (round(af,10) > 1) {			         # If resolution different aggregate
-    ro<-aggregate(r1, af, na.rm=TRUE)
-    if (ext(ro) != ext(r2)){           # if extents different then also resample
-      ro<-resample(ro, r2, method)
+    ro<-terra::aggregate(r1, af, na.rm=TRUE)
+    if (ext(ro) != terra::ext(r2)){           # if extents different then also resample
+      ro<-terra::resample(ro, r2, method)
     }
-  } else ro<-resample(r1, r2, method)  # if res same then just resample
+  } else ro<-terra::resample(r1, r2, method)  # if res same then just resample
 
-  if(msk) ro<-mask(ro, r2)
+  if(msk) ro<-terra::mask(ro, r2)
 
   #ensure time and names of layers in new raster match r1
   names(ro)<-names(r1)
@@ -120,6 +129,7 @@
 #' @return Spatraster of same dim as r but without NA
 #' @export
 #' @import terra
+#' @keywords internal
 #' @examples
 #' r <- rast(ncols=5, nrows=5, vals=rep(c(1,2,NA,4,5),5))
 #' rout<-spatial_interpNA(r)
@@ -169,6 +179,7 @@
 #' @export
 #' @import terra
 #' @import lubridate
+#' @keywords internal
 #' @examples
 #' r <- rast(ncols=5, nrows=5, vals=rep(1,25))
 #' r<-c(r,r*2,r*3,r*4,r*5)
@@ -227,7 +238,9 @@
 # ============================================================================ #
 # ~~~~~~~~~ Climate processing worker functions here ~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
+
 #' Calculate saturated vapour pressure
+#'@noRd
 .satvap <- function(tc) {
   e0<-(tc<0)*610.78/1000+(tc>=0)*611.2/1000
   L <- (tc<0)*2.834*10^6+(tc>=0)*((2.501*10^6)-(2340*tc))
@@ -236,6 +249,7 @@
   estl
 }
 #' Calculates the astronomical Julian day
+#'@noRd
 .jday <- function(tme) {
   yr<-tme$year+1900
   mth<-tme$mon+1
@@ -248,6 +262,7 @@
   jd
 }
 #' Calculates solar time
+#'@noRd
 .soltime <- function(localtime, long, jd, merid = 0, dst = 0) {
   m<-6.24004077+0.01720197*(jd-2451545)
   eot<- -7.659*sin(m)+9.863*sin(2*m+3.5932)
@@ -255,6 +270,7 @@
   st
 }
 #' Calculates the solar altitude
+#'@noRd
 .solalt <- function(localtime, lat, long, jd, merid = 0, dst = 0) {
   st<-.soltime(localtime,long,jd,merid,dst)
   tt<-0.261799*(st-12)
@@ -263,6 +279,8 @@
   sa<-(180*atan(sh/sqrt(1-sh^2)))/pi
   sa
 }
+#' Calculates solar azimuth
+#'@noRd
 .solazi <- function(localtime, lat, long, jd, merid = 0, dst = 0) {
   st<-.soltime(localtime,long,jd,merid,dst)
   tt<-0.261799*(st-12)
@@ -282,8 +300,9 @@
 
 
 #' Simulate cloud or rain patchiness
-#' @import gstat
+# @import gstat
 #' @import terra
+#'@noRd
 .simpatch<-function(varf,af,n=dim(varf)[3],varn="precip") {
   if (varn == "precip") {
     varf<-log(varf+1)
@@ -355,6 +374,7 @@
 }
 #' Appply elevation adjustment to cloud fractional cover
 #' @import terra
+#'@noRd
 .cfcelev<-function(csfc,dtmf,dtmc) {
   if (crs(dtmc) != crs(dtmf)) dtmc<-project(dtmc,crs(dtmf))
   if (crs(csfc) != crs(dtmf)) csfc<-project(csfc,crs(dtmf))
@@ -396,6 +416,7 @@
   return(cf)
 }
 #' Calculates wind altitude coefficient in specified direction
+#'@noRd
 .windz<-function(dtm1,dtm2,dtmr,wdir) {
   reso1<-res(dtm1)[1]
   reso2<-res(dtm2)[2]
@@ -434,6 +455,7 @@
   return(wc)
 }
 #' Calculates wind shelter coefficient in specified direction
+#'@noRd
 .windcoef <- function(dtm, direction, hgt = 1) {
   reso<-res(dtm)[1]
   m<-.is(dtm)
@@ -456,12 +478,14 @@
   return(r)
 }
 
-# Applies height correction to wind speed measurements - cf microclima::windheight
-# wspeed numeric value(s) of measured wind speed (\ifelse{html}{\out{m s<sup>-1</sup> }}{\eqn{ m s^{-1}}}) at height `zi` (m).
-# zi a numeric value idicating the height (m) above the ground of `wspeed` input
-# zo a numeric value indicating the height (m) above ground level of output speeds
-# Assumes a logarithmic height profile and imposes a minimum zo of 0.2
-# change_windhgt(3, 10, 1)
+#' Applies height correction to wind speed measurements - cf microclima::windheight
+#' wspeed numeric value(s) of measured wind speed (\ifelse{html}{\out{m s<sup>-1</sup> }}{\eqn{ m s^{-1}}}) at height `zi` (m).
+#' @param zi a numeric value idicating the height (m) above the ground of `wspeed` input
+#' @param zo a numeric value indicating the height (m) above ground level of output speeds
+#' Assumes a logarithmic height profile and imposes a minimum zo of 0.2
+#' @examples
+#' change_windhgt(3, 10, 1)
+#'@noRd
 .windhgt<-function (wspeed, zi, zo) {
   if (zo < 0.2 & zo > (5.42/67.8)){
     warning("Wind-height profile function performs poorly below 20 cm so output height converted to 20 cm")
@@ -471,7 +495,8 @@
 }
 
 
-# Calculates horizon angle
+#' Calculates horizon angle
+#'@noRd
 .horizon <- function(dtm, azimuth) {
   reso<-res(dtm)[1]
   dtm<-.is(dtm)
@@ -489,6 +514,7 @@
   }
   horizon
 }
+#'@noRd
 .skyview<-function(dtm,steps=36) {
   r<-dtm
   dtm[is.na(dtm)]<-0
@@ -509,6 +535,7 @@
 #' Wrapper for C++ function
 #' @importFrom Rcpp sourceCpp
 #' @useDynLib mesoclim, .registration = TRUE
+#'@noRd
 .basindelinCpp<-function(dtm) {
   dm<-.is(dtm)
   dm[is.na(dm)]<-9999
@@ -524,6 +551,7 @@
   return(r)
 }
 #' Internal function for delineating basins with option for boundary > 0
+#'@noRd
 .basindelin<-function(dtm, boundary = 0) {
   # Delineate basins
   dm<-dim(dtm)
@@ -559,7 +587,8 @@
   } else bsn<-dtm # end if boundary
   return(bsn)
 }
-# function to identify which basin edge cells are less or equal to boundary
+#' function to identify which basin edge cells are less or equal to boundary
+#'@noRd
 .edge<-function(v) {
   o<-0
   if (is.na(v[1]) == FALSE) {
@@ -567,7 +596,8 @@
   }
   o
 }
-# function to assign which surrounding cells should be merged
+#' function to assign which surrounding cells should be merged
+#'@noRd
 .edgec<-function(v) {
   o<-v*0
   if (is.na(v[1]) == FALSE) {
@@ -576,7 +606,8 @@
   }
   o
 }
-# function to grab neighbouring cells and reassign basin number
+#' function to grab neighbouring cells and reassign basin number
+#'@noRd
 .asign3<-function(bm2,bea,rw,cl) {
   b3<-bm2[rw:(rw+2),cl:(cl+2)]
   v<-bea[rw,cl,]
@@ -591,6 +622,7 @@
   b3
 }
 #' Merge basins based on specified boundary
+#'@noRd
 .basinmerge<-function(dtm,bsn,boundary=0.25) {
   # Put buffer around basin and dtn
   bm<-.is(bsn)
@@ -650,6 +682,7 @@
 }
 
 #' Mosaic tiled basins merging common joins
+#'@noRd
 .basinmosaic<-function(b1,b2) {
   e1<-ext(b1)
   e2<-ext(b2)
@@ -788,6 +821,7 @@
   return(bout)
 }
 #' Do an entire column of tiled basins
+#'@noRd
 .docolumn<-function(dtm,tilesize,boundary,x) {
   e<-ext(dtm)
   reso<-res(dtm)
@@ -821,6 +855,7 @@
 #' Function used for delineating basins with big dtms
 #' @importFrom Rcpp sourceCpp
 #' @useDynLib mesoclim, .registration = TRUE
+#'@noRd
 .basindelin_big<-function(dtm, boundary = 0, tilesize = 100, plotprogress = FALSE) {
   # chop into tiles
   e<-ext(dtm)
@@ -845,6 +880,7 @@
   return(bma)
 }
 #' Calculate flow direction
+#'@noRd
 .flowdir <- function(md) {
   fd<-md*0
   md2<-array(NA,dim=c(dim(md)[1]+2,dim(md)[2]+2))
@@ -863,6 +899,7 @@
 # ~~~~~~~~~~~~~~ Spatial downscale worker functions here ~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
 #' Calculate cold-air drainage potential (spatial)
+#'@noRd
 .cadpotential <- function(dtm, basins = NA, refhgt = 2) {
   if (class(basins) == "logical") basins<-basindelin(dtm,refhgt)
   fa<-flowacc(dtm, basins) - 1
@@ -881,6 +918,7 @@
 }
 #' function for applying correction factor to coastal effects to account for
 #' data resolution
+#'@noRd
 .correctcoastal<-function(r) {
   reso<-res(r)[1]
   am<- -6.74389+1.08141*log(reso)
@@ -907,6 +945,8 @@
 # ~~~~~~~~~~~~ Temperature downscale ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
 #' Downscales temperature for elevation effects
+#' @export
+#' @keywords internal
 .tempelev <- function(tc, dtmf, dtmc = NA, rh = NA, pk = NA) {
   if (class(dtmc)[1] == "logical")  dtmc<-.resample(dtmf,tc)
   if (class(tc)[1] == "array") tc<-.rast(tc,dtmc)
@@ -939,6 +979,8 @@
   return(tcf)
 }
 #' Downscale temperature with cold air drainage effects
+#' @export
+#' @keywords internal
 .tempcad<-function(climdata, dtmf, basins = NA, refhgt = 2) {
   # Calculate elevation difference between basin height point and pixel
   if (class(basins) == "logical") basins<-basindelin(dtmf,refhgt)
@@ -1079,6 +1121,7 @@
 # returns a SpatRaster object
 #' @import raster
 #' @import terra
+#'@noRd
 .cropnc<-function(fi,e) {
   r<-suppressWarnings(brick(fi))
   r<-crop(r,e)
@@ -1086,9 +1129,10 @@
   r
 }
 
-# extracts array data from nc file
-# filein - file name of nc file
-# varid - name of variable in nc file
+#' extracts array data from nc file
+#' filein - file name of nc file
+#' varid - name of variable in nc file
+#'@noRd
 .nctoarray <- function(filein, varid = NA) {
   nc <- nc_open(filein)
   a <- aperm(ncvar_get(nc, varid = varid), c(2,1,3))
@@ -1096,18 +1140,20 @@
   nc_close(nc)
   a
 }
-# Converts matrix to array by replicating all entries for quick multiplication
-# m - a matrix
-# n - dim(3) of returned array
-# returns a 3D array
+#' Converts matrix to array by replicating all entries for quick multiplication
+#' m - a matrix
+#' n - dim(3) of returned array
+#' returns a 3D array
+#'@noRd
 .mta <- function(m,n) {
   a<-array(rep(m,n),dim=c(dim(m),n))
   a
 }
-# Apply equivelent for arrays with NAs. Outperforms apply by an order of magnitude
-# a - a 3D array (typically with NAs for sea)
-# fun - a function to apply
-# returns a 3D array of e.g. daily values form hourly
+#' Apply equivelent for arrays with NAs. Outperforms apply by an order of magnitude
+#' a - a 3D array (typically with NAs for sea)
+#' fun - a function to apply
+#' returns a 3D array of e.g. daily values form hourly
+#'@noRd
 .applynotna<-function(a,fun) {
   m<-matrix(a,ncol=dim(a)[1]*dim(a)[2],byrow=T)
   sel<-which(is.na(m[1,])==F)
@@ -1118,10 +1164,11 @@
   ao[sel]<-aperm(r,c(2,1))
   ao
 }
-# Applies e.g. a landsea mask to an array of data
-# a - a 3D array
-# mask - a raster object the extent of which matches a
-# returns a 3D array with masked areas set to NA
+#' Applies e.g. a landsea mask to an array of data
+#' a - a 3D array
+#' mask - a raster object the extent of which matches a
+#' returns a 3D array with masked areas set to NA
+#'@noRd
 .applymask <- function(a, mask) {
   m<-getValues(mask,format="matrix")
   m[is.na(m)==F]<-1
@@ -1129,10 +1176,11 @@
   a<-a*m
   a
 }
-# Converts an array of hourly data to daily
-# a - a 3D array
-# fun - a function , typically mean, min, max or sum
-# returns a 3D array of daily data - e.g. daily mean, max or min temperature or total rainfall
+#' Converts an array of hourly data to daily
+#' a - a 3D array
+#' fun - a function , typically mean, min, max or sum
+#' returns a 3D array of daily data - e.g. daily mean, max or min temperature or total rainfall
+#'@noRd
 .hourtoday<-function(a,fun=mean) {
   .htd<-function(x) {
     y<-matrix(x,ncol=24,byrow=T)
@@ -1141,14 +1189,14 @@
   d<-.applynotna(a,.htd)
   d
 }
-# Converts an array daily data to hourly using one of two methods.
-# Inputs:
-# a - an array of daily data
-# Spline - optional logical indicating which method to use (see details)
-# Returns an array of hourly data such that dim(ah)[3] == 24 * dim(h)[3]
-# Details:
-#  If Sprine = TRUE data are spline interpolated using zoo::na.approx.
-#  If Spline = FALSE each hour is given the same value as the daily data
+#' Converts an array daily data to hourly using one of two methods.
+#' @param name description a - an array of daily data
+#' @param Spline - optional logical indicating which method to use (see details)
+#' @return Returns an array of hourly data such that dim(ah)[3] == 24 * dim(h)[3]
+#' @details:
+#'  If Sprine = TRUE data are spline interpolated using zoo::na.approx.
+#'  If Spline = FALSE each hour is given the same value as the daily data
+#' @noRd
 .daytohour<-function(a, Spline = TRUE) {
   if (Spline) {
     sel<-c(1:dim(a)[3])*24-12
@@ -1177,10 +1225,11 @@
   }
   return(ah)
 }
-# Applies coastal correction to e.g. era5 diurnal temperature ranges
-# dtr - diurnal temperature range (deg C)
-# landsea - fraction of land relative to sea
-# returns diurnal temperature range with coastal correction (deg C)
+#' Applies coastal correction to e.g. era5 diurnal temperature ranges
+#' @param dtr - diurnal temperature range (deg C)
+#' @param landsea - fraction of land relative to sea
+#' @returns diurnal temperature range with coastal correction (deg C)
+#'@noRd
 .coastalcorrect<-function(dtr, landsea) {
   lp<-getValues(landsea,format="matrix")
   m<-(1-lp)*1.285+1
@@ -1188,11 +1237,12 @@
   dtr<-dtr*m
   return(dtr)
 }
-# writes out an array as a terra SpatRaster object
-# a - a 3D array
-# template - a SpatRaster object with the extent and coordinate reference system matching a
-# path - directory in which to save data
-# varn - name of variable to be saved
+#' writes out an array as a terra SpatRaster object
+#' @param a - a 3D array
+#' @param  description template - a SpatRaster object with the extent and coordinate reference system matching a
+#' @param path - directory in which to save data
+#' @param varn - name of variable to be saved
+#'@noRd
 .saverast<-function(a,template,path,varn) {
   r<-rast(a)
   ext(r)<-ext(template)
@@ -1201,6 +1251,7 @@
   writeRaster(r,filename=fo,overwrite=TRUE)
 }
 #' Get latitude and longitude of centre of r
+#'@noRd
 .latlongfromrast<-function (r) {
   e <- ext(r)
   xy <- data.frame(x = (e$xmin + e$xmax)/2, y = (e$ymin + e$ymax)/2)
@@ -1214,6 +1265,7 @@
 # ~~~~~~~~~ Climate processing worker functions here ~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
 #' Calculate dewpoint
+#'@noRd
 .dewpoint <- function(ea, tc) {
   e0<-611.2/1000
   L<-(2.501*10^6)-(2340*tc)
@@ -1228,6 +1280,7 @@
   Tdew
 }
 #' Calculate clear sky radiation
+#'@noRd
 .clearskyrad <- function(tme, lat, long, tc = 15, rh = 80, pk = 101.3) {
   jd<-.jday(tme)
   lt <- tme$hour+tme$min/60+tme$sec/3600
@@ -1244,11 +1297,11 @@
   Ic[is.na(Ic)]<-0
   Ic
 }
-# Calculates average daily clear sky radiation over all pixels of a SpatRaster object and all days in tme
-# Inputs:
-# tme - a POSIXlt object of dates
-# r - a terra::SpatRaster object
-# Returns a 3D array of expected daily clear sky radiation values (W/m**2)
+#' Calculates average daily clear sky radiation over all pixels of a SpatRaster object and all days in tme
+#' @param tme - a POSIXlt object of dates
+#' @param r - a terra::SpatRaster object
+#' @return a 3D array of expected daily clear sky radiation values (W/m**2)
+#'@noRd
 .clearskyraddaily <- function(tme, r) {
   dmean<-function(x) {
     x<-matrix(x, ncol = 1440, byrow=T)
@@ -1274,11 +1327,12 @@
 # ============================================================================ #
 # ~~~~~~~~~~~~~ Bias-correct worker functions here ~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
-# Converts era5 hourly data to daily to enable bias correction to be applied to ukcp data
-# filein - filename (including path )of era5 nc file with all variables
-# pathout - directory in which to save data
-# landsea - a landsea raster object of land fractions that must match the extent of the era5 data
-# The function saves individual terra SpatRaster objects to disk (one for each variable)
+#' Converts era5 hourly data to daily to enable bias correction to be applied to ukcp data
+#' @param filein - filename (including path )of era5 nc file with all variables
+#' @param pathout - directory in which to save data
+#' @param landsea - a landsea raster object of land fractions that must match the extent of the era5 data
+#' The function saves individual terra SpatRaster objects to disk (one for each variable)
+#'@noRd
 .era5todaily<-function(filein,pathout,landsea) {
   landsea[landsea==0]<-NA
   te<-rast(landsea)
@@ -1343,16 +1397,17 @@
   pr<-applymask(pr,landsea)
   .saverast(pr,te,pathout,"pr")
 }
-# Takes global ukcp data as inputs, ensures correct number of dates in each year,
-# interpolating missing values, resamples data to match era5 and returns data for a whole true decade
-# ukcpfile1 - filename of first file coinciding wiht decade - e.g. for decade 2010-2020,
-# data with an extension 20091201-20191130.nc
-# ukcpfile2 - filename of second file coinciding wiht decade - e.g. for decade 2010-2020,
-# data with an extension 20191201-20291130.nc
-# landsea - a landsea raster object of land fractions that must match the extent of the era5 data.
-# must also match the resolution of era5 data as it is used for resampling ukcp data
-# decade - the decade for which data are required (1 for 2010-2019, 2 for 2020-2019 etc)
-# returns a SpatRaster object for an entire decade
+#' Takes global ukcp data as inputs, ensures correct number of dates in each year,
+#' interpolating missing values, resamples data to match era5 and returns data for a whole true decade
+#' @param ukcpfile1 - filename of first file coinciding wiht decade - e.g. for decade 2010-2020,
+#' @param data with an extension 20091201-20191130.nc
+#' @param ukcpfile2 - filename of second file coinciding wiht decade - e.g. for decade 2010-2020,
+#' data with an extension 20191201-20291130.nc
+#' @param landsea - a landsea raster object of land fractions that must match the extent of the era5 data.
+#' must also match the resolution of era5 data as it is used for resampling ukcp data
+#' @param decade - the decade for which data are required (1 for 2010-2019, 2 for 2020-2019 etc)
+#' returns a SpatRaster object for an entire decade
+#'@noRd
 .cropandsortUKCPone <- function(ukcpfile1,ukcpfile2,landsea,decade=1) {
   # Get and crop nc files
   ecrop<-extent(landsea)
@@ -1400,14 +1455,15 @@
   crs(ro2)<-crs(rte)
   return(ro2)
 }
-# For one tile an one model run and one decade applies function cropandsortUKCPone to all variables
-# pathtoUKCP - directory with raw UKCP data for that model run and tile
-# pathout - directory in which to save data
-# landsea - a landsea raster object of land fractions that must match the extent of the era5 data
-# decade - the decade for which data are required (1 for 2010-2019, 2 for 2020-2019 etc)
-# modelrun - a numeric value (1 is convertyed to 01) indicating the model run. Used for reading in
-# data, so file naming and foldr convention assumed to match that of data supplied via dropbox
-# saves SpatRaster objects for each variable to disk in directory pathout
+#' For one tile an one model run and one decade applies function cropandsortUKCPone to all variables
+#' @param pathtoUKCP - directory with raw UKCP data for that model run and tile
+#' @param pathout - directory in which to save data
+#' @param landsea - a landsea raster object of land fractions that must match the extent of the era5 data
+#' @param decade - the decade for which data are required (1 for 2010-2019, 2 for 2020-2019 etc)
+#' @param modelrun - a numeric value (1 is convertyed to 01) indicating the model run. Used for reading in
+#' data, so file naming and foldr convention assumed to match that of data supplied via dropbox
+#' @return saves SpatRaster objects for each variable to disk in directory pathout
+#'@noRd
 .cropandsortUKCPdecade <- function(pathtoUKCP,pathout,landsea,decade,modelrun) {
   mrtxt<-ifelse(modelrun<10,paste0("0",modelrun),paste0("",modelrun))
   suppressWarnings(dir.create(pathout))
@@ -1483,12 +1539,13 @@
   fo<-paste0(pathout,"pr_",mrtxt,"_",to,".tif")
   writeRaster(ro,filename=fo,overwrite=T)
 }
-# For one tile an one model run extracts the 2018 data and saves this to disk
-# pathin - directory with data - should match pathour of cropandsortUKCPdecade function
-# pathout - directory in which to save data - usually a subdirectory of pathin
-# modelrun - a numeric value (1 is convertyed to 01) indicating the model run. Used for reading in
-# data, so file naming and foldr convention assumed to match that of data supplied via dropbox
-# saves 2018 data to disk as terra SpatRaster objects
+#' For one tile an one model run extracts the 2018 data and saves this to disk
+#' @param pathin - directory with data - should match pathour of cropandsortUKCPdecade function
+#' @param pathout - directory in which to save data - usually a subdirectory of pathin
+#' @param modelrun - a numeric value (1 is convertyed to 01) indicating the model run. Used for reading in
+#' data, so file naming and foldr convention assumed to match that of data supplied via dropbox
+#' @return saves 2018 data to disk as terra SpatRaster objects
+#'@noRd
 .crop2018UKCP <- function(pathin,pathout,modelrun) {
   saver<-function(varn,pathin,pathout,mrtxt,to,sel) {
     fi<-paste0(pathin,varn,"_",mrtxt,"_",to,".tif")
@@ -1526,22 +1583,23 @@
 # ============================================================================ #
 # ~~~~~~~~~~~~~ Temporal downscale worker functions here ~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
-# Writes a ncd4 file to disk
-# NB - we might want to document this function and move it out of workers??
-# Inputs:
-# r - a terra::SpatRaster object of data to be written out
-# year = the year for which data are to be written out (used for time stamp)
-# varn - climate variable name (e.g. tasmax)
-# varl - climate variable long name (Daily maximum temperature at 2m)
-# unit - units of varn (e.g. deg C)
-# asinteger - optional lgoical indicating whether values should be stored as integers (dee details)
-# mult - multiplier to use if data are stored as integers (dee details)
-# Details:
-# Setting asintiger to TRUE roughly halves the size of the file written out but
-# reduces precision. E.g If mult = 100, a temperature value of 9.87694 would be
-# written out as 988. The function automatically corrects the units written to
-# the nc file - e.g. if mult is 100 and unit is 'deg C', 'deg C * 100' is written
-# out as the unit in the nc file
+#' Writes a ncd4 file to disk
+#' NB - we might want to document this function and move it out of workers??
+#' Inputs:
+#' @param r - a terra::SpatRaster object of data to be written out
+#' @param year = the year for which data are to be written out (used for time stamp)
+#' @param varn - climate variable name (e.g. tasmax)
+#' @param varl - climate variable long name (Daily maximum temperature at 2m)
+#' @param unit - units of varn (e.g. deg C)
+#' @param asinteger - optional lgoical indicating whether values should be stored as integers (dee details)
+#' @param mult - multiplier to use if data are stored as integers (dee details)
+#' @details:
+#' Setting asintiger to TRUE roughly halves the size of the file written out but
+#' reduces precision. E.g If mult = 100, a temperature value of 9.87694 would be
+#' written out as 988. The function automatically corrects the units written to
+#' the nc file - e.g. if mult is 100 and unit is 'deg C', 'deg C * 100' is written
+#' @return out as the unit in the nc file
+#'@noRd
 .writenc<-function(r,fo,year,varn,varl,unit,asinteger= TRUE,mult=100) {
   if (asinteger) {
     rte<-r

@@ -55,3 +55,4 @@ plot_q_layers(wsf)
 \seealso{
 \code{\link[=windelev]{windelev()}}
 }
+\keyword{spatial}

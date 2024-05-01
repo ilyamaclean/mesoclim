@@ -37,3 +37,4 @@ plot_q_layers(rhf)
 \seealso{
 \code{\link[=tempdownscale]{tempdownscale()}}
 }
+\keyword{spatial}

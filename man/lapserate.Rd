@@ -23,3 +23,5 @@ ea<-converthumidity(climdata$relhum,tc=climdata$temp , pk=climdata$pres)
 lr<-lapserate(climdata$temp,ea,climdata$pres)
 plot(.rast(lr,climdata$dtm)[[1]])
 }
+\keyword{climate}
+\keyword{spatial}

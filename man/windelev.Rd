@@ -49,3 +49,4 @@ plot(wc)
 \seealso{
 \code{\link[=winddownscale]{winddownscale()}}
 }
+\keyword{spatial}

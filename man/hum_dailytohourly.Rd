@@ -80,3 +80,4 @@ psl<-.rta(psl_r,length(climdata$tme))
 humh<-hum_dailytohourly(climdata$relhum, climdata$tmin, climdata$tmax, temph, psl, presh, climdata$tme)
 plot_q_layers(.rast(humh,dtmc))
 }
+\keyword{temporal}

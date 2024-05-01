@@ -21,6 +21,7 @@
 #' temperatures decay faster than this. The default value of 0.09 is an optimal
 #' value derived using ERA5 data for western Europe, but performs reasonably well
 #' globally
+#' @keywords temporal
 #' @examples
 #' climdata<- read_climdata(system.file('data/era5input.rds',package='mesoclim'))
 #' tc<-climdata$temp
@@ -93,6 +94,7 @@ hourlytemp <- function(tmn, tmx, tme = NA, lat = NA, long = NA, srte = 0.09) {
 #' @import terra
 #' @importFrom Rcpp sourceCpp
 #' @export
+#' @keywords temporal preprocess
 blendtemp_hadukera5<-function(tasmin,tasmax,era5t2m) {
   d1<-dim(tasmin)
   d2<-dim(tasmax)
@@ -139,6 +141,7 @@ blendtemp_hadukera5<-function(tasmin,tasmax,era5t2m) {
 #' the data are back-converted to relative humidity, using temph and presh.
 #' ~~ Function should spline interpolate vapour pressure and use temperature cycle
 #' Derives an array of hourly relative humidity values from daily values.
+#' @keywords temporal
 #' @examples
 #' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
 #' # Get hourly variables required for rel hum downscaling
@@ -196,6 +199,7 @@ hum_dailytohourly <- function(relhum, tasmin, tasmax, temph, psl, presh, tme, re
 #' the elevation of each geographic location and not sea=level pressures. The
 #' conversion to millbars is mb = 10 kPa. The conversion to sea-level pressure (Psl) can be
 #' derived by reversing the equation Psl = pres*((293-0.0065z)/293)**5.26
+#' @keywords temporal
 #' @examples
 #' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
 #' presh<-pres_dailytohourly(climdata$pres,climdata$tme)
@@ -249,6 +253,7 @@ pres_dailytohourly <- function(pres, tme, adjust = TRUE) {
 #' ~~   then calculate clear-sky radiation
 #' ~~ * Need to spline interpolate sky emissvity (bounding by 1 and 0) and
 #' ~~   then calculate longwave
+#' @keywords temporal
 #' @examples
 #' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
 #' swh<-swrad_dailytohourly(climdata$swrad,climdata$tme,r=climdata$dtm)
@@ -323,6 +328,7 @@ swrad_dailytohourly <- function(radsw, tme, clearsky = NA, r = r, adjust = TRUE)
 #'  The formula is Lwd = skyem * Lwu where Lwu is upward longwave radiation given
 #'  by Lwu=0.97*5.67*10**-8*(tc+273.15). Here tc is average surface temperature (deg C))
 #'  but an adequate approximation is derived if subtited by air temperature.
+#' @keywords temporal
 #' @examples
 #' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
 #' lwrad<-skyem_dailytohourly()
@@ -366,6 +372,7 @@ skyem_dailytohourly <- function(skyem, tme, adjust = TRUE) {
 #' derive wind speed and direction.
 #' ~~ * Need to spline interpolate u and v wind vectors. We could simulate
 #' ~~   inter-hourly variability. Follows a Weiball distribution so quite easy I suspect.
+#' @keywords temporal
 #' @examples
 #' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
 #' wh<-wind_dailytohourly(climdata$windspeed, climdata$winddir, climdata$tme, adjust = TRUE)
@@ -396,18 +403,20 @@ wind_dailytohourly <- function(ws, wd, tme, adjust = TRUE) {
 # ============================================================================ #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Precipitation downscale  ~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
-# ~~ * Need to use Bartlett-Lewis rectangular pulse model + HyetosMinute method.
-# ~~   coding is very poor in that package so scope to imporve it.
-# sequence of rainfalls
-# Z higher level (e.g. storm) sum
+#' ~~ * Need to use Bartlett-Lewis rectangular pulse model + HyetosMinute method.
+#' ~~   coding is very poor in that package so scope to imporve it.
+#' sequence of rainfalls
+#' Z higher level (e.g. storm) sum
+#' @noRd
 .propadjust <- function(rainseq, Z) {
   Xs <- rainseq * (Z / sum(rainseq))
   Xs
 }
-# runs Bartlett-Lewis until sequence of L wet days is generated
-# BLest = Bartlett lewis paramaters
-# dailysteps = number of values per day (i.e. 24 for hourly)
-# dn = number of days
+#' runs Bartlett-Lewis until sequence of L wet days is generated
+#' BLest = Bartlett lewis paramaters
+#' dailysteps = number of values per day (i.e. 24 for hourly)
+#' dn = number of days
+#' @noRd
 .level0 <- function(BLest, dailyvals, dn) {
   wet <- function(rainseq) {
     wd <- ifelse(sum(rainseq) > 0, 1, 0)
@@ -432,6 +441,7 @@ wind_dailytohourly <- function(ws, wd, tme, adjust = TRUE) {
   }
   return(sr)
 }
+#' @noRd
 .level1 <- function(rainseq, BLest, dailyvals, dlim, maxiter) {
   d <- dlim * 2
   iter <- 0
@@ -447,6 +457,7 @@ wind_dailytohourly <- function(ws, wd, tme, adjust = TRUE) {
   if (d > dlim) l0<-NA
   return(l0)
 }
+#' @noRd
 .oneday <- function(dayrain, BLest, dailyvals, dlim, maxiter) {
   l1 <- NA
   while (is.na(sum(l1))) {
@@ -454,6 +465,7 @@ wind_dailytohourly <- function(ws, wd, tme, adjust = TRUE) {
   }
   l1
 }
+#' @noRd
 .level3 <- function(rainseq, BLest, dailyvals, dlim, maxiter) {
   l1 <- matrix(NA, nrow = length(rainseq), ncol = 24)
   r <- matrix(rainseq, nrow = 1)
@@ -583,6 +595,7 @@ subdailyrain <- function(rain, BLest, dailyvals = 24, dlim = 0.2, maxiter = 1000
   }
   srain
 }
+#' @noRd
 plotrain <- function(daily, subdaily) {
   dailyvals <- length(subdaily) / length(daily)
   d24 <- as.vector(t(matrix(rep(daily, dailyvals), ncol = dailyvals)))

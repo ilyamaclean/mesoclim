@@ -26,3 +26,4 @@ other cells within that basin.
 fa <- flowacc(rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')))
 plot(fa, main = 'Accumulated flow')
 }
+\keyword{spatial}

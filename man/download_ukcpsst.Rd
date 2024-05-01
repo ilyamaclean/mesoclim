@@ -11,6 +11,8 @@ download_ukcpsst(
   modelruns = c("01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12",
     "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26",
     "27", "28"),
+  cedausr,
+  cedapwd,
   cedaprot = "https://",
   cedaserv = "dap.ceda.ac.uk"
 )
@@ -32,6 +34,10 @@ download_ukcpsst(
 \item vector of two character strings of model numbers
 }}
 
+\item{cedausr}{ceda username string}
+
+\item{cedapwd}{ceda password sting}
+
 \item{cedaprot}{\itemize{
 \item string of ceda protocol, set to https DO NOT CHANGE
 }}
@@ -48,11 +54,13 @@ For description of the modelling used to produce sea surface temperatures then s
 \verb{https://www.metoffice.gov.uk/binaries/content/assets/metofficegovuk/pdf/research/ukcp/ukcp18-guidance-data-availability-access-and-formats.pdf}
 }
 \examples{
-startdate<-as.POSIXlt('2017/12/31')
-enddate<-as.POSIXlt('2018/12/31')
-modelruns<-c('01')
-dir_out<-tempdir()
-download_ukcpsst(dir_out,startdate,enddate,modelruns)
+# cedausr<-"your_user_name"
+# cedapwd <- "your_password"
+# startdate<-as.POSIXlt('2017/12/31')
+# enddate<-as.POSIXlt('2018/12/31')
+# modelruns<-c('01')
+# dir_out<-tempdir()
+# download_ukcpsst(dir_out,startdate,enddate,modelruns, cedausr,cedapwd)
 }
 \keyword{download}
 \keyword{ukcp18}

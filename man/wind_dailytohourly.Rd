@@ -46,3 +46,4 @@ wh<-wind_dailytohourly(climdata$windspeed, climdata$winddir, climdata$tme, adjus
 summary(climdata$windspeed); summary(wh$wsh)
 summary(climdata$winddir); summary(wh$wdh)
 }
+\keyword{temporal}

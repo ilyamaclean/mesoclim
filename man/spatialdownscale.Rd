@@ -103,3 +103,4 @@ Spatially downscales coarse-resolution climate data
  dailymesodat<-spatialdownscale(climdata, sst, dtmf, dtmm, noraincut=0.01)
  plot_q_layers(dailymesodat$tmin)
 }
+\keyword{spatial}

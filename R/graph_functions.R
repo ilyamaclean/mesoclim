@@ -8,7 +8,7 @@
 #' @return NA plots series of timeploat
 #' @export
 #' @import magrittr
-#'
+#' @keywords graph
 #' @examples
 #' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
 #' r<-.rast(climdata$tmax,climdata$dtm)
@@ -45,7 +45,7 @@ plot_timestats_r<-function(r,v,idx=c('years', 'months', 'week',  'doy', 'yearmon
 #'
 #' @return plots series of raster plots equal to the length of p
 #' @export
-#'
+#' @keywords graph
 #' @examples
 #' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
 #' r<-.rast(climdata$tmax,climdata$dtm)
@@ -70,6 +70,7 @@ plot_q_layers<-function(r,p=c(0, 0.5, 1),vtext='',fun='mean', common_scale=FALSE
   }
 }
 
+#' @noRd
 .dir_to_cardinal <- function(x) {
   upper <- seq(from = 11.25, by = 22.5, length.out = 17)
   cardinals <- c('N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW', 'N')
@@ -85,6 +86,7 @@ plot_q_layers<-function(r,p=c(0, 0.5, 1),vtext='',fun='mean', common_scale=FALSE
 #' average and maximum windspeeds by direction
 #' @export
 #' @import fmsb
+#' @keywords graph
 #'
 #' @examples
 #' wdir<-c(357,5,20,45,100,185,265,275,290)

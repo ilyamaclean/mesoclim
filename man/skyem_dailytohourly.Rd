@@ -38,3 +38,4 @@ but an adequate approximation is derived if subtited by air temperature.
 climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
 lwrad<-skyem_dailytohourly()
 }
+\keyword{temporal}

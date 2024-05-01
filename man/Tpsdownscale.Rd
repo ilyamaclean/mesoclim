@@ -43,3 +43,4 @@ par(mfrow=c(2,1))
 plot(rain,main='Input rain')
 plot(rainf,main='Downscaled rain')
 }
+\keyword{spatial}

@@ -32,3 +32,4 @@ r<-.rast(climdata$tmax,climdata$dtm)
 terra::time(r)<-climdata$tme
 plot_timestats_r(r,'tmax',idx='doy')
 }
+\keyword{graph}

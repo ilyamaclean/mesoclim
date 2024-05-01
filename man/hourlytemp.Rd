@@ -71,3 +71,4 @@ par(mfrow=c(2,1))
 plot(tc[[4]]-tp[[4]],main='Difference (tc-tp) for coldest tc hour')
 plot(tc[[665]]-tp[[665]],main='Difference (tc-tp) for hottest tc hour')
 }
+\keyword{temporal}

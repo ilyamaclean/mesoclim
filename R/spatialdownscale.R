@@ -29,6 +29,7 @@
 #' @rdname tempdownscale
 #' @import terra
 #' @export
+#' @keywords spatial
 #' @examples
 #' # Takes ~90 seconds to run
 #'  dir_data<-system.file('extdata/ukcp18sst',package='mesoclim')
@@ -86,6 +87,7 @@ tempdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, u2 = NA,
 #' @rdname presdownscale
 #' @import terra
 #' @export
+#' @keywords spatial
 #' @examples
 #' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
 #' pk <- presdownscale(climdata$pres, rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')), climdata$dtm)
@@ -141,6 +143,7 @@ presdownscale<-function(pk, dtmf, dtmc, sealevel = TRUE) {
 #' @import gstat
 #' @export
 #'
+#' @keywords spatial
 #' @examples
 #' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
 #' swradf<-swdownscale(climdata$swrad, climdata$tme,  rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')), ukcpinput$dtm)
@@ -289,6 +292,7 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)
 #' @export
 #' @rdname winddownscale
 #' @seealso [windelev()]
+#' @keywords spatial
 #' @examples
 #' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
 #' dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
@@ -342,6 +346,7 @@ winddownscale <- function(wspeed, wdir, dtmf, dtmm, dtmc, zi=10, zo = 2) {
 #' @export
 #' @rdname relhumdownscale
 #' @seealso [tempdownscale()]
+#' @keywords spatial
 #' @examples
 #' climdata<- read_climdata(system.file('data/era5input.rds',package='mesoclim'))
 #' dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
@@ -404,6 +409,7 @@ relhumdownscale<-function(rh, tcc, tcf, dtmc, rhmin = 0) {
 #' @import fields
 #' @import gstat
 #' @export
+#' @keywords spatial
 #' @examples
 #' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
 #' dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
@@ -555,6 +561,7 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
 #'    \item{prec}{Precipitation (mm)}
 #'  }
 #' @export
+#' @keywords spatial
 #' @examples
 #'  dir_data<-system.file('extdata/ukcp18sst',package='mesoclim')
 #'  sst<-create_ukcpsst_data(dir_data,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),members='01')

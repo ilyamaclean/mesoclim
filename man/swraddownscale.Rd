@@ -62,3 +62,4 @@ climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
 swradf<-swdownscale(climdata$swrad, climdata$tme,  rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')), ukcpinput$dtm)
 plot_q_layers(swradf)
 }
+\keyword{spatial}

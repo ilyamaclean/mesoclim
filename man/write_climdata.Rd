@@ -23,3 +23,5 @@ climdata<-read_climdata(system.file('data/ukcp18rcm.rda',package='mesoclim'))
 dir_temp<-tempdir()
 write_climdata(climdata,file.path(dir_temp,'filename.rds'))
 }
+\keyword{data}
+\keyword{preprocess}

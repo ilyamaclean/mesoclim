@@ -8,8 +8,10 @@ download_hadukdaily(
   dir_out,
   startdate,
   enddate,
-  varn = v("rainfall", "tasmax", "tasmin", "hurs", "psl", "pv", "sun", "sfsWind"),
+  varn = c("rainfall", "tasmax", "tasmin", "hurs", "psl", "pv", "sun", "sfsWind"),
   freq = c("day", "mon"),
+  cedausr,
+  cedapwd,
   cedaprot = "https://",
   cedaserv = "dap.ceda.ac.uk"
 )
@@ -33,6 +35,10 @@ NOTE: Only \code{rainfall} (precipitation in mm), \code{tasmax}(maximum daily te
 \item string of frequency required - either 'day' or 'mon' (monthly)
 }}
 
+\item{cedausr}{ceda username string}
+
+\item{cedapwd}{ceda password sting}
+
 \item{cedaprot}{\itemize{
 \item ceda protocol used is https  - DO NOT CHANGE
 }}
@@ -40,10 +46,6 @@ NOTE: Only \code{rainfall} (precipitation in mm), \code{tasmax}(maximum daily te
 \item{cedaserv}{\itemize{
 \item ceda service is dap - DO NOT CHANGE
 }}
-
-\item{cedausr}{string of ceda username}
-
-\item{cedapwd}{string of ceda username}
 }
 \value{
 database detailing download details and success of all requested files
@@ -54,5 +56,11 @@ Climate Observation data on a 1km grid over the UK from CEDA.
 }
 \details{
 Uses ceda dap https service that does not require username or password.
+}
+\examples{
+# dir_out <- tempdir()
+# cedausr<-"your_user_name"
+# cedapwd <- "your_password"
+#download_hadukdaily(dir_out,as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),varn=c('tasmax','tasmin'),freq='day', cedausr,cedapwd)
 }
 \keyword{download}

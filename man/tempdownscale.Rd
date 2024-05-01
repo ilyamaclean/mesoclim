@@ -73,3 +73,4 @@ sea outside the boundaries of the study area.
  tmf <- tempdownscale(climdata, sst, dtmf, dtmm, NA, NA,TRUE, TRUE,'tmax',2, 2)
  plot_q_layers(tmf)
 }
+\keyword{spatial}

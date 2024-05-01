@@ -35,7 +35,7 @@ Create UKCP sea surface temperature rast stack from ncdf files
 }
 \examples{
 dir_data<-system.file('extdata/ukcp18sst',package='mesoclim')
-sst<-create_ukcpsst_data(dir_data,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),members='01')
+sst<-create_ukcpsst_data(dir_data,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),member='01')
 }
 \keyword{preprocess}
 \keyword{ukcp18}

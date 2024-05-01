@@ -16,6 +16,7 @@
 #' @import terra
 #' @importFrom Rcpp sourceCpp
 #' @export
+#' @keywords spatial
 #' @rdname basindelin
 #' @examples
 #' bsn<-basindelin(rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')))
@@ -39,6 +40,7 @@ basindelin<-function(dtm, boundary = 0) {
 #' @import terra
 #' @export
 #' @rdname flowacc
+#' @keywords spatial
 #' @examples
 #' fa <- flowacc(rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')))
 #' plot(fa, main = 'Accumulated flow')
@@ -92,6 +94,7 @@ flowacc <- function (dtm, basins = NA) {
 #' @export
 #' @seealso [winddownscale()]
 #' @rdname windelev
+#' @keywords spatial
 #' @examples
 #' dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
 #' dtmm<-rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
@@ -142,7 +145,7 @@ windelev <- function(dtmf, dtmm, dtmc, wdir, uz = 2) {
 #' sea pixels in a specified upwind direction, across all elements of a
 #' SpatRast, weighted using an inverse distance squared function,
 #' such that nearby pixels have a greater influence on the coefficient.
-#'
+#' @keywords spatial
 #' @import terra
 #' @importFrom Rcpp sourceCpp
 #' @useDynLib mesoclim, .registration = TRUE
@@ -198,6 +201,7 @@ coastalexposure <- function(landsea, e, wdir) {
 #' If `method = "normal"` no transformation is applied.
 #' @import fields
 #' @export
+#' @keywords spatial
 #' @examples
 #' climdata<-read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
 #' dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
@@ -277,6 +281,7 @@ Tpsdownscale<-function(r, dtmc, dtmf, method = "normal", fast = TRUE) {
 #' in radiation for each hour in question and values in the preceding and deciding hour.  If
 #' hourly data are unavailable, an average variability is determined from radiation intensity.
 #'
+#' @keywords climate
 #' @examples
 #' rad <- c(1:1352) # typical values of radiation in W/m^2
 #' jd <- .jday(as.POSIXlt("2022-06-21")) # julian day
@@ -353,7 +358,7 @@ difprop <- function(rad, julian, localtime, lat, long, hourly = FALSE,
 #' @return returns humidity
 #' (Percentage for relative,Kg / Kg for specific, kg / m3 for absolute and kPa for vapour pressure)
 #' @export
-#'
+#' @keywords climate
 #' @examples
 #' rh<-c(25,50,75,90,100)
 #' vp<-round(converthumidity(rh),3)
@@ -402,6 +407,7 @@ converthumidity <- function (h, intype = "relative", outtype = "vapour pressure"
 #' @param pk atmospheric pressure (kPa)
 #' @return expected clear-sky radiation (W/m^2)
 #' @export
+#' @keywords climate
 #' @examples
 #' jd <- .jday(as.POSIXlt("2022-06-21")) # julian day
 #' tme<-seq(0,23,1)
@@ -426,6 +432,7 @@ clearskyrad <- function(jd, lt, lat, long, tc = 15, rh = 80, pk = 101.3) {
 #' @param julian - astronomical julian day - as returned by .jday()
 #' @param lat - latitude (decimal degrees)
 #' @return Returns daylength in decimal hours (0 if 24 hour darkness, 24 if 24 hour daylight)
+#' @keywords climate temporal
 #' @examples
 #' tme<-as.POSIXlt(seq(as.POSIXlt("2022-01-01"),as.POSIXlt("2022-06-30"),60*60*24*8))
 #' jd<-sapply(tme,.jday)
@@ -452,6 +459,7 @@ daylength <- function(julian, lat) {
 #' @param ea = vapour pressure (kPa)
 #' @param pk = atmospheric pressure (kPa)
 #' @returns laps rate
+#' @keywords climate spatial
 #' @examples
 #' climdata<-read_climdata(system.file('data/era5input.rds',package='mesoclim'))
 #' ea<-converthumidity(climdata$relhum,tc=climdata$temp , pk=climdata$pres)

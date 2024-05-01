@@ -53,3 +53,4 @@ mostly by bias correction anyway
 climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
 swh<-swrad_dailytohourly(climdata$swrad,climdata$tme,r=climdata$dtm)
 }
+\keyword{temporal}

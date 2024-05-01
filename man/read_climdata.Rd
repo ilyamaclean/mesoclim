@@ -19,3 +19,5 @@ Unwraps any PackedSpatRasters to Spatrasters
 \examples{
 climdata<-read_climdata(system.file('data/ukcp18rcm.rda',package='mesoclim'))
 }
+\keyword{data}
+\keyword{preprocess}

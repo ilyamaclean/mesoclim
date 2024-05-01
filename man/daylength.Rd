@@ -27,3 +27,5 @@ jd<-sapply(tme,.jday)
 dl<-daylength(jd,50)
 plot(dl ~ jd, type = "l", lwd = 8, xlab = "Day", ylab = "Day length")
 }
+\keyword{climate}
+\keyword{temporal}

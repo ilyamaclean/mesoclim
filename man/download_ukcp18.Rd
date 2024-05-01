@@ -44,6 +44,10 @@ download_ukcp18(
 \item if TRUE and orography (elevation) available will also download to dir_out
 }}
 
+\item{cedausr}{ceda username string}
+
+\item{cedapwd}{ceda password sting}
+
 \item{cedaprot}{\itemize{
 \item string of ceda protocol, set to https DO NOT CHANGE
 }}
@@ -66,8 +70,10 @@ you do not already have a password, or if you want to reset your FTP password
 go to MyCEDA and click on the 'Configure FTP account' button.
 }
 \examples{
-# dir_out <- tempdir()
-# download_ukcp18(dir_out,as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01'),c('tasmax','tasmin'),download_dtm=TRUE)
+# dir_ukcp <- tempdir()
+# cedausr<-"your_user_name"
+# cedapwd <- "your_password"
+# download_ukcp18(dir_ukcp,as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01'),c('tasmax','tasmin'),download_dtm=TRUE, cedausr,cedapwd)
 }
 \keyword{download}
 \keyword{ukcp18}

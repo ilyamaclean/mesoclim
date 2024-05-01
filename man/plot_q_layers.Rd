@@ -33,3 +33,4 @@ r<-.rast(climdata$tmax,climdata$dtm)
 terra::time(r)<-climdata$tme
 plot_q_layers(r)
 }
+\keyword{graph}

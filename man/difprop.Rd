@@ -46,3 +46,4 @@ plot(dfr ~ rad, type = "l", lwd = 2,
 xlab = expression(paste("Incoming shortwave radiation (", W*M^-2, ")")),
 ylab = "Diffuse fraction")
 }
+\keyword{climate}

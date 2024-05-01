@@ -73,3 +73,4 @@ dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
 prcf<-precipdownscale(ukcpinput$prec, dtmf, ukcpinput$dtm, method='Elev', noraincut=0.01)
 plot_q_layers(prcf)
 }
+\keyword{spatial}

@@ -22,3 +22,4 @@ Check and summarise coarse resolution climate data inputs
 climdata<- read_climdata(system.file('data/era5input.rds',package='mesoclim'))
 chk_climdata<- checkinputs(climdata, tstep = "hour")
 }
+\keyword{preprocess}

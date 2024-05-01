@@ -20,3 +20,4 @@ r <- rast(ncols=5, nrows=5, vals=rep(c(1,2,NA,4,5),5))
 rout<-spatial_interpNA(r)
 plot(c(r,rout))
 }
+\keyword{internal}

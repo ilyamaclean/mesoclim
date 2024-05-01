@@ -386,30 +386,32 @@ correct_era5temps<-function(era5hourly,era5correctmodels) {
 # ================================================================= #
 # ~~~~~~~~~~~~~ Code dump from here - probably not all needed ~~~~~~~~~ #
 # ================================================================= #
-# Saves a SpatRaster object as an nc file
-# r - a SpatRaster object
-# baseyear - used for adding time stamp to nc file (asumes daily)
-# shortname - Name of the dataset
-# longname - Long name of the dataset
-# unit - character. Unit of the data
-# fileout - name of file to be saved (includign path)
-# saves a compressed netCDF4 file to disk
+#' Saves a SpatRaster object as an nc file
+#' @param r - a SpatRaster object
+#' @param baseyear - used for adding time stamp to nc file (asumes daily)
+#' @param shortname - Name of the dataset
+#' @param longname - Long name of the dataset
+#' @param unit - character. Unit of the data
+#' @param fileout - name of file to be saved (includign path)
+#' saves a compressed netCDF4 file to disk
+#' @noRd
 savenc<-function(r,baseyear,shortname,longname,unit,fileout) {
   terra::time(r)<-as.Date(paste0(baseyear,"-01-01")) + 0:(nlyr(r)-1)
   writeCDF(r,fileout,overwrite=TRUE,compression=9,varname=shortname,
            longname=longname,unit=unit)
 }
 
-# Applies biascorrectukcpone (precipcorrect) to all ukcp variables for one tile and model run
-# and saves data to disk as nc files per decade
-# pathtoera - directory with 2018 daily era5 data (as returned by era5todaily)
-# pathtoukcp18 - directory with 2018 ukcp data (as returned by crop2018UKCP)
-# pathtoukcpdecade - directory with decadal ukcp data (as returned by cropandsortUKCPdecade)
-# pathout - directory in which to save corrected data
-# decade - the decade for which data are required (1 for 2010-2019, 2 for 2020-2019 etc)
-# modelrun - a numeric value (1 is convertyed to 01) indicating the model run. Used for reading in
-# data, so file naming and foldr convention assumed to match that of data supplied via dropbox
-# saves bias corrected daily ukcp data as compressed ncdf4 files
+#' Applies biascorrectukcpone (precipcorrect) to all ukcp variables for one tile and model run
+#' and saves data to disk as nc files per decade
+#' @param pathtoera - directory with 2018 daily era5 data (as returned by era5todaily)
+#' @param pathtoukcp18 - directory with 2018 ukcp data (as returned by crop2018UKCP)
+#' @param pathtoukcpdecade - directory with decadal ukcp data (as returned by cropandsortUKCPdecade)
+#' @param pathout - directory in which to save corrected data
+#' @param decade - the decade for which data are required (1 for 2010-2019, 2 for 2020-2019 etc)
+#' @param modelrun - a numeric value (1 is convertyed to 01) indicating the model run. Used for reading in
+#' data, so file naming and foldr convention assumed to match that of data supplied via dropbox
+#' saves bias corrected daily ukcp data as compressed ncdf4 files
+#' @noRd
 biascorrectukcpall<-function(pathtoera,pathtoukcp18,pathtoukcpdecade,pathout,decade,modelrun) {
   # file names
   mtxt<-ifelse(modelrun<10,paste0("0",modelrun),paste0("",modelrun))

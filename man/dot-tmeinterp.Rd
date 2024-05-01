@@ -28,3 +28,4 @@ tmeout<-as.Date(seq(17532,17651,1))
 rout<-time_interp(r,NA,tmeout)
 plot(rout[[c(1,15,31,95,119,120)]])
 }
+\keyword{internal}

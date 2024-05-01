@@ -8,7 +8,7 @@
 #' @import magrittr
 #' @import fmsb
 #' @export
-#'
+#' @keywords preprocess
 #' @examples
 #' climdata<- read_climdata(system.file('data/era5input.rds',package='mesoclim'))
 #' chk_climdata<- checkinputs(climdata, tstep = "hour")
@@ -197,7 +197,7 @@ checkinputs <- function(input_list, tstep = c("hour","day")){
 #'
 #' @return R list of climate data
 #' @export
-#'
+#' @keywords preprocess data
 #' @examples
 #' climdata<-read_climdata(system.file('data/ukcp18rcm.rda',package='mesoclim'))
 read_climdata<-function(filepath){
@@ -217,7 +217,7 @@ read_climdata<-function(filepath){
 #'
 #' @return writes an external file
 #' @export
-#'
+#' @keywords preprocess data
 #' @examples
 #' climdata<-read_climdata(system.file('data/ukcp18rcm.rda',package='mesoclim'))
 #' dir_temp<-tempdir()
@@ -240,7 +240,7 @@ write_climdata<-function(climdata,filepath,overwrite=FALSE){
 #'
 #' @return nested list of climate variable timeseries by parcel.
 #' @export
-#'
+#' @keywords postprocess data
 create_parcel_list<-function(climdata,parcels,id='gid',
                              input_names=c("tmax", "tmin","swrad","lwrad","relhum","pres","prec", "windspeed"),
                              output_names=c("tmax", "tmin","swdown","lwdown","relhum","pres","prec", "windspeed"),
@@ -284,7 +284,7 @@ create_parcel_list<-function(climdata,parcels,id='gid',
 #'
 #' @return NA - writes .csv files
 #' @export
-#'
+#' @keywords postprocess data
 write_parcels<-function(parcel_list, dir_out, overwrite=c('none','append','replace')){
   overwrite<-match.arg(overwrite)
   parcel_names<-names(parcel_list)
