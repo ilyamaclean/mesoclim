@@ -12,9 +12,9 @@ knitr::opts_chunk$set(
 
 
 ```{r setup, include=FALSE}
-#library(mesoclim)
-
-devtools::load_all(quiet=TRUE)
+library(lubridate)
+library(terra)
+library(mesoclim)
 ```
 
 # 3. Spatial Downscaling of UKCP18 regional climate data
@@ -22,17 +22,17 @@ devtools::load_all(quiet=TRUE)
 ## Defining the area of interest
 The projection, resolution and extent of the downscaled area is defined by providing a fine-resolution DTM that also acts as a land/sea mask with sea cells having a NA value.
 
-
 ```{r downscaled-dtm,  results="hide"}
-
 # Get fine and medium res DTMs from package
-dir_datasets<-system.file('data',package='mesoclim')
+dir_dtm<-system.file('extdata/dtms',package='mesoclim')
+dtmm<-rast(file.path(dir_dtm,'dtmm.tif'))
+dtmf<-rast(file.path(dir_dtm,'dtmf.tif'))
 
-load(file.path(dir_datasets,'dtmf.rda'))
-load(file.path(dir_datasets,'dtmm.rda'))
-
-dtmm<-unwrap(dtmm)
-dtmf<-unwrap(dtmf)
+# Show local downscale area within wider dtmm
+aoi<-vect(ext(dtmf))
+plot.new()
+plot(dtmm,main='Downscale area within wider dtmm')
+plot(aoi,add=TRUE)
 ```
 
 ## Preparing the data
@@ -40,21 +40,20 @@ Coarse resolution climate and ancillary data will need to be prepared as outline
 
 Sea surface temperature data must also be prepared for the surrounding area and for the same time period as the input climate data. 
 
-```{r sst-prepare}
-startdate<-as.POSIXlt('2018/01/01')
-enddate<-as.POSIXlt('2018/12/31')
-member<-'01'
-
-#Load prepared climate data
+```{r prepare}
+# Load prepared climate data
 ukcp18rcm<-read_climdata(file.path(system.file('extdata/preprepdata',package='mesoclim'),'ukcp18rcm.Rds'))
+
+# Get time period 
+startdate<-ukcp18rcm$tme[1]
+enddate<-ukcp18rcm$tme[length(ukcp18rcm$tme)]
+
+# set model run as same as that in climate data 
+member<-'01'
 
 # Load sea surface data 
 dir_sst<-system.file('extdata/ukcp18sst',package='mesoclim')
-ukcp18sst<-create_ukcpsst_data(dir_sst,startdate,enddate,ukcp18rcm$dtm,member)
-
-# Interpolate SST data to required timesteps
-sst<-spatial_interpNA(ukcp18sst)
-sst<-time_interp(sst,ukcp18rcm$tme)
+sst<-create_ukcpsst_data(dir_sst,startdate,enddate,ukcp18rcm$dtm,member)
 ```
 
 ## Single step downscaling
@@ -76,17 +75,15 @@ Wrapper function allows downscaling in a single function call, with parameters d
 # Downscale one year of future climate data
 
 t0<-now()
-mesolizd<-spatialdownscale(ukcp18rcm, sst, dtmf, dtmm, basins = NA, cad = TRUE,
-                           coastal = TRUE, refhgt = ukcp18rcm$tempheight_m, 
-                           uhgt = ukcp18rcm$windheight_m, 
+mesoclimate<-spatialdownscale(ukcp18rcm, sst, dtmf, dtmm, basins = NA, cad = TRUE,
+                           coastal = TRUE, thgto =2, whgto=2, 
                            rhmin = 20, pksealevel = TRUE, patchsim = TRUE, 
                            terrainshade = FALSE, 
-                           precipmethod = "Tps", fast = TRUE, noraincut = 0.01)
+                           precipmethod = "Elev", fast = TRUE, noraincut = 0.01)
 print(now()-t0)
 
-# write_climdata(mesolizd,file.path(system.file('extdata/dscaledata',package='mesoclim'),'mesolizd.rds'))
-
-# mesolizd<-read_climdata(file.path(system.file('extdata/dscaledata',package='mesoclim'),'mesolizd.rds')))
+# write_climdata(mesoclimate,file.path(system.file('extdata/dscaledata',package='mesoclim'),'mesoclimate.rds'))
+# mesoclimate<-read_climdata(file.path(system.file('extdata/dscaledata',package='mesoclim'),'mesoclimate.rds')))
 ```
 
 ### Display outputs
@@ -94,8 +91,10 @@ print(now()-t0)
 In tabular form for all times and locations:
 
 ```{r output_table}
-smry_fun<-function(x) summary(as.vector(.is(x)))
-rslt<-sapply(mesolizd[names(mesolizd)],smry_fun)
+climvars<-c('tmin','tmax','relhum','pres','swrad','lwrad','windspeed','winddir','prec')
+
+smry_fun<-function(x) summary(as.vector(as.array(x)))
+rslt<-sapply(mesoclimate[climvars],smry_fun)
 stats_df<-as.data.frame(t(round(rslt,3)))[,c('Min.','Mean','Max.')]
 print(stats_df)
   
@@ -103,18 +102,16 @@ print(stats_df)
 
 Or as selected rasters for days corresponding to spatial quantiles (eg days where spatial means are ata min, median and max values):
 
-__CHECK:__ Max diurnal temperature range plot shows grid effect?
-
 ```{r map-outputs}
-for(var in names(mesolizd)){
-  r<-terra::unwrap(mesolizd[[var]])
+for(var in climvars){
+  print(var)
+  r<-mesoclimate[[var]]
   names(r)<-rep(var,nlyr(r))
-  plot_q_layers(r)
+  plot_q_layers(r,vtext=var)
 }
 
 # Show spatial range in daily temperatures
-plot(max(unwrap(mesolizd$tmax)-unwrap(mesolizd$tmin)),main='Max diurnal temperature range', font.main = 1, nc=1)
-
+plot(max(mesoclimate$tmax)-min(mesoclimate$tmin),main='Max diurnal temperature range', font.main = 1, nc=1)
 ```
 
 ```{r tseries_output}
@@ -125,8 +122,8 @@ layout(matrix(c(1,2,3,4,1,5,6,7,1,8,9,10),ncol=3),heights=c(1,3,3,3))
 plot.new()
 text(0.5,0.5,"Spatial mean (green), max (red) and min (blue) by day of year",cex=1,font=1)
 
-for(v in names(mesolizd)){
-  r<-unwrap(mesolizd[[v]])
+for(v in climvars){
+  r<-mesoclimate[[v]]
   plot_timestats_r(r,v,idx='doy',lgd=FALSE)
 }
 
@@ -164,7 +161,7 @@ basins<-basindelin(dtmf,boundary=2)
 plot(basins,main='basins')
 ```
 
-For the chosen study area, cold air drainage has very little effect on local temperatures:
+For the chosen study area, cold air drainage has no effect on local temperatures during the chosen timeperiod (May):
 ```{r calc_cad}
 # Calculate using tmin to illustrate
 ukcp18rcm$temp<-ukcp18rcm$tmin
@@ -322,7 +319,7 @@ Longwave downscaling accounts for the effects of terrain shading effect on skyvi
 lwf<-.resample(.rast(ukcp18rcm$lwrad,ukcp18rcm$dtm), dtmf, msk=TRUE)
 # corrected for skyview  
 svf<-.rta(.skyview(dtmf),dim(lwf)[3])
-lwrad<-.rast(.is(lwf)*svf,dtmf)
+lwrad<-.rast(as.array(lwf)*svf,dtmf)
 
 names(lwrad)<-rep('lwrad',nlyr(lwrad))
 terra::time(lwrad)<-ukcp18rcm$tme

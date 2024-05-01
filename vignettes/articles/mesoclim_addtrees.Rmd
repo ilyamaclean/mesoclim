@@ -14,14 +14,14 @@ knitr::opts_chunk$set(
 library(lubridate)
 library(terra)
 library(mesoclim)
-#devtools::load_all(quiet=TRUE)
 
+# time whole process
 tbegin<-now()
 ```
 
 
 # Setup & Inputs
-Following required files & directories:
+Downscaling requires the following files & directories:
 
 * Filepath to vector file of parcels output by ellicitor app.
 
@@ -29,42 +29,43 @@ Following required files & directories:
 
 * Filepath to 50m DTM of UK (OS Terrain50 -  which has advantages in having a .vrt raster that can be queried to enhance cropping and extraction of relevant area to match aoi etc. Subdirectories within hold actual tiled data.)
 
-* Directory holding UKCP18 RCM climate data files - holding raw .nc files (by variable and decade) as downloaded from ceda. Must include files for historic UKCP18 rcm data for use in bias correction, as well as future files.
+* Directory holding UKCP18 RCM climate data files  - holding raw .nc files (by variable and decade) as downloaded from ceda for the defined time period. 
 
 * Directory holding UKCP18 derived sea surface temperature data files - holding .nc files as downloaded from ceda
 
-* Directory for outputs of parcel climate timeseries - to which individual parcel .csv files are written.
+* Directory for outputs - to which individual parcel .csv timeseries files are written.
 
 Additional parameters required:
 
-* Start time for climate timeseries
-* End time for climate series
-* Model runs of UKCP18rcm to be analysed
+* Start time for climate timeseries.
+
+* End time for climate timeseries.
+
+* Model runs of UKCP18rcm to be downscaled
 
 
-For this article, I am assuming you are using the shared folder of mesoclim inputs. You should only have to change dir_root to the directory in which the shared folder is located for the rest of the setup to work...
+For this article, *I am assuming you are using the shared folder of mesoclim inputs*. You should only have to change `dir_root` to the directory in which the shared folder is located for the rest of the setup to work...
 
-For a quicker run time, reduce the time period to a single year.
+For a quicker run time, reduce the time period as defined by `ftr_sdate` and `ftr_edate` parameters. Other parameters are chosen to work with the shared data folder.
 
 ```{r inputs}
 # CHANGE this...
 dir_root<-'D:'
 
 # ... and these should be OK
-parcels_file<-file.path(dir_root,'mesoclim_inputs','parcels','land_parcels.shp')
+parcels_file<-file.path(dir_root,'mesoclim_inputs','parcels','land_parcels.shp') # elicitor app output file
 coast_file<-file.path(dir_root,'mesoclim_inputs','boundaries','CTRY_DEC_2023_UK_BGC.shp') # MHW line generalised to 20m
 ukdtm_file<-file.path(dir_root,'mesoclim_inputs','dtm',"GBdem50.vrt") # 50m dtm virtual raster
 
-dir_ukcp<-file.path(dir_root,'mesoclim_inputs/ukcp18rcm') # also holds ukcp rcm elevation data
-dir_sst<-file.path(dir_root,'mesoclim_inputs/ukcp18sst')
-dir_out<-file.path(dir_root,'mesoclim_inputs/outputs')
+dir_ukcp<-file.path(dir_root,'mesoclim_inputs/ukcp18rcm') # holds ukcp rcm climate and elevation data
+dir_sst<-file.path(dir_root,'mesoclim_inputs/ukcp18sst') # ukcp18 derived data of sea surface temperature
+dir_out<-file.path(dir_root,'mesoclim_inputs/outputs')  # output dir
 
 # Parameters chosen to work with this data
 ftr_sdate<-as.POSIXlt('2020/01/01')
 ftr_edate<-as.POSIXlt('2020/12/31') # If using shared data folder use max value of as.POSIXlt('2039/12/31')
 
-modelrun<-c('06')
-
+modelrun<-c('06') 
 collection<-'land-rcm'
 domain<-'uk'
 rcp<-'rcp85'
@@ -72,14 +73,14 @@ rcp<-'rcp85'
 
 # Download data 
 
-*_ NOT required if working with the shared input data folder. _*
+> **NOT required if working with the shared input data folder.**
 
-The functions will download from ceda archive the same data stored in the shared input data folder to the previously defined dir locations.
+The functions will download from ceda archive the UKCP18 RCM data required, as defined by previously defined parameters.
 
-Download UKCP18 regional climate data: 
+**Download UKCP18 regional climate data: **
 
 ```{r download_climate, eval=FALSE}
-# Download entire timeseries of observed and future UKCP data from ceda to dir_ukcp
+# UKCP18 RCM data 
 report<-download_ukcp18(
     dir_ukcp,
     ftr_sdate,ftr_edate,
@@ -91,7 +92,7 @@ report<-download_ukcp18(
 print(report)
 ```
 
-Download UKCP18 driven sea surface temperature data:
+**Download UKCP18 driven sea surface temperature data:**
 
 ```{r download_sst, eval=FALSE}
 # sst data
@@ -100,6 +101,8 @@ report<-download_ukcpsst(dir_sst,ftr_sdate,ftr_edate,modelrun)
 
 
 # Prepare  data
+
+## Prepare downscaling area and elevation data
 Area of interest (aoi) for which downscaling will occur defined by bounding box around parcel data. This is then used to crop elevation data to generate dtms required for downscaling.
 
 
@@ -133,21 +136,22 @@ dtmc<-terra::crop(dtmc,dtmm)
 # Plot dtmf and overlay parcels
 plot(dtmf,main='Parcels')
 plot(parcels_v,add=TRUE)
-
-# NOTE: might want to double check all parcels fall within land area of dtmf??
 ```
 
+## Prepare climate data
 Future climate input files cropped and processed to a standard list of variables for the area of interest AND for each model run.
 ```{r prepare_climdata}
 # Future
 t0<-now()
 ftr_ukcpdata<-ukcp18toclimarray(dir_ukcp, dtmc, ftr_sdate, ftr_edate,
                              collection, domain, modelrun)
-print(now()-t0)
-
+prep_time= now()-t0
 # write_climdata(ftr_ukcpdata,file.path(dir_out,'ftr_ukcpdata.Rds'))
 ```
 
+Time for climate data preparation = `r round(prep_time,2)` minutes.
+
+## Prepare Sea surface data
 Sea surface temperatures are also loaded and cropped to dtmm extent.
 ```{r sst_preprocess}
 # Sea surface temperature 
@@ -155,7 +159,9 @@ sst<-create_ukcpsst_data(dir_sst,ftr_sdate,ftr_edate,dtmm,modelrun)
 ```
 
 ## Checking data inputs 
-The resulting data structures of pre-processing can be checked to ensure there are no missing or unexpected values that may indicate a difference in the expected SI units or incomplete input datasets. This is particularly advisable if the inputs for spatial downscaling are not derived from one of the provided functions.Function also provides basic statistics and sample plots of climate variables.
+The resulting data structures of pre-processing can be checked to ensure there are no missing or unexpected values that may indicate a difference in the expected SI units or incomplete input datasets. This is particularly advisable if the inputs for spatial downscaling are not derived from one of the provided functions.
+
+The `checkinputs` function also provides basic statistics and sample plots of climate variables.
 
 ```{r check_inputs}
 ftr_ukcpdata<-checkinputs(ftr_ukcpdata, tstep = "day")
@@ -167,30 +173,34 @@ ftr_ukcpdata<-checkinputs(ftr_ukcpdata, tstep = "day")
 ```{r downscale_climate}
 # Future - takes about 20mins using shared folder inputs
 t0<-now()
-ftr_mesoclim<-spatialdownscale(ftr_ukcpdata, sst, dtmf, dtmm, basins = NA, cad = TRUE,
-                           coastal = TRUE, thgto = 2, whgto = 2, 
-                           rhmin = 20, pksealevel = TRUE, patchsim = FALSE, 
-                           terrainshade = FALSE, precipmethod = "Tps", fast = TRUE, noraincut = 0.01)
-print(now()-t0)
+ftr_mesoclim<-spatialdownscale(ftr_ukcpdata, sst, dtmf, dtmm, 
+                               basins = NA, cad = TRUE, coastal = TRUE,
+                               thgto = 2, whgto = 2, rhmin = 20, 
+                               pksealevel = TRUE, patchsim = FALSE, 
+                              terrainshade = FALSE, precipmethod = "Elev", 
+                              fast = TRUE, noraincut = 0.01)
+dscale_time<-now()-t0
 ```
 
-### Display outputs
+Time taken for downscaling function = `r round(dscale_time,2)`  minutes.
 
-In tabular form for all times and locations:
+### Display downscaled outputs
+
+Min, max and mean values in tabular form for all times and locations:
 
 ```{r output_table}
 climvars<-c('tmin','tmax','relhum','pres','swrad','lwrad','windspeed','winddir','prec')
 
-smry_fun<-function(x) summary(as.vector(.is(x)))
+smry_fun<-function(x) summary(as.vector(as.array(x)))
 rslt<-sapply(ftr_mesoclim[climvars],smry_fun)
 stats_df<-as.data.frame(t(round(rslt,3)))[,c('Min.','Mean','Max.')]
 print(stats_df)
 ```
 
-Or as selected rasters for days corresponding to spatial quantiles (ie days where spatial means are data min, median and max values of timeseries):
+Or as raster plots for days corresponding to spatial quantiles (ie days where spatial means are data min, median and max values of timeseries). Example plots of max and min daily temperatures, precipitation and dirunal temperature range:
 
 ```{r map-outputs}
-for(var in climvars){
+for(var in c('tmax','tmin','prec')){
   r<-ftr_mesoclim[[var]]
   names(r)<-rep(var,nlyr(r))
   plot_q_layers(r,vtext=var)
@@ -201,32 +211,21 @@ diurnaltmp<-ftr_mesoclim$tmax-ftr_mesoclim$tmin
 plot_q_layers(diurnaltmp,vtext='diurnalT')
 ```
 
-Or as timeseries of spatial statistics (min, max and mean), for example by day of year (averaged over all years) or by year:
+Or as plots of timeseries of spatial statistics (min, max and mean), for example by day of year (averaged over all years):
 
 ```{r tseries_output}
 par(mar=c(1,1,1,1),cex.main=0.8, mgp=c(3,0.1,0))
 layout(matrix(c(1,2,3,4,1,5,6,7,1,8,9,10),ncol=3),heights=c(1,3,3,3))
-
-#par(mfrow=c(3,3))
 plot.new()
 text(0.5,0.5,"Spatial mean (green), max (red) and min (blue) by day of year",cex=1,font=1)
-
-# By Day of year (mean across timeseries)
 for(v in climvars){
   r<-unwrap(ftr_mesoclim[[v]])
   plot_timestats_r(r,v,idx='doy',lgd=FALSE)
 }
-
-# By year
-for(v in climvars){
-  r<-unwrap(ftr_mesoclim[[v]])
-  plot_timestats_r(r,v,idx='years',lgd=FALSE)
-}
-
 ```
 
 
-# Write outputs
+# Calculate and write parcel outputs
 Calculate weighted means of climate variables for each parcel and write as .csv files.
 
 ```{r write_outputs}
@@ -235,13 +234,13 @@ t0<-now()
 parcel_list<-create_parcel_list(ftr_mesoclim,parcels_v,id='gid')
 
 # Write parcel files
-write_parcels(parcel_list, dir_out, overwrite='append')
-print(now()-t0)
+write_parcels(parcel_list, dir_out, overwrite='replace')
 
-```
-
-```{r time-taken}
-print(paste('Time taken for full analysis = ',now()-tbegin,'minutes' ))
+parcel_time<-now()-t0
+total_time<-now()-tbegin
 ```
 
 
+Time for parcel calculation and writing = `r round(parcel_time,2)` minutes.
+
+*Total time taken for code execution = `r round(total_time,2)` minutes.*

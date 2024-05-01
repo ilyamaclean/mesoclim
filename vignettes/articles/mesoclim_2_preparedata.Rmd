@@ -21,19 +21,23 @@ library(mesoclim)
 ## Defining area of interest
 Unless we are wanting to analyse the whole area covered by downloaded climate data, it is best to define a broad area of interest to restrict data size and processing times. The area of interest is used to crop a coarse DTM of the same projection and resolution as the climate data to provide a template for data processing. 
 
-```{r define_aoi }
-# Define dir holding already downloaded climate and ancillary data
-dir_data<-system.file('extdata/ukcp18rcm',package='mesoclim')
+```{r inputs }
+# dir holding already downloaded climate 
+dir_ukcp<-system.file('extdata/ukcp18rcm',package='mesoclim')
 
-# Load UKCP18rcm DTM of UK
-dtm<-terra::rast(file.path(dir_data,'orog_land-rcm_uk_12km_osgb.nc'))
+# dir holding sea temperature data
+dir_sst<-system.file('extdata/ukcp18sst',package='mesoclim')
 
-# Crop to an area of interest
-aoi<-terra::vect(terra::ext(-7.125,-2.875,49.375,51.625),crs='EPSG:4326')
-aoi_e<-terra::project(aoi,terra::crs(dtm))
-dtm<-terra::crop(dtm,aoi_e)
+# Load coarse resolution UKCP18rcm DTM of UK
+dtmc<-terra::rast(file.path(dir_ukcp,'orog_land-rcm_uk_12km_osgb.nc'))
 
-plot(dtm,main='DTM of climate data extent to be extracted')
+# Load DTM of general downscale area (including wider area for capturingwind/caosatal effects)
+dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
+
+# Crop coarse DTM to an area of interest
+dtmc<-terra::crop(dtmc,dtmm)
+
+plot(dtmc,main='DTM of climate data extent to be extracted')
 ```
 
 ## Creation of standard inputs for downscaling
@@ -50,26 +54,23 @@ collection<-'land-rcm'
 domain<-'uk'
 member<-'01'
 rcp<-'rcp85'
-startdate<-as.POSIXlt('2018/01/01')
-enddate<-as.POSIXlt('2018/12/31')
+startdate<-as.POSIXlt('2018/05/01')
+enddate<-as.POSIXlt('2018/05/30')
 
 # Processes using already downloaded ukcp18rcm files in dir_data
 t0<-now()
-ukcp18rcm<-ukcp18toclimarray(dir_data, dtm,  startdate, enddate,
+ukcp18rcm<-ukcp18toclimarray(dir_ukcp, dtmc,  startdate, enddate,
                              collection, domain, member)
 print(now()-t0)
 
 # Write preprocessed data
-# dir_out<- system.file('extdata/preprepdata',package='mesoclim')
 dir_out<-tempdir()
-write_climdata(ukcp18rcm,file.path(dir_out,'ukcp18rcm.Rds'))
+write_climdata(ukcp18rcm,file.path(dir_out,'ukcp18rcm.Rds'),overwrite=TRUE)
 ```
 
 ### UKCP18 sea surface temperature preprocessing
 ```{r sst-preprocess}
-dir_sst<-system.file('extdata/ukcp18sst',package='mesoclim')
-ukcp18sst<-create_ukcpsst_data(dir_sst,startdate,enddate,aoi,member)
-
+ukcp18sst<-create_ukcpsst_data(dir_sst,startdate,enddate,dtmc,member)
 plot(ukcp18sst, range=range(global(ukcp18sst,'range',na.rm=TRUE)))
 ```
 
