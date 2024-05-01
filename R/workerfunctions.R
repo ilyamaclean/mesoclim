@@ -18,7 +18,8 @@
   return(m)
 }
 #' Convert matrix or rast to array
-#'@noRd
+#' @export
+#' @keywords internal
 .rta <- function(r,n) {
   m<-.is(r)
   a<-array(rep(m,n),dim=c(dim(r)[1:2],n))
@@ -34,7 +35,8 @@
 }
 #' Create SpatRaster object using a template
 #' @import terra
-#'@noRd
+#' @export
+#' @keywords internal
 .rast <- function(m,tem) {
   r<-rast(m)
   ext(r)<-ext(tem)
@@ -101,7 +103,8 @@
 #' @param r2 - target geometry
 #' @param msk=TRUE if output to be masked out where r2 cells = NA
 #' @param method for resample and project can be set
-#'@noRd
+#' @export
+#' @keywords internal
 .resample <- function(r1,r2, msk=FALSE, method='bilinear'){
   if (terra::crs(r1) != terra::crs(r2)) r1<-terra::project(r1, terra::crs(r2), method)
   af<-terra::res(r2)[1] /terra::res(r1)[1]
@@ -514,7 +517,8 @@
   }
   horizon
 }
-#'@noRd
+#' @export
+#' @keywords internal
 .skyview<-function(dtm,steps=36) {
   r<-dtm
   dtm[is.na(dtm)]<-0

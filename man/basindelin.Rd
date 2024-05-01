@@ -33,3 +33,4 @@ are merged and the basins renumbered sequentially.
 bsn<-basindelin(rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')))
 plot(bsn)
 }
+\keyword{spatial}
