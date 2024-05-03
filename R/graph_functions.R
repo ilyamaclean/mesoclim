@@ -28,7 +28,7 @@ plot_timestats_r<-function(r,v,idx=c('years', 'months', 'week',  'doy', 'yearmon
   plot_df<-as.data.frame(cbind(tstep=as.numeric(sapply(strsplit(rownames(time_mean),'_'),tail,1)),mean=time_mean$mean,max=time_max$max,min=time_min$min))
   plot_df<-plot_df[order(plot_df$tstep),]
   }
-  matplot(plot_df$tstep, plot_df[,2:4], type = "l", lty = 1,
+  matplot(datetime(plot_df$tstep), plot_df[,2:4], type = "l", lty = 1,
           col = c("green", "red", "blue"), xlab = idx, ylab = v, font.main = 1,
           tck = 0.02, cex.main=1, cex.axis=0.7, main = paste(v,'by',idx), cex.main=1)
   if(lgd==TRUE) legend("topright", legend = c("Mean", "Max", "Min"), cex=0.5,

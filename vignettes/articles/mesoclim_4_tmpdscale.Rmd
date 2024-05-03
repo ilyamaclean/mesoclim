@@ -10,8 +10,9 @@ knitr::opts_chunk$set(
 ```
 
 ```{r setup, include=FALSE}
-#library(mesoclim)
-devtools::load_all(quiet=TRUE)
+library(lubridate)
+library(terra)
+library(mesoclim)
 ```
 
 # 4. Temporal downscaling
@@ -19,7 +20,7 @@ Any efficiency or theoretical reasons for spatial before temporal downscaling or
 
 ```{r input-data}
 # Get spatially downscaled data
- mesolizd<-read_climdata(file.path(system.file('extdata/dscaledata',package='mesoclim'),'mesolizd.rds'))
+ mesoclimate<-read_climdata(file.path(system.file('extdata/dscaledata',package='mesoclim'),'mesoclimate.rds'))
 ```
 
 ## Daily to hourly temperature downscaling
@@ -29,7 +30,8 @@ From one year's daily timeseries of spatially downscaled data.
 
 # Generate hourly timeseries
 t0<-now()
-hrtemps<-hourlytemp(mesolizd$tmin, mesolizd$tmax, srte = 0.09) 
+hrtemps<-hourlytemp(mesoclimate$tmin, mesoclimate$tmax, srte = 0.09) 
+#t<-as.POSIXlt(time(hrtemps))
 print(now()-t0)
 
 ```
@@ -37,8 +39,7 @@ print(now()-t0)
 ```{r graph-temp}
 # Plot hourly timeseries for contrasting days: spatial mean,min,max
 par(mfrow=c(1,2))
-plot_timestats_r(hrtemps[[1:96]],var='Temperatures for 1-4 Jan 2018',idx='hour',lgd=FALSE)
-plot_timestats_r(hrtemps[[5328:5423]],var='Temperatures for 11-14 July 2018',idx='hour',lgd=FALSE)
+plot_timestats_r(hrtemps[[1:96]],v='Temperatures for 1-4 May',idx='hour',lgd=FALSE)
 
 # Plot hourly rasters 
 plot_q_layers(hrtemps,p=c(0, 0.5, 1),fun='mean', common_scale=FALSE)
@@ -52,6 +53,6 @@ Change variable names - tme parameter etc to standardise across functions
 ## Shortwave radiation downscaling
 NOT working
 ```{r swdaytohr, eval=FALSE}
-swradhr<-swrad_dailytohourly(mesolizd$swrad, as.POSIXlt(terra::time(mesolizd$swrad)), clearsky = NA, r = dtmf, adjust = TRUE) 
+swradhr<-swrad_dailytohourly(mesoclimate$swrad, as.POSIXlt(terra::time(mesoclimate$swrad)), clearsky = NA, r = dtmf, adjust = TRUE) 
 
 ```

@@ -1212,7 +1212,7 @@
           ah[i,j,sel]<-a[i,j,]
           ah[i,j,1]<-a[i,j,1]
           ah[i,j,dim(ah)[3]]<-a[i,j,dim(a)[3]]
-          ah[i,j,]<-na.approx(ah[i,j,])
+          ah[i,j,]<-zoo::na.approx(ah[i,j,])
         }
       }
     }
