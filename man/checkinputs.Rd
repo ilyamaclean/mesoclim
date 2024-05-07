@@ -19,7 +19,7 @@ Also prints summary statistics and graphs of each variable
 Check and summarise coarse resolution climate data inputs
 }
 \examples{
-climdata<- read_climdata(system.file('data/era5input.rds',package='mesoclim'))
-chk_climdata<- checkinputs(climdata, tstep = "hour")
+climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
+chk_climdata<- checkinputs(climdata, tstep = "day")
 }
 \keyword{preprocess}

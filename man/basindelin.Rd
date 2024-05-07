@@ -30,7 +30,6 @@ surrounding cells calculated. If the height difference is less than \code{bounda
 are merged and the basins renumbered sequentially.
 }
 \examples{
-bsn<-basindelin(rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')))
-plot(bsn)
+bsn<-basindelin(terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')))
 }
 \keyword{spatial}

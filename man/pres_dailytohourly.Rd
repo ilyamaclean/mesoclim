@@ -34,7 +34,7 @@ conversion to millbars is mb = 10 kPa. The conversion to sea-level pressure (Psl
 derived by reversing the equation Psl = pres*((293-0.0065z)/293)**5.26
 }
 \examples{
-climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 presh<-pres_dailytohourly(climdata$pres,climdata$tme)
 plot_q_layers(.rast(presh,climdata$dtm))
 }

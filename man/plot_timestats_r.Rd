@@ -27,7 +27,7 @@ NA plots series of timeploat
 Plot timeseries plots of spatial mean, min and max values by various timesteps
 }
 \examples{
-climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 r<-.rast(climdata$tmax,climdata$dtm)
 terra::time(r)<-climdata$tme
 plot_timestats_r(r,'tmax',idx='doy')

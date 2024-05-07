@@ -23,7 +23,8 @@
 #' globally
 #' @keywords temporal
 #' @examples
-#' climdata<- read_climdata(system.file('data/era5input.rds',package='mesoclim'))
+#' \dontrun{
+#' climdata<- read_climdata(system.file('extdata/era5/input.rds',package='mesoclim'))
 #' tc<-climdata$temp
 #' # ========================================================================= #
 #' # ~~~~~~~~~~~~~~~~~~~~ input provided as vector =========================== #
@@ -55,6 +56,7 @@
 #' par(mfrow=c(2,1))
 #' plot(tc[[4]]-tp[[4]],main='Difference (tc-tp) for coldest tc hour')
 #' plot(tc[[665]]-tp[[665]],main='Difference (tc-tp) for hottest tc hour')
+#' }
 hourlytemp <- function(tmn, tmx, tme = NA, lat = NA, long = NA, srte = 0.09) {
   if (inherits(tmn, "SpatRaster")) {
     tme<-as.POSIXlt(terra::time(tmn))
@@ -143,16 +145,18 @@ blendtemp_hadukera5<-function(tasmin,tasmax,era5t2m) {
 #' Derives an array of hourly relative humidity values from daily values.
 #' @keywords temporal
 #' @examples
-#' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+#' \dontrun{
+#' climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 #' # Get hourly variables required for rel hum downscaling
 #' dtmc<-climdata$dtm
-#' temph<-as.array(hourlytemp(.rast(climdata$tmin,dtmc), .rast(climdata$tmax,dtmc), climdata$tme, 50, -2.5))
+#' temph<-as.array(hourlytemp(mesoclim:::.rast(climdata$tmin,dtmc), mesoclim:::.rast(climdata$tmax,dtmc), climdata$tme, 50, -2.5))
 #' presh<-pres_dailytohourly(climdata$pres,climdata$tme)
 #' # Get sea level pressure - MAKE THIS A FUNCTION!!
-#' psl_r<-.rast(climdata$pres,dtmc) / (((293-0.0065*ifel(is.na(dtmc),0,dtmc))/293)^5.26)
-#' psl<-.rta(psl_r,length(climdata$tme))
+#' psl_r<-mesoclim:::.rast(climdata$pres,dtmc) / (((293-0.0065*ifel(is.na(dtmc),0,dtmc))/293)^5.26)
+#' psl<-mesoclim:::.rta(psl_r,length(climdata$tme))
 #' humh<-hum_dailytohourly(climdata$relhum, climdata$tmin, climdata$tmax, temph, psl, presh, climdata$tme)
-#' plot_q_layers(.rast(humh,dtmc))
+#' plot_q_layers(mesoclim:::.rast(humh,dtmc))
+#' }
 hum_dailytohourly <- function(relhum, tasmin, tasmax, temph, psl, presh, tme, relmin = 2, adjust = TRUE) {
   # Convert to specific humidity
   tc<-(tasmin+tasmax)/2
@@ -201,7 +205,7 @@ hum_dailytohourly <- function(relhum, tasmin, tasmax, temph, psl, presh, tme, re
 #' derived by reversing the equation Psl = pres*((293-0.0065z)/293)**5.26
 #' @keywords temporal
 #' @examples
-#' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+#' climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 #' presh<-pres_dailytohourly(climdata$pres,climdata$tme)
 #' plot_q_layers(.rast(presh,climdata$dtm))
 pres_dailytohourly <- function(pres, tme, adjust = TRUE) {

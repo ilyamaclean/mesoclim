@@ -31,14 +31,16 @@
 #' @export
 #' @keywords spatial
 #' @examples
+#' \dontrun{
 #' # Takes ~90 seconds to run
 #'  dir_data<-system.file('extdata/ukcp18sst',package='mesoclim')
-#'  sst<-create_ukcpsst_data(dir_data,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),members='01')
-#'  dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
-#'  dtmm<-rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
-#'  climdata<-read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+#'  sst<-create_ukcpsst_data(dir_data,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),member='01')
+#'  dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+#'  dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
+#'  climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 #'  tmf <- tempdownscale(climdata, sst, dtmf, dtmm, NA, NA,TRUE, TRUE,'tmax',2, 2)
 #'  plot_q_layers(tmf)
+#'  }
 tempdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, u2 = NA,
                         cad = TRUE, coastal = TRUE, tempvar='temp',thgto=2, whgto=2) {
   if (class(dtmm) == "logical" & coastal) stop("dtmm needed for calculating coastal effects")
@@ -89,9 +91,9 @@ tempdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, u2 = NA,
 #' @export
 #' @keywords spatial
 #' @examples
-#' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
-#' pk <- presdownscale(climdata$pres, rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')), climdata$dtm)
-#' plot(pk[[1]])
+#' climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
+#' pk <- presdownscale(climdata$pres, terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')), climdata$dtm)
+#' terra::plot(pk[[1]])
 presdownscale<-function(pk, dtmf, dtmc, sealevel = TRUE) {
   if (class(pk)[1] == "array") pk<-.rast(pk,dtmc)
   if (class(dtmc)[1] == "logical")  dtmc<-.resample(dtmf,pk)
@@ -145,7 +147,7 @@ presdownscale<-function(pk, dtmf, dtmc, sealevel = TRUE) {
 #'
 #' @keywords spatial
 #' @examples
-#' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+#' climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 #' swradf<-swdownscale(climdata$swrad, climdata$tme,  rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')), ukcpinput$dtm)
 #' plot_q_layers(swradf)
 swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)[3],
@@ -294,9 +296,9 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)
 #' @seealso [windelev()]
 #' @keywords spatial
 #' @examples
-#' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
-#' dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
-#' dtmm<-rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
+#' climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
+#' dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+#' dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
 #' wsf <- winddownscale(ukcpinput$windspeed, ukcpinput$winddir, dtmf, dtmm, ukcpinput$dtm, zi=ukcpinput$windheight_m)
 #' plot_q_layers(wsf)
 winddownscale <- function(wspeed, wdir, dtmf, dtmm, dtmc, zi=10, zo = 2) {
@@ -348,8 +350,8 @@ winddownscale <- function(wspeed, wdir, dtmf, dtmm, dtmc, zi=10, zo = 2) {
 #' @seealso [tempdownscale()]
 #' @keywords spatial
 #' @examples
-#' climdata<- read_climdata(system.file('data/era5input.rds',package='mesoclim'))
-#' dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+#' climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
+#' dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
 #' tcf<-tempdownscale(climdata,sst=NA,dtmf=dtmf,cad=FALSE,coastal=FALSE)
 #' rhf<-relhumdownscale(climdata$relhum,climdata$temp,tcf,climdata$dtm)
 #' plot_q_layers(rhf)
@@ -411,9 +413,9 @@ relhumdownscale<-function(rh, tcc, tcf, dtmc, rhmin = 0) {
 #' @export
 #' @keywords spatial
 #' @examples
-#' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
-#' dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
-#' prcf<-precipdownscale(ukcpinput$prec, dtmf, ukcpinput$dtm, method='Elev', noraincut=0.01)
+#' climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
+#' dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+#' prcf<-precipdownscale(climdata$prec, dtmf, climdata$dtm, method='Elev', noraincut=0.01)
 #' plot_q_layers(prcf)
 precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, noraincut = 0, patchsim = FALSE, nsim = dim(prec)[3]) {
   prec<-.rast(prec,dtmc)
@@ -565,9 +567,9 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
 #' @examples
 #'  dir_data<-system.file('extdata/ukcp18sst',package='mesoclim')
 #'  sst<-create_ukcpsst_data(dir_data,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),members='01')
-#'  dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
-#'  dtmm<-rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
-#'  climdata<-read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+#'  dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+#'  dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
+#'  climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 #'  dailymesodat<-spatialdownscale(climdata, sst, dtmf, dtmm, noraincut=0.01)
 #'  plot_q_layers(dailymesodat$tmin)
 spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, cad = TRUE,

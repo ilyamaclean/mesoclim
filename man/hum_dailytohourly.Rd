@@ -69,15 +69,17 @@ the data are back-converted to relative humidity, using temph and presh.
 Derives an array of hourly relative humidity values from daily values.
 }
 \examples{
-climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+\dontrun{
+climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 # Get hourly variables required for rel hum downscaling
 dtmc<-climdata$dtm
-temph<-as.array(hourlytemp(.rast(climdata$tmin,dtmc), .rast(climdata$tmax,dtmc), climdata$tme, 50, -2.5))
+temph<-as.array(hourlytemp(mesoclim:::.rast(climdata$tmin,dtmc), mesoclim:::.rast(climdata$tmax,dtmc), climdata$tme, 50, -2.5))
 presh<-pres_dailytohourly(climdata$pres,climdata$tme)
 # Get sea level pressure - MAKE THIS A FUNCTION!!
-psl_r<-.rast(climdata$pres,dtmc) / (((293-0.0065*ifel(is.na(dtmc),0,dtmc))/293)^5.26)
-psl<-.rta(psl_r,length(climdata$tme))
+psl_r<-mesoclim:::.rast(climdata$pres,dtmc) / (((293-0.0065*ifel(is.na(dtmc),0,dtmc))/293)^5.26)
+psl<-mesoclim:::.rta(psl_r,length(climdata$tme))
 humh<-hum_dailytohourly(climdata$relhum, climdata$tmin, climdata$tmax, temph, psl, presh, climdata$tme)
-plot_q_layers(.rast(humh,dtmc))
+plot_q_layers(mesoclim:::.rast(humh,dtmc))
+}
 }
 \keyword{temporal}

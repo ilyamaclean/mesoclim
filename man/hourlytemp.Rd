@@ -38,7 +38,8 @@ value derived using ERA5 data for western Europe, but performs reasonably well
 globally
 }
 \examples{
-climdata<- read_climdata(system.file('data/era5input.rds',package='mesoclim'))
+\dontrun{
+climdata<- read_climdata(system.file('extdata/era5/input.rds',package='mesoclim'))
 tc<-climdata$temp
 # ========================================================================= #
 # ~~~~~~~~~~~~~~~~~~~~ input provided as vector =========================== #
@@ -70,5 +71,6 @@ tc <- .rast(tc,dtmc)
 par(mfrow=c(2,1))
 plot(tc[[4]]-tp[[4]],main='Difference (tc-tp) for coldest tc hour')
 plot(tc[[665]]-tp[[665]],main='Difference (tc-tp) for hottest tc hour')
+}
 }
 \keyword{temporal}

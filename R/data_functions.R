@@ -7,11 +7,13 @@
 #' Also prints summary statistics and graphs of each variable
 #' @import magrittr
 #' @import fmsb
+#' @importFrom graphics par
+#' @importFrom stats sd
 #' @export
 #' @keywords preprocess
 #' @examples
-#' climdata<- read_climdata(system.file('data/era5input.rds',package='mesoclim'))
-#' chk_climdata<- checkinputs(climdata, tstep = "hour")
+#' climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
+#' chk_climdata<- checkinputs(climdata, tstep = "day")
 checkinputs <- function(input_list, tstep = c("hour","day")){
   tstep<-match.arg(tstep)
 
@@ -199,7 +201,7 @@ checkinputs <- function(input_list, tstep = c("hour","day")){
 #' @export
 #' @keywords preprocess data
 #' @examples
-#' climdata<-read_climdata(system.file('data/ukcp18rcm.rda',package='mesoclim'))
+#' climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 read_climdata<-function(filepath){
   if(file.exists(filepath)!=TRUE) stop('Filepath provided does NOT exist!!') else{
     climdata<-readRDS(filepath)
@@ -214,12 +216,11 @@ read_climdata<-function(filepath){
 #'Wraps any Spatrasters to PackedSpatRasters before writing.
 #' @param climdata a list of climate variables as output by `ukcp18toclimdata()`
 #' @param filepath to be written
-#'
 #' @return writes an external file
 #' @export
 #' @keywords preprocess data
 #' @examples
-#' climdata<-read_climdata(system.file('data/ukcp18rcm.rda',package='mesoclim'))
+#' climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 #' dir_temp<-tempdir()
 #' write_climdata(climdata,file.path(dir_temp,'filename.rds'))
 write_climdata<-function(climdata,filepath,overwrite=FALSE){
@@ -240,6 +241,7 @@ write_climdata<-function(climdata,filepath,overwrite=FALSE){
 #'
 #' @return nested list of climate variable timeseries by parcel.
 #' @export
+#' @import terra
 #' @keywords postprocess data
 create_parcel_list<-function(climdata,parcels,id='gid',
                              input_names=c("tmax", "tmin","swrad","lwrad","relhum","pres","prec", "windspeed"),
@@ -283,6 +285,7 @@ create_parcel_list<-function(climdata,parcels,id='gid',
 #' 'overwrite' replaces existing files and 'append' adds results to existing files.
 #'
 #' @return NA - writes .csv files
+#' @importFrom utils write.table
 #' @export
 #' @keywords postprocess data
 write_parcels<-function(parcel_list, dir_out, overwrite=c('none','append','replace')){

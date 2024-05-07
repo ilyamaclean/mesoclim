@@ -28,7 +28,7 @@ expected clear-sky radiation (W/m^2)
 Calculates clear sky radiation
 }
 \examples{
-jd <- .jday(as.POSIXlt("2022-06-21")) # julian day
+jd <- mesoclim:::.jday(as.POSIXlt("2022-06-21")) # julian day
 tme<-seq(0,23,1)
 csr<-clearskyrad(jd,tme,50,-2.5)
 plot(csr ~ tme, type = "l", lwd = 2, xlab = expression(paste("Hour")), ylab = "Clearsky radiation")

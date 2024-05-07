@@ -20,12 +20,12 @@ Interpolated (linear) Spatraster stack of nlyrs=length(tmeout)
 Temporal interpolation of Spatraster timeseries
 }
 \examples{
-r <- rast(ncols=5, nrows=5, vals=rep(1,25))
+r <- terra::rast(ncols=5, nrows=5, vals=rep(1,25))
 r<-c(r,r*2,r*3,r*4,r*5)
 tmein<-as.Date(seq(17532,17652,30))
 terra::time(r)<-tmein
 tmeout<-as.Date(seq(17532,17651,1))
-rout<-time_interp(r,NA,tmeout)
-plot(rout[[c(1,15,31,95,119,120)]])
+rout<-mesoclim:::.tmeinterp(r,NA,tmeout)
+terra::plot(rout[[c(1,15,31,95,119,120)]])
 }
 \keyword{internal}

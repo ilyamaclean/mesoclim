@@ -28,8 +28,8 @@ resolution, coordinate reference system and extent of \code{tcf}.
 The function \code{relhumdownscale} is used to spatially downscale relative
 }
 \examples{
-climdata<- read_climdata(system.file('data/era5input.rds',package='mesoclim'))
-dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
+dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
 tcf<-tempdownscale(climdata,sst=NA,dtmf=dtmf,cad=FALSE,coastal=FALSE)
 rhf<-relhumdownscale(climdata$relhum,climdata$temp,tcf,climdata$dtm)
 plot_q_layers(rhf)

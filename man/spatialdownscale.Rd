@@ -97,9 +97,9 @@ Spatially downscales coarse-resolution climate data
 \examples{
  dir_data<-system.file('extdata/ukcp18sst',package='mesoclim')
  sst<-create_ukcpsst_data(dir_data,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),members='01')
- dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
- dtmm<-rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
- climdata<-read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+ dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+ dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
+ climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
  dailymesodat<-spatialdownscale(climdata, sst, dtmf, dtmm, noraincut=0.01)
  plot_q_layers(dailymesodat$tmin)
 }

@@ -19,7 +19,7 @@ Writes to a binary file a climate dataset (as output by for example \code{ukcp18
 Wraps any Spatrasters to PackedSpatRasters before writing.
 }
 \examples{
-climdata<-read_climdata(system.file('data/ukcp18rcm.rda',package='mesoclim'))
+climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 dir_temp<-tempdir()
 write_climdata(climdata,file.path(dir_temp,'filename.rds'))
 }

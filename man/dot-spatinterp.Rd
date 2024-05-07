@@ -16,8 +16,8 @@ Spatraster of same dim as r but without NA
 Spatially interpolate missing values in Spatrasters
 }
 \examples{
-r <- rast(ncols=5, nrows=5, vals=rep(c(1,2,NA,4,5),5))
-rout<-spatial_interpNA(r)
-plot(c(r,rout))
+r <- terra::rast(ncols=5, nrows=5, vals=rep(c(1,2,NA,4,5),5))
+rout<-mesoclim:::.spatinterp(r)
+terra::plot(c(r,rout))
 }
 \keyword{internal}

@@ -19,8 +19,7 @@
 #' @keywords spatial
 #' @rdname basindelin
 #' @examples
-#' bsn<-basindelin(rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')))
-#' plot(bsn)
+#' bsn<-basindelin(terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')))
 basindelin<-function(dtm, boundary = 0) {
   dm<-dim(dtm)
   if (sqrt(dm[1]*dm[2]) > 250) {
@@ -42,8 +41,8 @@ basindelin<-function(dtm, boundary = 0) {
 #' @rdname flowacc
 #' @keywords spatial
 #' @examples
-#' fa <- flowacc(rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')))
-#' plot(fa, main = 'Accumulated flow')
+#' fa <- flowacc(terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')))
+#' terra::plot(fa, main = 'Accumulated flow')
 flowacc <- function (dtm, basins = NA) {
   dm<-.is(dtm)
   fd<-.flowdir(dm)
@@ -152,16 +151,16 @@ windelev <- function(dtmf, dtmm, dtmc, wdir, uz = 2) {
 #' @export
 #'
 #' @examples
-#' climdata<-read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
-#' dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
-#' dtmm<-rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
+#' climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
+#' dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+#' dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
 #' # landsea == e BUT shouldn't if be >>e ??
-#' landsea<- mask(.resample(dtmm,dtmf),dtmf)
-#' ce1 <- coastalexposure(landsea, ext(dtmf), 45)
-#' ce2 <- coastalexposure(landsea, ext(dtmf), 270)
+#' landsea<- terra::mask(mesoclim:::.resample(dtmm,dtmf),dtmf)
+#' ce1 <- coastalexposure(landsea, terra::ext(dtmf), 45)
+#' ce2 <- coastalexposure(landsea, terra::ext(dtmf), 270)
 #' par(mfrow=c(2,1))
-#' plot(ce1, main = "Land to sea weighting, northeast wind")
-#' plot(ce2, main = "Land to sea weighting, westerly wind")
+#' #plot(ce1, main = "Land to sea weighting, northeast wind")
+#' #plot(ce2, main = "Land to sea weighting, westerly wind")
 coastalexposure <- function(landsea, e, wdir) {
   # Calculate sample distances
   e2<-ext(landsea)
@@ -203,11 +202,10 @@ coastalexposure <- function(landsea, e, wdir) {
 #' @export
 #' @keywords spatial
 #' @examples
-#' climdata<-read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
-#' dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
-#' rain<-.rast(climdata$prec,climdata$dtm)[[1]]
-#' rainf<-Tpsdownscale(rain, climdata$dtm, dtmf, method = "normal", fast = TRUE)
-#' par(mfrow=c(2,1))
+#' climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
+#' dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+#' rain<-mesoclim:::.rast(climdata$prec,climdata$dtm)[[1]]
+#' try(rainf<-Tpsdownscale(rain, climdata$dtm, dtmf, method = "normal", fast = TRUE))
 #' plot(rain,main='Input rain')
 #' plot(rainf,main='Downscaled rain')
 Tpsdownscale<-function(r, dtmc, dtmf, method = "normal", fast = TRUE) {
@@ -284,7 +282,7 @@ Tpsdownscale<-function(r, dtmc, dtmf, method = "normal", fast = TRUE) {
 #' @keywords climate
 #' @examples
 #' rad <- c(1:1352) # typical values of radiation in W/m^2
-#' jd <- .jday(as.POSIXlt("2022-06-21")) # julian day
+#' jd <- mesoclim:::.jday(as.POSIXlt("2022-06-21")) # julian day
 #' dfr <- difprop(rad, jd, 12, 50, -5)
 #' plot(dfr ~ rad, type = "l", lwd = 2,
 #' xlab = expression(paste("Incoming shortwave radiation (", W*M^-2, ")")),
@@ -409,7 +407,7 @@ converthumidity <- function (h, intype = "relative", outtype = "vapour pressure"
 #' @export
 #' @keywords climate
 #' @examples
-#' jd <- .jday(as.POSIXlt("2022-06-21")) # julian day
+#' jd <- mesoclim:::.jday(as.POSIXlt("2022-06-21")) # julian day
 #' tme<-seq(0,23,1)
 #' csr<-clearskyrad(jd,tme,50,-2.5)
 #' plot(csr ~ tme, type = "l", lwd = 2, xlab = expression(paste("Hour")), ylab = "Clearsky radiation")
@@ -432,10 +430,11 @@ clearskyrad <- function(jd, lt, lat, long, tc = 15, rh = 80, pk = 101.3) {
 #' @param julian - astronomical julian day - as returned by .jday()
 #' @param lat - latitude (decimal degrees)
 #' @return Returns daylength in decimal hours (0 if 24 hour darkness, 24 if 24 hour daylight)
+#' @export
 #' @keywords climate temporal
 #' @examples
 #' tme<-as.POSIXlt(seq(as.POSIXlt("2022-01-01"),as.POSIXlt("2022-06-30"),60*60*24*8))
-#' jd<-sapply(tme,.jday)
+#' jd<-sapply(tme,mesoclim:::.jday)
 #' dl<-daylength(jd,50)
 #' plot(dl ~ jd, type = "l", lwd = 8, xlab = "Day", ylab = "Day length")
 daylength <- function(julian, lat) {
@@ -458,13 +457,14 @@ daylength <- function(julian, lat) {
 #' @param ea = temperature (deg C)
 #' @param ea = vapour pressure (kPa)
 #' @param pk = atmospheric pressure (kPa)
-#' @returns laps rate
+#' @returns lapes rate
+#' @export
 #' @keywords climate spatial
 #' @examples
-#' climdata<-read_climdata(system.file('data/era5input.rds',package='mesoclim'))
+#' climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 #' ea<-converthumidity(climdata$relhum,tc=climdata$temp , pk=climdata$pres)
 #' lr<-lapserate(climdata$temp,ea,climdata$pres)
-#' plot(.rast(lr,climdata$dtm)[[1]])
+#' terra::plot(mesoclim:::.rast(lr,climdata$dtm)[[1]])
 lapserate <- function(tc, ea, pk) {
   rv<-0.622*ea/(pk-ea)
   lr<-9.8076*(1+(2501000*rv)/(287*(tc+273.15)))/

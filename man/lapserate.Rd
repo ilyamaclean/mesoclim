@@ -12,16 +12,16 @@ lapserate(tc, ea, pk)
 \item{pk}{= atmospheric pressure (kPa)}
 }
 \value{
-laps rate
+lapes rate
 }
 \description{
 Calculate Lapse rates
 }
 \examples{
-climdata<-read_climdata(system.file('data/era5input.rds',package='mesoclim'))
+climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 ea<-converthumidity(climdata$relhum,tc=climdata$temp , pk=climdata$pres)
 lr<-lapserate(climdata$temp,ea,climdata$pres)
-plot(.rast(lr,climdata$dtm)[[1]])
+terra::plot(mesoclim:::.rast(lr,climdata$dtm)[[1]])
 }
 \keyword{climate}
 \keyword{spatial}

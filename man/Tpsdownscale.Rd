@@ -35,11 +35,10 @@ bounded by 0 and 1. In both instances, the spacial case where input data are 0 o
 If \code{method = "normal"} no transformation is applied.
 }
 \examples{
-climdata<-read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
-dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
-rain<-.rast(climdata$prec,climdata$dtm)[[1]]
-rainf<-Tpsdownscale(rain, climdata$dtm, dtmf, method = "normal", fast = TRUE)
-par(mfrow=c(2,1))
+climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
+dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+rain<-mesoclim:::.rast(climdata$prec,climdata$dtm)[[1]]
+try(rainf<-Tpsdownscale(rain, climdata$dtm, dtmf, method = "normal", fast = TRUE))
 plot(rain,main='Input rain')
 plot(rainf,main='Downscaled rain')
 }

@@ -17,7 +17,7 @@ Reads a climate dataset as output by for example \code{ukcp18toclimdata()} and w
 Unwraps any PackedSpatRasters to Spatrasters
 }
 \examples{
-climdata<-read_climdata(system.file('data/ukcp18rcm.rda',package='mesoclim'))
+climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 }
 \keyword{data}
 \keyword{preprocess}
