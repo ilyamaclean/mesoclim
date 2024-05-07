@@ -11,49 +11,28 @@ reference:
 - title: "Data download"
   desc: "Functions to download data inputs from remote repositories."
 - contents:
-  - starts_with("download")
+  - has_keyword("download")
 - title: "Data (pre)processing and summary functions"
-  desc: "Functions that prepare or check data inputs."
+  desc: "Functions that process and handle model inputs & outputs."
 - contents:
-  - starts_with("blend")
-  - starts_with("check")
-  - starts_with("create")
-  - starts_with("change")
-  - ends_with("toclimarray")
-  - correct_ukcp_dates
-  - find_ukcp_decade
-  - get_ukcp18_dates
-  - fill_calendar_data
-  - read_climdata
-  - write_climdata
-  - starts_with("plot")
+  - has_keyword("preprocess")
+  - has_keyword("graph")
 - title: "Spatial downscaling"
   desc: "Downscaling from coarse to fine spatial resolutions."
 - contents:
-  - starts_with("spatial")
-  - ends_with("downscale")
+  - has_keyword("spatial")
 - title: "Temporal downscaling"
   desc: "For example daily to hourly downscaling."
 - contents:
-  - starts_with("hour")
-  - starts_with("time")
-  - subdailyrain
+  - has_keyword("temporal")
 - title: "Bias correction"
   desc: "Create and apply models of bias comparing modelled with historical observed data."
 - contents:
-  - starts_with("bias")
-  - correct_era5temps
-  - starts_with("precipcorrect")
+  - has_keyword("biascorrect")
 - title: "Mesoclimate processes"
-  desc: "Mechanistic modelling of mesoclimate mechanisms."
+  desc: "Modelling of mesoclimate mechanisms."
 - contents:
-  - flowacc
-  - difprop
-  - coastalexposure
-  - clearskyrad
-  - basindelin
-  - windelev
-  - lapserate
+  - has_keyword("climate")
 - title: "Data"
   desc: "Datasets included with package."
 - contents:
