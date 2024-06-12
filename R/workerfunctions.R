@@ -1626,6 +1626,7 @@
 }
 #' terra version of microclima get_dem
 #' require(elevatr)
+#' @export
 get_dem<-function(r, zeroasna = TRUE) {
   if (!curl::has_internet()) {
     message("Please connect to the internet and try again.")
