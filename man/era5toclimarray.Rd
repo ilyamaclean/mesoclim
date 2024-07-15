@@ -43,22 +43,23 @@ a list of the following:
 }
 \description{
 The function \code{era5toclimarray} converts data in a netCDF4 file returned
-by \code{\link[mcera5:request_era5]{mcera5::request_era5()}} to the correct formal required for subsequent modelling.
+by for example the mcera5 pkg request_era5() function to the correct formal required for subsequent modelling.
 }
 \details{
 the model requires that input climate data are projected using a coordinate reference
-system in which x and y are in metres. Since values returned by \code{\link[mcera5:request_era5]{mcera5::request_era5()}}
+system in which x and y are in metres. Since values returned by mcera5 function request_era5()
 are in lat long, the output data are reprojected using the coordinate reference system and
 extent of dtm (but retain the approximate original grid resolution of the input climate data).
 Returned climate data match the resolution, coordinate reference system and extent of \code{dtmc}.
 }
 \examples{
-ncfile<-system.file('extdata/era5/era5_surface_ukeire_2018_05.nc',package='mesoclim')
+\dontrun{
+ncfile<-'path_to/era5_surface_ukeire_year.nc'
 aoi<-terra::vect(terra::ext(-7.125,-2.875,49.375,51.625),crs='EPSG:4326')
-dtm<-terra::rast(system.file('extdata/dtms/era5dtm.tif',package='mesoclim'))
 era5input<-era5toclimarray(ncfile, dtm=NA, aoi=aoi)
 plot_q_layers(.rast(era5input$temp,era5input$dtm))
 checkinputs(era5input,'hour')
+}
 }
 \keyword{era5}
 \keyword{preprocess}

@@ -34,11 +34,11 @@ climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package=
 dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
 dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
 # landsea == e BUT shouldn't if be >>e ??
-landsea<- terra::mask(mesoclim:::.resample(dtmm,dtmf),dtmf)
+landsea<- terra::mask(terra::resample(dtmm,dtmf),dtmf)
 ce1 <- coastalexposure(landsea, terra::ext(dtmf), 45)
 ce2 <- coastalexposure(landsea, terra::ext(dtmf), 270)
 par(mfrow=c(2,1))
-#plot(ce1, main = "Land to sea weighting, northeast wind")
-#plot(ce2, main = "Land to sea weighting, westerly wind")
+plot(ce1, main = "Land to sea weighting, northeast wind")
+plot(ce2, main = "Land to sea weighting, westerly wind")
 }
 \keyword{spatial}

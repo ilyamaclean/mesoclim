@@ -44,6 +44,7 @@ included with the package. The package is not available on CRAN and must be obta
 directly from here: http://www.itia.ntua.gr/en/softinfo/3/.
 }
 \examples{
+\dontrun{
 # =========================================== #
 # ~~~ Generate hourly data for May 2018 ~~~ #
 # =========================================== #
@@ -65,7 +66,7 @@ plot(hourlyv ~ dd, type = "l", ylim = c(0, max(hourlyv)),
 par(new = T)
 plot(marchhfd ~ dd, type = "l", ylim = c(0, max(hourlyv)),
      xlab = "", ylab = "", col = "blue", lwd = 2)
-
+}
 }
 \references{
 Rodriguez-Iturbe I, Cox DR & Isham V (1987) Some models for rainfall based on stochastic point
@@ -74,3 +75,4 @@ processes. Proc. R. Soc. Lond., A 410: 269-288.
 Rodriguez-Iturbe I, Cox DR & Isham V (1988) A point process model for rainfall: Further
 developments. Proc. R. Soc. Lond., A 417: 283-298.
 }
+\keyword{temporal}

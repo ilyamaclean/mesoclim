@@ -11,3 +11,4 @@ get_dem(r, zeroasna = TRUE)
 terra version of microclima get_dem
 require(elevatr)
 }
+\keyword{download}

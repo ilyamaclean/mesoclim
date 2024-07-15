@@ -44,7 +44,7 @@ dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
 dtmm<-rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
 climdata<-read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
 wc <- windelev(dtmf, dtmm, climdata$dtm, wdir = 270)
-plot(wc)
+plot(wc,main='Westerly wind shelter coef')
 }
 \seealso{
 \code{\link[=winddownscale]{winddownscale()}}

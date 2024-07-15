@@ -34,5 +34,8 @@ nested list of climate variable timeseries by parcel.
 \description{
 Calculates timeseries of climate variables for each polygon in parcels using weighted means of overlapping grid cells.
 }
+\examples{
+\dontrun{
+}
+}
 \keyword{data}
-\keyword{postprocess}

@@ -70,10 +70,16 @@ you do not already have a password, or if you want to reset your FTP password
 go to MyCEDA and click on the 'Configure FTP account' button.
 }
 \examples{
-# dir_ukcp <- tempdir()
-# cedausr<-"your_user_name"
-# cedapwd <- "your_password"
-# download_ukcp18(dir_ukcp,as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01'),c('tasmax','tasmin'),download_dtm=TRUE, cedausr,cedapwd)
+\dontrun{
+dir_ukcp <- tempdir()
+cedausr<-"your_user_name"
+cedapwd <- "your_password"
+collection<-'land-rcm'
+domain<-'uk'
+rcp<-'rcp85'
+vars<-c('tasmax','tasmin')
+download_ukcp18(dir_ukcp,as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),collection,domain,rcp,c('01'),vars,download_dtm=TRUE, cedausr,cedapwd)
+}
 }
 \keyword{download}
 \keyword{ukcp18}

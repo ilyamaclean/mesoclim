@@ -1,0 +1,14 @@
+pandoc: 3.1.1
+pkgdown: 2.0.7
+pkgdown_sha: ~
+articles:
+  mesoclim_1_download: mesoclim_1_download.html
+  mesoclim_2_preparedata: mesoclim_2_preparedata.html
+  mesoclim_3_spdscale: mesoclim_3_spdscale.html
+  mesoclim_4_tmpdscale: mesoclim_4_tmpdscale.html
+  mesoclim_5_biascorrect: mesoclim_5_biascorrect.html
+last_built: 2024-04-11T12:42Z
+urls:
+  reference: https://jrmosedale.github.io/mesoclim/reference
+  article: https://jrmosedale.github.io/mesoclim/articles
+

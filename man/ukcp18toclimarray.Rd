@@ -80,10 +80,20 @@ The extent will be provided by the \code{dtm} which, if necessary, will be re-pr
 For regional UKCP18 data, it is recommended that 'dtm' is derived from the original orography data available for download.
 }
 \examples{
-dir_ukcp<-system.file('extdata/ukcp18rcm',package='mesoclim')
-dtm<-terra::rast(system.file('extdata/ukcp18rcm/orog_land-rcm_uk_12km_osgb.nc',package='mesoclim'))
+\dontrun{
+dir_temp <- tempdir()
+cedausr<-"your_user_name"
+cedapwd <- "your_password"
+collection <- 'land-rcm'
+domain <- 'uk'
+member<-'01'
+rcp<-'rcp85'
+vars<-c('clt','hurs','pr','psl','rls','rss','tasmax','tasmin','uas','vas')
+download_ukcp18(dir_ukcp,as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),collection,domain,rcp,member,vars,download_dtm=TRUE, cedausr,cedapwd)
+dtm<-terra::rast(file.path(dir_temp,'orog_land-rcm_uk_12km_osgb.nc'))
 dtm<-crop(dtm,c(28077.86, 339436.5, -57947.13, 204298.7))
-ukcpinput<-ukcp18toclimarray(dir_ukcp,dtm,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),collection='land-rcm',domain='uk',member='01')
+ukcpinput<-ukcp18toclimarray(dir_temp,dtm,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),collection,domain,member)
+}
 }
 \keyword{preprocess}
 \keyword{ukcp18}

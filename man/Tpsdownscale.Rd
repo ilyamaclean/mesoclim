@@ -37,7 +37,7 @@ If \code{method = "normal"} no transformation is applied.
 \examples{
 climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
-rain<-mesoclim:::.rast(climdata$prec,climdata$dtm)[[1]]
+rain<-terra::rast(climdata$prec,crs=crs(climdata$dtm),extent=ext(climdata$dtm))[[1]]
 try(rainf<-Tpsdownscale(rain, climdata$dtm, dtmf, method = "normal", fast = TRUE))
 plot(rain,main='Input rain')
 plot(rainf,main='Downscaled rain')

@@ -35,7 +35,6 @@ by Lwu=0.97\emph{5.67}10**-8*(tc+273.15). Here tc is average surface temperature
 but an adequate approximation is derived if subtited by air temperature.
 }
 \examples{
-climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
-lwrad<-skyem_dailytohourly()
+lwrad<-skyem_dailytohourly(array(rep(c(0.2,0.2,0.2,0.8,0.8,0.8),2),c(3,3,2)),as.POSIXlt(seq(1,(48*60*60),(24*60*60))))
 }
 \keyword{temporal}
