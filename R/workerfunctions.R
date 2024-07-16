@@ -494,8 +494,6 @@
 #' @param zo a numeric value indicating the height (m) above ground level of output speeds
 #' Assumes a logarithmic height profile and imposes a minimum zo of 0.2
 #' @keywords internal
-#' @examples
-#' change_windhgt(3, 10, 1)
 .windhgt<-function (wspeed, zi, zo) {
   if (zo < 0.2 & zo > (5.42/67.8)){
     warning("Wind-height profile function performs poorly below 20 cm so output height converted to 20 cm")
@@ -1349,13 +1347,13 @@
   te<-rast(landsea)
   suppressWarnings(dir.create(pathout))
   # dtr #
-  a<-nctoarray(filein,"t2m")
-  a<-applymask(a,landsea)
-  tmx<-hourtoday(a,max)
-  tmn<-hourtoday(a,min)
+  a<-.nctoarray(filein,"t2m")
+  a<-.applymask(a,landsea)
+  tmx<-.hourtoday(a,max)
+  tmn<-.hourtoday(a,min)
   dtr<-tmx-tmn
   # apply coastal correction
-  dtr<-coastalcorrect(dtr,landsea)
+  dtr<-.coastalcorrect(dtr,landsea)
   tmean<-(tmx+tmn)/2
   tmx<-(tmean+0.5*dtr)-273.15
   tmn<-(tmean-0.5*dtr)-273.15
@@ -1363,49 +1361,49 @@
   .saverast(tmx,te,pathout,"tasmax")
   .saverast(tmn,te,pathout,"tasmin")
   # psl
-  a2<-nctoarray(filein,"sp")/1000
-  a2<-applymask(a2,landsea)
-  psl<-hourtoday(a2)
+  a2<-.nctoarray(filein,"sp")/1000
+  a2<-.applymask(a2,landsea)
+  psl<-.hourtoday(a2)
   .saverast(psl,te,pathout,"psl")
   # huss #
-  a3<-nctoarray(filein,"d2m")
-  a3<-applymask(a3,landsea)
-  ea<-satvap(a3-273.15)
-  es<-satvap(a-273.15)
+  a3<-.nctoarray(filein,"d2m")
+  a3<-.applymask(a3,landsea)
+  ea<-.satvap(a3-273.15)
+  es<-.satvap(a-273.15)
   rh<-(ea/es)*100
   a3<-suppressWarnings(converthumidity(rh, intype = "relative", outtype = "specific",
                                        tc = a-273.15, pk = a2))
-  huss<-hourtoday(a3)
+  huss<-.hourtoday(a3)
   .saverast(huss,te,pathout,"huss")
   # u10
-  a2<-nctoarray(filein,"u10")
-  a2<-applymask(a2,landsea)
-  uas<-hourtoday(a2)
+  a2<-.nctoarray(filein,"u10")
+  a2<-.applymask(a2,landsea)
+  uas<-.hourtoday(a2)
   .saverast(uas,te,pathout,"uas")
   #v10
-  a2<-nctoarray(filein,"v10")
-  a2<-applymask(a2,landsea)
-  vas<-hourtoday(a2)
+  a2<-.nctoarray(filein,"v10")
+  a2<-.applymask(a2,landsea)
+  vas<-.hourtoday(a2)
   .saverast(vas,te,pathout,"vas")
   # rss
-  a2<-nctoarray(filein,"ssrd")
-  a2<-applymask(a2,landsea)
-  rss<-hourtoday(a2)/3600
+  a2<-.nctoarray(filein,"ssrd")
+  a2<-.applymask(a2,landsea)
+  rss<-.hourtoday(a2)/3600
   .saverast(rss,te,pathout,"rss")
   # skyem
-  lwdn<-nctoarray(filein,"msdwlwrf")
-  lwme<-nctoarray(filein,"msnlwrf")
+  lwdn<-.nctoarray(filein,"msdwlwrf")
+  lwme<-.nctoarray(filein,"msnlwrf")
   lwup<-(-lwme+lwdn)
   skyem<-lwdn/lwup
-  skyem<-applymask(skyem,landsea)
+  skyem<-.applymask(skyem,landsea)
   skyem[skyem>1]<-1
-  skyem<-hourtoday(skyem)
+  skyem<-.hourtoday(skyem)
   .saverast(skyem,te,pathout,"skyem")
   # pr
-  a<-nctoarray(filein,"tp")
+  a<-.nctoarray(filein,"tp")
   a[is.na(a)]<-0
-  pr<-hourtoday(a,sum)*1000
-  pr<-applymask(pr,landsea)
+  pr<-.hourtoday(a,sum)*1000
+  pr<-.applymask(pr,landsea)
   .saverast(pr,te,pathout,"pr")
 }
 #' @title Takes global ukcp data as inputs, ensures correct number of dates in each year,
@@ -1422,8 +1420,8 @@
 .cropandsortUKCPone <- function(ukcpfile1,ukcpfile2,landsea,decade=1) {
   # Get and crop nc files
   ecrop<-extent(landsea)
-  r1<-cropnc(ukcpfile1,ecrop)
-  r2<-cropnc(ukcpfile2,ecrop)
+  r1<-.cropnc(ukcpfile1,ecrop)
+  r2<-.cropnc(ukcpfile2,ecrop)
   # Find out which entries belong to true decade
   st<-as.POSIXlt(0,origin=paste0(2000+(decade-1)*10+9,"-12-01 00:00"),tz="UTC")
   fn<-as.POSIXlt(0,origin=paste0(2000+decade*10+9,"-11-30 00:00"),tz="UTC")
@@ -1439,7 +1437,7 @@
   sel2<-which(dt2$year+1900 >=styear & dt2$year+1900<=edyear)
   a1<-as.array(r1)[,,sel1]
   a2<-as.array(r2)[,,sel2]
-  a<-abind(a1,a2)
+  a<-abind::abind(a1,a2)
   # ** Create data.frame of 360 dates for real decade
   df1<-data.frame(v1="f360",dates=c(dt1[sel1],dt2[sel2]))
   # ** Create data.frame of 365/6 dates for real decade
@@ -1450,7 +1448,7 @@
   sna<-which(is.na(dfo$v1)==F)
   ao<-array(NA,dim=c(dim(a)[1:2],dim(dfo)[1]))
   ao[,,sna]<-a
-  ao<-apply(ao,c(1,2),na.approx)
+  ao<-apply(ao,c(1,2),zoo::na.approx)
   ao<-aperm(ao,c(2,3,1))
   # resample and mask out coastal area
   ro<-rast(ao)
@@ -1460,7 +1458,7 @@
   ro<-resample(ro,rte)
   a<-as.array(ro)
   landsea[landsea==0]<-NA
-  a<-applymask(a,landsea)
+  a<-.applymask(a,landsea)
   ro2<-rast(a)
   ext(ro2)<-ext(ro)
   crs(ro2)<-crs(rte)
@@ -1567,7 +1565,7 @@
     ro<-rast(a)
     ext(ro)<-ext(r)
     crs(ro)<-crs(r)
-    writeRaster(ro,file=fo,overwrite=TRUE)
+    writeRaster(ro,filename=fo,overwrite=TRUE)
   }
   # find out wich entries are 2018
   st<-as.POSIXlt(0,origin="2010-01-01",tz="UTC")

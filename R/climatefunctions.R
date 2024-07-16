@@ -153,12 +153,12 @@ windelev <- function(dtmf, dtmm, dtmc, wdir, uz = 2) {
 #' climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 #' dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
 #' dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
-#' landsea<- terra::mask(terra::.resample(dtmm,dtmf),dtmf)
+#' landsea<- terra::mask(terra::resample(dtmm,dtmf),dtmf)
 #' ce1 <- coastalexposure(landsea, terra::ext(dtmf), 45)
 #' ce2 <- coastalexposure(landsea, terra::ext(dtmf), 270)
 #' par(mfrow=c(2,1))
-#' plot(ce1, main = "Land to sea weighting, northeast wind")
-#' plot(ce2, main = "Land to sea weighting, westerly wind")
+#' terra::plot(ce1, main = "Land to sea weighting, northeast wind")
+#' terra::plot(ce2, main = "Land to sea weighting, westerly wind")
 coastalexposure <- function(landsea, e, wdir) {
   # Calculate sample distances
   e2<-ext(landsea)
@@ -202,8 +202,8 @@ coastalexposure <- function(landsea, e, wdir) {
 #' dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
 #' rain<-terra::rast(climdata$prec,crs=terra::crs(climdata$dtm),extent=terra::ext(climdata$dtm))[[1]]
 #' try(rainf<-Tpsdownscale(rain, climdata$dtm, dtmf, method = "normal", fast = TRUE))
-#' plot(rain,main='Input rain')
-#' plot(rainf,main='Downscaled rain')
+#' terra::plot(rain,main='Input rain')
+#' terra::plot(rainf,main='Downscaled rain')
 Tpsdownscale<-function(r, dtmc, dtmf, method = "normal", fast = TRUE) {
   # Extract values data.frame
   if (crs(dtmc) != crs(dtmf)) dtmc<-project(dtmc,crs(dtmf))
@@ -234,9 +234,9 @@ Tpsdownscale<-function(r, dtmc, dtmf, method = "normal", fast = TRUE) {
   v<-v[s]
   # Fit tps model
   if (fast) {
-    tps<-suppressWarnings(fastTps(xyz,v,m=2,aRange=res(r)[1]*5))
+    tps<-suppressWarnings(fields::fastTps(xyz,v,m=2,aRange=res(r)[1]*5))
   }  else {
-    tps<-Tps(xyz,v,m=2)
+    tps<-fields::Tps(xyz,v,m=2)
   }
   # Apply Tps model
   xy<-data.frame(xyFromCell(dtmf,1:ncell(dtmf)))

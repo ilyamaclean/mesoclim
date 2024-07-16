@@ -69,7 +69,7 @@ download_hadukdaily<-function(dir_out,
   # Create base url
   urlbase<-paste0(cedaprot, cedaserv,"/badc/ukmo-hadobs/data/insitu/MOHC/HadOBS/HadUK-Grid/v1.2.0.ceda/1km/")
   fullreport_df<-data.frame()
-  for (v in varns){
+  for (v in varn){
     urlvar<-file.path(urlbase,v,"day","latest")
     fnames<-paste0(v,"_hadukgrid_uk_1km_day_",yrs,mtxt,"01-",yrs,mtxt,mdays,".nc")
     destfiles<-file.path(dir_out,fnames)
@@ -138,7 +138,7 @@ download_ukcp18<-function(
   vars<-match.arg(vars,several.ok=TRUE)
   if(collection=='land-rcm' & !any(member %in% c('01','04','05','06','07','08','09','10','11','12','13','15'))){
     warning('Invalid member for land-rcm - retricting to only those valid!!')
-    member<-member[which(modelsruns %in% c('01','04','05','06','07','08','09','10','11','12','13','15'))]
+    member<-member[which(member %in% c('01','04','05','06','07','08','09','10','11','12','13','15'))]
   }
   if(collection=='land-gcm' & !domain %in% c('uk','global')){
     warning('Invalid area for global data - downloading global data!!')
@@ -196,7 +196,8 @@ download_ukcp18<-function(
     if(nrow(fullreport_df)==0) fullreport_df<-success_df else fullreport_df<-rbind(fullreport_df,success_df)
   }
   return(fullreport_df)
-}#' @title Download 1km albedo data
+}
+#' @title Download 1km albedo data
 #' @description The function `download_globalbedo` downloads monthly GlobAlbedo tiled
 #' albedo data from Jasmin available for the years 1998-2011. Whole of the UK covered by default tiles. For further information see:
 #' \url{http://www.globalbedo.org/index.php}
@@ -218,7 +219,7 @@ download_globalbedo<-function(dir_out,
   # Check parameters
   if(!dir.exists(dir_out)) stop(paste("Output directory does not exist:",dir_out))
   months<-match.arg(months,several.ok=TRUE)
-  years<-years(domain,several.ok=TRUE)
+  years<-match.arg(years,several.ok=TRUE)
   tiles<-match.arg(tiles,several.ok=TRUE)
 
   path<-'public/qa4ecv/albedo/netcdf_cf/1km/monthly'
@@ -279,7 +280,7 @@ download_ukcpsst<-function(
   modelruns<-match.arg(modelruns,several.ok=TRUE)
   # Get member ID used in file names from mesoclim lookup table
   memberid<-ukcp18lookup$PP_ID[which(ukcp18lookup$Member_ID %in% modelruns)]
-  if("" %in% memberid) warning(paste("Model members",members[which(memberid=="")],"NOT available for sea surface temperature - ignoring!!"))
+  if("" %in% memberid) warning(paste("Model members",modelruns[which(memberid=="")],"NOT available for sea surface temperature - ignoring!!"))
   memberid<-memberid[which(memberid!="")]
 
   if(!dir.exists(dir_out))(stop(paste("Directory",dir_out,"does not exist!!!")))
@@ -649,7 +650,7 @@ create_ukcpsst_data<-function(
 
 #' @title convert UKCP18 ncdf4 files to format required for model
 #' @description Converts UKCP18 global or regional land data in the form of netCDF4 file (as returned
-#' by [ukcp18_downscale()] to the correct data form required for subsequent modelling.
+#' by [download_ukcp18()] to the correct data form required for subsequent modelling.
 #' @param dir_ukcp directory holding ALL ncdf files of UKCP18 data required to extract the requested variables and timeseries.
 #' @param dtm SpatRaster object of elevations covering the geographical extent required (see details)
 #' @param startdate POSIXlt class defining start date of required timeseries

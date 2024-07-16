@@ -259,7 +259,7 @@ create_parcel_list<-function(climdata,parcels,id='gid',
 
   # Create a list of parcel_dfs
   parcel_list<- lapply(1:length(parcels), function(x) parcel_df)
-  names(parcel_list)<-values(parcels_v)[,id]
+  names(parcel_list)<-values(parcels)[,id]
 
   # Extract weighted means for each parcel by climate variable
   for (n in 1:length(input_names)){

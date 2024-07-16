@@ -9,7 +9,7 @@
 #' @param basins optionally, a fine-resolution SpatRast of basins as returned by [basindelin()]
 #' matching the coordinate reference system and extent of `dtmf`. Calculated if
 #' not supplied.
-#' @param u2 optionally, a SpatRast of high resolution wind speeds as returned by [windownscale()].
+#' @param u2 optionally, a SpatRast of high resolution wind speeds as returned by [winddownscale()].
 #' Calculated if not supplied.
 #' @param cad optional logical indicating whether to calculate cold-air drainage effects
 #' @param coastal optional logical indicating whether to calculate coastal effects
@@ -367,7 +367,7 @@ relhumdownscale<-function(rh, tcc, tcf, dtmc, rhmin = 0) {
   return(rhf)
 }
 #' @title Downscale precipitation accounting for elevation effects
-#' @description The function `precipdownscale` is used to spatially downscale precipitation,
+#' @description The function is used to spatially downscale precipitation,
 #' performing adjustments for elevation using one of two methods
 #' @param prec a coarse-resolution array of precipitation (mm)
 #' @param dtmf a high-resolution SpatRast of elevations
@@ -376,7 +376,7 @@ relhumdownscale<-function(rh, tcc, tcf, dtmc, rhmin = 0) {
 #' @param method One of `Tps` or `Elev` (see details).
 #' @param fast optional logical indicating whether to do a faster but less accurate
 #' Thin-plate spline downscaling. Ignored if `method = "Elev"`
-#' @param noraincut optional single numeric value indicating rainfall amounts that should
+#' @param noraincut  single numeric value indicating rainfall amounts that should
 #' be considered as no rain (see details).
 #' @param patchsim optional logical indicating whether to simulate rain patchiness during
 #' downscaling. More realistically captures intensity, but slower.
@@ -413,11 +413,13 @@ relhumdownscale<-function(rh, tcc, tcf, dtmc, rhmin = 0) {
 #' @export
 #' @keywords spatial
 #' @examples
+#' \dontrun{
 #' climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 #' dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
-#' prcf<-precipdownscale(climdata$prec, dtmf, climdata$dtm, method='Elev', noraincut=0.01)
-#' plot_q_layers(prcf)
-precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, noraincut = 0, patchsim = FALSE, nsim = dim(prec)[3]) {
+#' prcf<-precipdownscale(climdata$prec, dtmf, climdata$dtm, method="Elev", noraincut=0.01)
+#' terra::plot(prcf[[1]])
+#' }
+precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, noraincut = 0, patchsim = FALSE, nsim = dim(prec)[3]){
   prec<-.rast(prec,dtmc)
   # check how many non NA cells
   if (method != "Tps" & method != "Elev") stop("method must be one of Tps or Elev")
@@ -514,6 +516,7 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
   precf<-.rast(a2,dtmf)
   return(precf)
 }
+
 #' @title Spatially downscale all climate variables
 #' @description Spatially downscales coarse-resolution climate data
 #' @param climdata a `climdata` model object containing climate data of the same format as `era5climdata`

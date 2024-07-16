@@ -18,6 +18,7 @@ LinkingTo: Rcpp
 Imports:
     abind,
     curl,
+    elevatr,
     fields,
     fmsb,
     gstat,

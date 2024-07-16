@@ -37,7 +37,7 @@ plot_timestats_r<-function(r,v,idx=c('years', 'months', 'week',  'doy', 'yearmon
          lty = 1)
 }
 
-#' Plots chosen layers from raster stack corresponding to selected quantiles of spatial mean
+#' @title Plots chosen layers from raster stack corresponding to selected quantiles of spatial mean
 #'
 #' @param r Spatraster stack (time and name values used in plot titles)
 #' @param p vector of quantile probabilities to plot (0:1)
@@ -79,9 +79,9 @@ plot_q_layers<-function(r,p=c(0, 0.5, 1),vtext='',fun='mean', common_scale=FALSE
   ifelse(x>360 | x<0,NA,cardinals[findInterval(x,upper,rightmost.closed = T)+1])
 }
 
-#' @title Plot 'star' or 'radar' chart of wind cardinal directions
+#' @title Plot star or radar chart of wind cardinal directions
 #' @param winddir wind direction 3D Spatraster
-#' @param windspeed windspeed 3D Spatraster of same geometry as winddir]
+#' @param windspeed windspeed 3D Spatraster of same geometry as `winddir`
 #' @return plots star charts showing frequency of wind directions and of
 #' average and maximum windspeeds by direction
 #' @export
@@ -133,9 +133,4 @@ plot_wind<-function(winddir,windspeed){
     bty = "n", pch = 20 , col = c("green"),
     text.col = "black", cex = 1, pt.cex = 1
   )
-
 }
-
-
-
-

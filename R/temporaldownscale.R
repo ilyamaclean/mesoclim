@@ -108,8 +108,8 @@ blendtemp_hadukera5<-function(tasmin,tasmax,era5t2m) {
   # met office dtr
   dtr<-tasmax-tasmin
   # era5 dtr and min
-  era5min<-hourtodayCpp(.is(era5t2m),"min")
-  era5max<-hourtodayCpp(.is(era5t2m),"max")
+  era5min<-.hourtodayCpp(.is(era5t2m),"min")
+  era5max<-.hourtodayCpp(.is(era5t2m),"max")
   era5dtr<-era5max-era5min
   era5minh<-.ehr(era5min)
   era5dtrh<-.ehr(era5dtr)
@@ -207,7 +207,7 @@ hum_dailytohourly <- function(relhum, tasmin, tasmax, temph, psl, presh, tme, re
 #' @examples
 #' climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 #' presh<-pres_dailytohourly(climdata$pres,climdata$tme)
-#' plot_q_layers(.rast(presh,climdata$dtm))
+#' plot_q_layers(terra::rast(presh,crs=terra::crs(climdata$dtm),extent=terra::ext(climdata$dtm))
 pres_dailytohourly <- function(pres, tme, adjust = TRUE) {
   mn<-min(pres,na.rm=T)-1
   mx<-max(pres,na.rm=T)+1
@@ -296,7 +296,7 @@ swrad_dailytohourly <- function(radsw, tme, clearsky = NA, r = r, adjust = TRUE)
   radh <- csh * radfh
   # Make consistent with daily
   if (adjust) {
-    radd <- hourtoday(radh)
+    radd <- .hourtoday(radh)
     mult <- radsw / radd
     mult[is.na(mult)] <- 1
     mult <- .daytohour(mult, Spline = FALSE)
@@ -338,7 +338,7 @@ swrad_dailytohourly <- function(radsw, tme, clearsky = NA, r = r, adjust = TRUE)
 skyem_dailytohourly <- function(skyem, tme, adjust = TRUE) {
   skyemh <- .daytohour(skyem)
   if (adjust) {
-    skyemd <- hourtoday(skyemh)
+    skyemd <- .hourtoday(skyemh)
     mult <- skyem / skyemd
     mult[is.na(mult)] <- 1
     mult <- .daytohour(mult, Spline = FALSE)
@@ -520,7 +520,7 @@ wind_dailytohourly <- function(ws, wd, tme, adjust = TRUE) {
 #' `subdailyrain` estimate sub-daily rainfall using Bartlett-Lewis rectangular pulse rainfall model.
 #'
 #' @param rain a vector time-series of rainfall
-#' @param BLpar a data.frame of Bartlett-Lewis parameters as returned by [findBLpar()].
+#' @param BLpar a data.frame of Bartlett-Lewis parameters as returned by the (github) mettools pkg function findBLpar().
 #' @param dailyvals the number of rainfall values required for each day (i.e. 24 for hourly).
 #'
 #' @return A matrix with `length(rain)` rows and `dailyvals` columns of sub-daily rainfall.
@@ -597,6 +597,9 @@ subdailyrain <- function(rain, BLest, dailyvals = 24, dlim = 0.2, maxiter = 1000
   }
   srain
 }
+#' @title Plot rainfall
+#' @importFrom graphics polygon
+#' @importFrom grDevices rgb
 #' @noRd
 plotrain <- function(daily, subdaily) {
   dailyvals <- length(subdaily) / length(daily)
