@@ -22,10 +22,12 @@ Returns daylength in decimal hours (0 if 24 hour darkness, 24 if 24 hour dayligh
 Calculates day length
 }
 \examples{
+ \dontrun{
 tme<-as.POSIXlt(seq(as.POSIXlt("2022-01-01"),as.POSIXlt("2022-06-30"),60*60*24*8))
 jd<-sapply(tme,mesoclim:::.jday)
 dl<-daylength(jd,50)
 plot(dl ~ jd, type = "l", lwd = 8, xlab = "Day", ylab = "Day length")
+}
 }
 \keyword{climate}
 \keyword{temporal}

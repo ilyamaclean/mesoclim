@@ -55,14 +55,14 @@ For description of the modelling used to produce sea surface temperatures then s
 }
 \examples{
 \dontrun{
-cedausr<-"your_user_name"
-cedapwd <- "your_password"
-startdate<-as.POSIXlt('2017/12/31')
-enddate<-as.POSIXlt('2018/12/31')
-modelruns<-c('01')
-dir_out<-tempdir()
-download_ukcpsst(dir_out,startdate,enddate,modelruns, cedausr,cedapwd)
-}
+ cedausr<-"your_user_name"
+ cedapwd <- "your_password"
+ startdate<-as.POSIXlt('2017/12/31')
+ enddate<-as.POSIXlt('2018/12/31')
+ modelruns<-c('01')
+ dir_out<-tempdir()
+ download_ukcpsst(dir_out,startdate,enddate,modelruns, cedausr,cedapwd)
+ }
 }
 \keyword{download}
 \keyword{ukcp18}

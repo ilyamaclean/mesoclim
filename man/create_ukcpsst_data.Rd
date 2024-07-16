@@ -34,16 +34,16 @@ Spatraster timeseris of sea surface temperatures
 Create UKCP sea surface temperature rast stack from ncdf files
 }
 \examples{
-\dontrun{
-cedausr<-"your_user_name"
-cedapwd <- "your_password"
-startdate<-as.POSIXlt('2017/12/31')
-enddate<-as.POSIXlt('2018/12/31')
-modelruns<-c('01')
-dir_temp<-tempdir()
-download_ukcpsst(dir_temp,startdate,enddate,modelruns, cedausr,cedapwd)
-sst<-create_ukcpsst_data(dir_temp,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),member='01')
-}
+ \dontrun{
+ cedausr<-"your_user_name"
+ cedapwd <- "your_password"
+ startdate<-as.POSIXlt('2017/12/31')
+ enddate<-as.POSIXlt('2018/12/31')
+ member<-c('01')
+ dir_out<-tempdir()
+ download_ukcpsst(dir_out,startdate,enddate,member, cedausr,cedapwd)
+ sst<-create_ukcpsst_data(dir_out,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),member=member)
+ }
 }
 \keyword{preprocess}
 \keyword{ukcp18}

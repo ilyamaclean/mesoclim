@@ -26,8 +26,5 @@ NA - writes .csv files
 \description{
 Writes one file per parcel of climate timeseries with option to overwrite or append to existing files.
 }
-\examples{
-\dontrun{
-}
-}
 \keyword{data}
+\keyword{postprocess}

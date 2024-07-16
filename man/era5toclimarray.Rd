@@ -43,7 +43,7 @@ a list of the following:
 }
 \description{
 The function \code{era5toclimarray} converts data in a netCDF4 file returned
-by for example the mcera5 pkg request_era5() function to the correct formal required for subsequent modelling.
+by mcera5 pkg function request_era5 to the correct formal required for subsequent modelling.
 }
 \details{
 the model requires that input climate data are projected using a coordinate reference
@@ -53,9 +53,10 @@ extent of dtm (but retain the approximate original grid resolution of the input 
 Returned climate data match the resolution, coordinate reference system and extent of \code{dtmc}.
 }
 \examples{
-\dontrun{
-ncfile<-'path_to/era5_surface_ukeire_year.nc'
+ \dontrun{
+ncfile<-'path_to_downloaded_era5_file'
 aoi<-terra::vect(terra::ext(-7.125,-2.875,49.375,51.625),crs='EPSG:4326')
+dtm<-terra::rast(system.file('extdata/dtms/era5dtm.tif',package='mesoclim'))
 era5input<-era5toclimarray(ncfile, dtm=NA, aoi=aoi)
 plot_q_layers(.rast(era5input$temp,era5input$dtm))
 checkinputs(era5input,'hour')

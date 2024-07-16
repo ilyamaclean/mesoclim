@@ -58,7 +58,8 @@ Climate Observation data on a 1km grid over the UK from CEDA.
 Uses ceda dap https service that does not require username or password.
 }
 \examples{
-\dontrun{dir_out <- tempdir()
+\dontrun{
+dir_out <- tempdir()
 cedausr<-"your_user_name"
 cedapwd <- "your_password"
 download_hadukdaily(dir_out,as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),varn=c('tasmax','tasmin'),freq='day', cedausr,cedapwd)

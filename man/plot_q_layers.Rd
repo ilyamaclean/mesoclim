@@ -29,7 +29,7 @@ Plots chosen layers from raster stack corresponding to selected quantiles of spa
 }
 \examples{
 climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
-r<-.rast(climdata$tmax,climdata$dtm)
+r<-terra::rast(climdata$tmax,crs=terra::crs(climdata$dtm),extent=terra::ext(climdata$dtm))
 terra::time(r)<-climdata$tme
 plot_q_layers(r)
 }
