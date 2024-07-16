@@ -10,7 +10,7 @@ knitr::opts_chunk$set(
 # To run in developer mode: devtools::build_rmd('vignettes/articles/mesoclim_addtrees.Rmd')
 ```
 
-```{r setup}
+```{r setup, include=FALSE}
 library(lubridate)
 library(terra)
 library(mesoclim)

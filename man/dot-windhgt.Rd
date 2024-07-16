@@ -16,7 +16,4 @@ Assumes a logarithmic height profile and imposes a minimum zo of 0.2}
 cf microclima::windheight
 wspeed numeric value(s) of measured wind speed (\ifelse{html}{\out{m s<sup>-1</sup> }}{\eqn{ m s^{-1}}}) at height \code{zi} (m).
 }
-\examples{
-change_windhgt(3, 10, 1)
-}
 \keyword{internal}

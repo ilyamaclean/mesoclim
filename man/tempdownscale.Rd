@@ -32,7 +32,7 @@ than dtmf (only needed for coastal effects - see details).}
 matching the coordinate reference system and extent of \code{dtmf}. Calculated if
 not supplied.}
 
-\item{u2}{optionally, a SpatRast of high resolution wind speeds as returned by \code{\link[=windownscale]{windownscale()}}.
+\item{u2}{optionally, a SpatRast of high resolution wind speeds as returned by \code{\link[=winddownscale]{winddownscale()}}.
 Calculated if not supplied.}
 
 \item{cad}{optional logical indicating whether to calculate cold-air drainage effects}

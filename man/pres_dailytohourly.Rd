@@ -36,6 +36,6 @@ derived by reversing the equation Psl = pres*((293-0.0065z)/293)**5.26
 \examples{
 climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 presh<-pres_dailytohourly(climdata$pres,climdata$tme)
-plot_q_layers(.rast(presh,climdata$dtm))
+plot_q_layers(terra::rast(presh,crs=terra::crs(climdata$dtm),extent=terra::ext(climdata$dtm))
 }
 \keyword{temporal}

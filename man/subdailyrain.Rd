@@ -19,7 +19,7 @@ subdailyrain(
 
 \item{dailyvals}{the number of rainfall values required for each day (i.e. 24 for hourly).}
 
-\item{BLpar}{a data.frame of Bartlett-Lewis parameters as returned by \code{\link[=findBLpar]{findBLpar()}}.}
+\item{BLpar}{a data.frame of Bartlett-Lewis parameters as returned by the (github) mettools pkg function findBLpar().}
 }
 \value{
 A matrix with \code{length(rain)} rows and \code{dailyvals} columns of sub-daily rainfall.

@@ -71,7 +71,7 @@ a list of the following:
 }
 \description{
 Converts UKCP18 global or regional land data in the form of netCDF4 file (as returned
-by \code{\link[=ukcp18_downscale]{ukcp18_downscale()}} to the correct data form required for subsequent modelling.
+by \code{\link[=download_ukcp18]{download_ukcp18()}} to the correct data form required for subsequent modelling.
 }
 \details{
 The function converts 360 day UKCP18 to actual calendar data by reassignment and linear interpolation of missing data.

@@ -28,7 +28,7 @@ the resolution, extent and coordinate reference system of \code{prec}.}
 \item{fast}{optional logical indicating whether to do a faster but less accurate
 Thin-plate spline downscaling. Ignored if \code{method = "Elev"}}
 
-\item{noraincut}{optional single numeric value indicating rainfall amounts that should
+\item{noraincut}{single numeric value indicating rainfall amounts that should
 be considered as no rain (see details).}
 
 \item{patchsim}{optional logical indicating whether to simulate rain patchiness during
@@ -42,7 +42,7 @@ a stacked SpatRast of precipitation values matching the resolution,
 coordinate reference system and extent of \code{dtmf}.
 }
 \description{
-The function \code{precipdownscale} is used to spatially downscale precipitation,
+The function is used to spatially downscale precipitation,
 performing adjustments for elevation using one of two methods
 }
 \details{
@@ -68,9 +68,11 @@ events within each hour retain a degree of inter-dependence more realistically
 simulating the trajectory of low pressure systems.
 }
 \examples{
+\dontrun{
 climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
-prcf<-precipdownscale(climdata$prec, dtmf, climdata$dtm, method='Elev', noraincut=0.01)
-plot_q_layers(prcf)
+prcf<-precipdownscale(climdata$prec, dtmf, climdata$dtm, method="Elev", noraincut=0.01)
+terra::plot(prcf[[1]])
+}
 }
 \keyword{spatial}

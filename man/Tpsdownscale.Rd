@@ -39,7 +39,7 @@ climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package=
 dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
 rain<-terra::rast(climdata$prec,crs=terra::crs(climdata$dtm),extent=terra::ext(climdata$dtm))[[1]]
 try(rainf<-Tpsdownscale(rain, climdata$dtm, dtmf, method = "normal", fast = TRUE))
-plot(rain,main='Input rain')
-plot(rainf,main='Downscaled rain')
+terra::plot(rain,main='Input rain')
+terra::plot(rainf,main='Downscaled rain')
 }
 \keyword{spatial}

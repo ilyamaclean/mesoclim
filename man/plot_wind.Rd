@@ -2,21 +2,21 @@
 % Please edit documentation in R/graph_functions.R
 \name{plot_wind}
 \alias{plot_wind}
-\title{Plot 'star' or 'radar' chart of wind cardinal directions}
+\title{Plot star or radar chart of wind cardinal directions}
 \usage{
 plot_wind(winddir, windspeed)
 }
 \arguments{
 \item{winddir}{wind direction 3D Spatraster}
 
-\item{windspeed}{windspeed 3D Spatraster of same geometry as winddir]}
+\item{windspeed}{windspeed 3D Spatraster of same geometry as \code{winddir}}
 }
 \value{
 plots star charts showing frequency of wind directions and of
 average and maximum windspeeds by direction
 }
 \description{
-Plot 'star' or 'radar' chart of wind cardinal directions
+Plot star or radar chart of wind cardinal directions
 }
 \examples{
 wdir<-c(357,5,20,45,100,185,265,275,290)
