@@ -24,10 +24,12 @@
 #' @export
 #' @keywords download
 #' @examples
-#' # dir_out <- tempdir()
-#' # cedausr<-"your_user_name"
-#' # cedapwd <- "your_password"
-#' #download_hadukdaily(dir_out,as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),varn=c('tasmax','tasmin'),freq='day', cedausr,cedapwd)
+#' \dontrun{
+#' dir_out <- tempdir()
+#' cedausr<-"your_user_name"
+#' cedapwd <- "your_password"
+#' download_hadukdaily(dir_out,as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),varn=c('tasmax','tasmin'),freq='day', cedausr,cedapwd)
+#' }
 download_hadukdaily<-function(dir_out,
                               startdate, enddate,
                               varn=c('rainfall','tasmax','tasmin','hurs','psl','pv','sun','sfsWind'),
@@ -105,10 +107,12 @@ download_hadukdaily<-function(dir_out,
 #' @export
 #' @keywords download ukcp18
 #' @examples
-#' # dir_ukcp <- tempdir()
-#' # cedausr<-"your_user_name"
-#' # cedapwd <- "your_password"
-#' # download_ukcp18(dir_ukcp,as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01'),c('tasmax','tasmin'),download_dtm=TRUE, cedausr,cedapwd)
+#'  \dontrun{
+#' dir_ukcp <- tempdir()
+#' cedausr<-"your_user_name"
+#' cedapwd <- "your_password"
+#' download_ukcp18(dir_ukcp,as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01'),c('tasmax','tasmin'),download_dtm=TRUE, cedausr,cedapwd)
+#' }
 download_ukcp18<-function(
     dir_out,
     startdate,
@@ -251,13 +255,15 @@ download_globalbedo<-function(dir_out,
 #' @export
 #' @keywords download ukcp18
 #' @examples
-#' # cedausr<-"your_user_name"
-#' # cedapwd <- "your_password"
-#' # startdate<-as.POSIXlt('2017/12/31')
-#' # enddate<-as.POSIXlt('2018/12/31')
-#' # modelruns<-c('01')
-#' # dir_out<-tempdir()
-#' # download_ukcpsst(dir_out,startdate,enddate,modelruns, cedausr,cedapwd)
+#' \dontrun{
+#'  cedausr<-"your_user_name"
+#'  cedapwd <- "your_password"
+#'  startdate<-as.POSIXlt('2017/12/31')
+#'  enddate<-as.POSIXlt('2018/12/31')
+#'  modelruns<-c('01')
+#'  dir_out<-tempdir()
+#'  download_ukcpsst(dir_out,startdate,enddate,modelruns, cedausr,cedapwd)
+#'  }
 download_ukcpsst<-function(
     dir_out,
     startdate,
@@ -317,8 +323,16 @@ download_ukcpsst<-function(
 #' @import lubridate
 #' @keywords preprocess ukcp18
 #' @examples
-#' dir_data<-system.file('extdata/ukcp18sst',package='mesoclim')
-#' sst<-create_ukcpsst_data(dir_data,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),member='01')
+#'  \dontrun{
+#'  cedausr<-"your_user_name"
+#'  cedapwd <- "your_password"
+#'  startdate<-as.POSIXlt('2017/12/31')
+#'  enddate<-as.POSIXlt('2018/12/31')
+#'  member<-c('01')
+#'  dir_out<-tempdir()
+#'  download_ukcpsst(dir_out,startdate,enddate,member, cedausr,cedapwd)
+#'  sst<-create_ukcpsst_data(dir_out,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),member=member)
+#'  }
 create_ukcpsst_data<-function(
     dir_data,
     startdate,
@@ -375,7 +389,7 @@ create_ukcpsst_data<-function(
 
 #' @title Gets dates of UKCP18 ncdf file
 #' @description The function `era5toclimarray` converts data in a netCDF4 file returned
-#' by [mcera5::request_era5()] to the correct formal required for subsequent modelling.
+#' by mcera5 pkg function request_era5() to the correct formal required for subsequent modelling.
 #' @param ncfile filename of UKCP18 ncdf data file
 #' @return a vector of date strings in the form 'yyy-dd-mm'
 #' @import ncdf4
@@ -385,10 +399,6 @@ create_ukcpsst_data<-function(
 #' UKCP18 time values expressed as hours since 1/1/1970 12.00. Output used by function `.correct_ukcp_dates()`
 #' @keywords internal
 #' @noRd
-#' @examples
-#' dir_ukcp<-system.file('extdata/ukcp18rcm',package='mesoclim')
-#' nc<-file.path(dir_ukcp,"tasmax_rcp85_land-rcm_uk_12km_01_day_20101201-20201130.nc")
-#' ukdates<-.get_ukcp18_dates(nc)
 .get_ukcp18_dates<-function(ncfile){
   netcdf_data <-ncdf4::nc_open(ncfile)
   time_hours <- ncdf4::ncvar_get(netcdf_data,"time")
@@ -411,11 +421,6 @@ create_ukcpsst_data<-function(
 #' @export
 #' @keywords internal
 #' @noRd
-#' @examples
-#' dir_ukcp<-system.file('extdata/ukcp18rcm',package='mesoclim')
-#' nc<-file.path(dir_ukcp,"tasmax_rcp85_land-rcm_uk_12km_01_day_20101201-20201130.nc")
-#' ukdates<-.get_ukcp18_dates(nc)
-#' correctdates<-.correct_ukcp_dates(ukdates)
 .correct_ukcp_dates<-function(ukcp_dates){
   years<-as.numeric(sapply(strsplit(ukcp_dates,"-"), getElement, 1))
   months<-as.numeric(sapply(strsplit(ukcp_dates,"-"), getElement, 2))
@@ -458,12 +463,17 @@ create_ukcpsst_data<-function(
 #' @keywords internal
 #' @noRd
 #' @examples
-#' dir_ukcp<-system.file('extdata/ukcp18rcm',package='mesoclim')
+#'  \dontrun{
+#' dir_ukcp <- tempdir()
+#' cedausr<-"your_user_name"
+#' cedapwd <- "your_password"
+#' download_ukcp18(dir_ukcp,as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01'),c('tasmax'),download_dtm=TRUE, cedausr,cedapwd)
 #' nc<-file.path(dir_ukcp,"tasmax_rcp85_land-rcm_uk_12km_01_day_20101201-20201130.nc")
 #' ukdates<-.get_ukcp18_dates(nc)
 #' real_dates<-.correct_ukcp_dates(ukdates)
 #' r<-rast(nc,subds='tasmax')
 #' r2<-.fill_calendar_data(r,real_dates,testplot=TRUE)
+#' }
 .fill_calendar_data<-function(ukcp_r, real_dates, testplot=FALSE, plotdays=c(89:91,242:244)){
   # Assign real dates to layer names and time values
   terra::time(ukcp_r)<-real_dates
@@ -514,7 +524,6 @@ create_ukcpsst_data<-function(
 #' @noRd
 #' @examples
 #' .find_ukcp_decade('land-rcm',as.POSIXlt("2030/01/01"),as.POSIXlt("2039/12/31"))
-#'
 .find_ukcp_decade<-function(collection=c('land-gcm','land-rcm'),startdate,enddate){
   collection<-match.arg(collection)
   if(class(startdate)[1]!="POSIXlt" | class(enddate)[1]!="POSIXlt") stop("Date parameters NOT POSIXlt class!!")
@@ -564,10 +573,13 @@ create_ukcpsst_data<-function(
 #' @keywords internal
 #' @noRd
 #' @examples
-#' #swdown_r<-.swdown(clim_list$rss,clim_list$clt,dtmc,wsalbedo,bsalbedo)
+#'  \dontrun{
+#' clim_list<-system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim')
+#' swdown_r<-.swdown(clim_list$rss,clim_list$clt,dtmc,wsalbedo,bsalbedo)
 #' plot(swdown_r[[contrast_layers(swdown_r)]])
 #' swdown_r<-.swdown(clim_list$rss,clim_list$clt,dtmc,NA,NA)
 #' plot(swdown_r[[contrast_layers(swdown_r)]])
+#' }
 .swdown<-function(swnet,cloud,dtmc,wsalbedo=0.19,bsalbedo=0.22,seaalb=0.065){
 
   if(class(wsalbedo)[1]!='SpatRaster' ||  class(bsalbedo)[1] != "SpatRaster"){
@@ -676,10 +688,22 @@ create_ukcpsst_data<-function(
 #' For regional UKCP18 data, it is recommended that 'dtm' is derived from the original orography data available for download.
 #' @keywords preprocess ukcp18
 #' @examples
-#' dir_ukcp<-system.file('extdata/ukcp18rcm',package='mesoclim')
+#'  \dontrun{
+#' dir_ukcp <- tempdir()
+#' cedausr<-"your_user_name"
+#' cedapwd <- "your_password"
+#' startdate<-as.POSIXlt('2018-05-01')
+#' enddate<- as.POSIXlt('2018-05-31')
+#' collection<-'land-rcm'
+#' domain<-'uk'
+#' member<-'01'
+#' rcp<-'rcp85'
+#' vars<-c('clt','hurs','pr','psl','rls','rss','tasmax','tasmin','uas','vas')
+#' download_ukcp18(dir_ukcp,startdate,enddate,collection,domain,'rcp85',member,vars,download_dtm=TRUE, cedausr,cedapwd)
 #' dtm<-terra::rast(system.file('extdata/ukcp18rcm/orog_land-rcm_uk_12km_osgb.nc',package='mesoclim'))
 #' dtm<-crop(dtm,c(28077.86, 339436.5, -57947.13, 204298.7))
-#' ukcpinput<-ukcp18toclimarray(dir_ukcp,dtm,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),collection='land-rcm',domain='uk',member='01')
+#' ukcpinput<-ukcp18toclimarray(dir_ukcp,dtm,startdate, enddate, collection,domain,member)
+#' }
 ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
                               collection=c('land-gcm','land-rcm'),
                               domain=c('uk','eur','global'),

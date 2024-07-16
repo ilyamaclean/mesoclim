@@ -334,9 +334,7 @@ swrad_dailytohourly <- function(radsw, tme, clearsky = NA, r = r, adjust = TRUE)
 #'  but an adequate approximation is derived if subtited by air temperature.
 #' @keywords temporal
 #' @examples
-#' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
-#' lwrad<-skyem_dailytohourly()
-
+#' lwrad<-skyem_dailytohourly(array(rep(c(0.2,0.2,0.2,0.8,0.8,0.8),2),c(3,3,2)),as.POSIXlt(seq(1,(48*60*60),(24*60*60))))
 skyem_dailytohourly <- function(skyem, tme, adjust = TRUE) {
   skyemh <- .daytohour(skyem)
   if (adjust) {

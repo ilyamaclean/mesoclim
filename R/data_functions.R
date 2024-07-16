@@ -1,8 +1,7 @@
-#' Check and summarise coarse resolution climate data inputs
-#'
+#' @title Check and summarise coarse resolution climate data inputs
 #' @param input_list list of climate and associated variables as output by functions like 'ukcp18toclimarray'
 #' @param tstep string decribing whether input data is by hour or day
-#'
+
 #' @return where possible returns inputs suitable for downsclaing and/or warning messages if input data has unexpected values
 #' Also prints summary statistics and graphs of each variable
 #' @import magrittr
@@ -213,7 +212,7 @@ read_climdata<-function(filepath){
 #' @title Write climate data
 #' @description
 #' Writes to a binary file a climate dataset (as output by for example `ukcp18toclimdata()`.
-#'Wraps any Spatrasters to PackedSpatRasters before writing.
+#' Wraps any Spatrasters to PackedSpatRasters before writing.
 #' @param climdata a list of climate variables as output by `ukcp18toclimdata()`
 #' @param filepath to be written
 #' @return writes an external file

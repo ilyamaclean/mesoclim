@@ -386,7 +386,7 @@ correct_era5temps<-function(era5hourly,era5correctmodels) {
 # ================================================================= #
 # ~~~~~~~~~~~~~ Code dump from here - probably not all needed ~~~~~~~~~ #
 # ================================================================= #
-#' Saves a SpatRaster object as an nc file
+#' @title Saves a SpatRaster object as an nc file
 #' @param r - a SpatRaster object
 #' @param baseyear - used for adding time stamp to nc file (asumes daily)
 #' @param shortname - Name of the dataset
@@ -401,7 +401,7 @@ savenc<-function(r,baseyear,shortname,longname,unit,fileout) {
            longname=longname,unit=unit)
 }
 
-#' Applies biascorrectukcpone (precipcorrect) to all ukcp variables for one tile and model run
+#' @title Applies biascorrectukcpone (precipcorrect) to all ukcp variables for one tile and model run
 #' and saves data to disk as nc files per decade
 #' @param pathtoera - directory with 2018 daily era5 data (as returned by era5todaily)
 #' @param pathtoukcp18 - directory with 2018 ukcp data (as returned by crop2018UKCP)

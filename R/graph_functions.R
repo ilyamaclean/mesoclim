@@ -1,4 +1,4 @@
-#' Plot timeseries plots of spatial mean, min and max values by various timesteps
+#' @title Plot timeseries plots of spatial mean, min and max values by various timesteps
 #'
 #' @param r stack of spatrasters with time values
 #' @param var variable name used in plot titles
@@ -12,7 +12,7 @@
 #' @keywords graph
 #' @examples
 #' climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
-#' r<-.rast(climdata$tmax,climdata$dtm)
+#' r<-terra::rast(climdata$tmax,crs=terra::crs(climdata$dtm),extent=terra::ext(climdata$dtm))
 #' terra::time(r)<-climdata$tme
 #' plot_timestats_r(r,'tmax',idx='doy')
 plot_timestats_r<-function(r,v,idx=c('years', 'months', 'week',  'doy', 'yearmonths', 'yearweeks', '7days','hour'),lgd=FALSE){
@@ -49,7 +49,7 @@ plot_timestats_r<-function(r,v,idx=c('years', 'months', 'week',  'doy', 'yearmon
 #' @keywords graph
 #' @examples
 #' climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
-#' r<-.rast(climdata$tmax,climdata$dtm)
+#' r<-terra::rast(climdata$tmax,crs=terra::crs(climdata$dtm),extent=terra::ext(climdata$dtm))
 #' terra::time(r)<-climdata$tme
 #' plot_q_layers(r)
 plot_q_layers<-function(r,p=c(0, 0.5, 1),vtext='',fun='mean', common_scale=FALSE){
@@ -71,6 +71,7 @@ plot_q_layers<-function(r,p=c(0, 0.5, 1),vtext='',fun='mean', common_scale=FALSE
   }
 }
 
+#' @title direction to cardinal label
 #' @noRd
 .dir_to_cardinal <- function(x) {
   upper <- seq(from = 11.25, by = 22.5, length.out = 17)
@@ -78,18 +79,15 @@ plot_q_layers<-function(r,p=c(0, 0.5, 1),vtext='',fun='mean', common_scale=FALSE
   ifelse(x>360 | x<0,NA,cardinals[findInterval(x,upper,rightmost.closed = T)+1])
 }
 
-#' Plot 'star' or 'radar' chart of wind cardinal directions
-#'
+#' @title Plot 'star' or 'radar' chart of wind cardinal directions
 #' @param winddir wind direction 3D Spatraster
 #' @param windspeed windspeed 3D Spatraster of same geometry as winddir]
-#'
 #' @return plots star charts showing frequency of wind directions and of
 #' average and maximum windspeeds by direction
 #' @export
 #' @import fmsb
 #' @importFrom graphics legend par
 #' @keywords graph
-#'
 #' @examples
 #' wdir<-c(357,5,20,45,100,185,265,275,290)
 #' wspeed<-seq(3,27,3)

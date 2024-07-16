@@ -27,7 +27,7 @@ basindelin<-function(dtm, boundary = 0) {
   } else bsn<-.basindelin(dtm, boundary)
   return(bsn)
 }
-#' Calculates accumulated flow
+#' @title Calculates accumulated flow
 #' @description
 #' `flowacc` calculates accumulated flow(used to model cold air drainage)
 #' @param dtm a SpatRast elevations (m).
@@ -128,7 +128,7 @@ windelev <- function(dtmf, dtmm, dtmc, wdir, uz = 2) {
   wc<-suppressWarnings(mask(wc,dtmf))
   return(wc)
 }
-#' Calculates land to sea ratio in upwind direction
+#' @title Calculates land to sea ratio in upwind direction
 #'
 #' @description The function `coastalexposure` is used to calculate an inverse
 #' distance^2 weighted ratio of land to sea in a specified upwind direction.
@@ -149,18 +149,16 @@ windelev <- function(dtmf, dtmm, dtmc, wdir, uz = 2) {
 #' @importFrom Rcpp sourceCpp
 #' @useDynLib mesoclim, .registration = TRUE
 #' @export
-#'
 #' @examples
 #' climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 #' dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
 #' dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
-#' # landsea == e BUT shouldn't if be >>e ??
-#' landsea<- terra::mask(mesoclim:::.resample(dtmm,dtmf),dtmf)
+#' landsea<- terra::mask(terra::.resample(dtmm,dtmf),dtmf)
 #' ce1 <- coastalexposure(landsea, terra::ext(dtmf), 45)
 #' ce2 <- coastalexposure(landsea, terra::ext(dtmf), 270)
 #' par(mfrow=c(2,1))
-#' #plot(ce1, main = "Land to sea weighting, northeast wind")
-#' #plot(ce2, main = "Land to sea weighting, westerly wind")
+#' plot(ce1, main = "Land to sea weighting, northeast wind")
+#' plot(ce2, main = "Land to sea weighting, westerly wind")
 coastalexposure <- function(landsea, e, wdir) {
   # Calculate sample distances
   e2<-ext(landsea)
@@ -179,11 +177,9 @@ coastalexposure <- function(landsea, e, wdir) {
   lsr<-.rast(lsr,lss)
   return(lsr)
 }
-#' Performs thin-plate spline downscaling
-#'
+#' @title Performs thin-plate spline downscaling
 #' @description The function `Tpsdownscale` is a thin plate spline model, typically
 #' with elevation as a covariate to downscale data.
-#'
 #' @param r a single layer SpatRast dataset to be downscaled.
 #' @param dtmc a coarse resolution SpatRast of elevations matching the resolution, coordinate reference
 #' system and extent of `r`.
@@ -204,7 +200,7 @@ coastalexposure <- function(landsea, e, wdir) {
 #' @examples
 #' climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 #' dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
-#' rain<-mesoclim:::.rast(climdata$prec,climdata$dtm)[[1]]
+#' rain<-terra::rast(climdata$prec,crs=terra::crs(climdata$dtm),extent=terra::ext(climdata$dtm))[[1]]
 #' try(rainf<-Tpsdownscale(rain, climdata$dtm, dtmf, method = "normal", fast = TRUE))
 #' plot(rain,main='Input rain')
 #' plot(rainf,main='Downscaled rain')
@@ -254,10 +250,8 @@ Tpsdownscale<-function(r, dtmc, dtmf, method = "normal", fast = TRUE) {
   rfn<-rast(xy,type="xyz")
   return(rfn)
 }
-#' Calculates the diffuse fraction from incoming shortwave radiation
-#'
+#' @title Calculates the diffuse fraction from incoming shortwave radiation
 #' @description `difprop` calculates proportion of incoming shortwave radiation that is diffuse radiation using the method of Skartveit et al. (1998) Solar Energy, 63: 173-183.
-#'
 #' @param rad a vector of incoming shortwave radiation values (W/m^2)
 #' @param julian the Julian day as returned by [julday()]
 #' @param localtime a single numeric value representing local time (decimal hour, 24 hour clock)
@@ -266,10 +260,8 @@ Tpsdownscale<-function(r, dtmc, dtmf, method = "normal", fast = TRUE) {
 #' @param hourly specifies whether values of `rad` are hourly (see details).
 #' @param merid an optional numeric value representing the longitude (decimal degrees) of the local time zone meridian (0 for GMT).
 #' @param dst an optional numeric value representing the time difference from the timezone meridian (hours, e.g. +1 for BST if `merid` = 0).
-#'
 #' @return a vector of diffuse fractions (either \ifelse{html}{\out{MJ m<sup>-2</sup> hr<sup>-1</sup>}}{\eqn{MJ m^{-2} hr^{-1}}} or \ifelse{html}{\out{W m<sup>-2</sup>}}{\eqn{W m^{-2}}}).
 #' @export
-#'
 #' @details
 #' The method assumes the environment is snow free. Both overall cloud cover and heterogeneity in
 #' cloud cover affect the diffuse fraction. Breaks in an extensive cloud deck may primarily
@@ -278,11 +270,10 @@ Tpsdownscale<-function(r, dtmc, dtmf, method = "normal", fast = TRUE) {
 #' is applied to detect the presence of such variable/inhomogeneous clouds, based on variability
 #' in radiation for each hour in question and values in the preceding and deciding hour.  If
 #' hourly data are unavailable, an average variability is determined from radiation intensity.
-#'
 #' @keywords climate
 #' @examples
 #' rad <- c(1:1352) # typical values of radiation in W/m^2
-#' jd <- mesoclim:::.jday(as.POSIXlt("2022-06-21")) # julian day
+#' jd <- 2459752 #"2022-06-21" as julian day
 #' dfr <- difprop(rad, jd, 12, 50, -5)
 #' plot(dfr ~ rad, type = "l", lwd = 2,
 #' xlab = expression(paste("Incoming shortwave radiation (", W*M^-2, ")")),
@@ -352,7 +343,6 @@ difprop <- function(rad, julian, localtime, lat, long, hourly = FALSE,
 #' @param outtype - one of relative, absolute, specific or vapour pressure
 #' @param tc - temperature
 #' @param pk - surface pressure
-#'
 #' @return returns humidity
 #' (Percentage for relative,Kg / Kg for specific, kg / m3 for absolute and kPa for vapour pressure)
 #' @export
@@ -407,7 +397,7 @@ converthumidity <- function (h, intype = "relative", outtype = "vapour pressure"
 #' @export
 #' @keywords climate
 #' @examples
-#' jd <- mesoclim:::.jday(as.POSIXlt("2022-06-21")) # julian day
+#' jd <- 2459752 #"2022-06-21" as julian day
 #' tme<-seq(0,23,1)
 #' csr<-clearskyrad(jd,tme,50,-2.5)
 #' plot(csr ~ tme, type = "l", lwd = 2, xlab = expression(paste("Hour")), ylab = "Clearsky radiation")
@@ -433,10 +423,12 @@ clearskyrad <- function(jd, lt, lat, long, tc = 15, rh = 80, pk = 101.3) {
 #' @export
 #' @keywords climate temporal
 #' @examples
+#'  \dontrun{
 #' tme<-as.POSIXlt(seq(as.POSIXlt("2022-01-01"),as.POSIXlt("2022-06-30"),60*60*24*8))
 #' jd<-sapply(tme,mesoclim:::.jday)
 #' dl<-daylength(jd,50)
 #' plot(dl ~ jd, type = "l", lwd = 8, xlab = "Day", ylab = "Day length")
+#' }
 daylength <- function(julian, lat) {
   declin <- (pi * 23.5 / 180) * cos(2 * pi * ((julian - 159.5) / 365.25))
   hc <- -0.01453808/(cos(lat*pi/180)*cos(declin)) -
