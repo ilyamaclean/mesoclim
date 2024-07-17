@@ -817,7 +817,7 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
   names(clim_list)<-c('cloud','relhum','prec','pres','lwrad','swrad','tmax','tmin','windspeed','winddir')
 
   # Restrict to dates requested
-  filter_times<-function(x,startdate,enddate) x[[which(date(time(x)) >= date(startdate) & date(time(x)) <= date(enddate))]]
+  filter_times<-function(x,startdate,enddate) x[[which(time(x) >= startdate & time(x) <= enddate)]]
   for(v in names(clim_list)) clim_list[[v]]<-filter_times(clim_list[[v]],startdate,enddate)
 
   ### Create output list
