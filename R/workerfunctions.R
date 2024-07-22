@@ -1257,7 +1257,7 @@
   r<-rast(a)
   ext(r)<-ext(template)
   crs(r)<-crs(template)
-  fo<-paste0(path,varn,".tif")
+  fo<-file.path(path,paste0(varn,".tif"))
   writeRaster(r,filename=fo,overwrite=TRUE)
 }
 #' @title Get latitude and longitude of centre of r
