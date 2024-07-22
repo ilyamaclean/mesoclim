@@ -1175,11 +1175,12 @@
 }
 #' @title Applies e.g. a landsea mask to an array of data
 #' @param a - a 3D array
-#' @param mask - a raster object the extent of which matches a
+#' @param mask - a raster or spatrast object the extent of which matches a
 #' @returns a 3D array with masked areas set to NA
 #' @noRd
 .applymask <- function(a, mask) {
-  m<-getValues(mask,format="matrix")
+  if (class(mask)[1]=="RasterLayer") m<-getValues(mask,format="matrix")
+  if (class(mask)[1]=="SpatRaster") m<-as.matrix(mask,wide=TRUE)
   m[is.na(m)==F]<-1
   m<-.mta(m,dim(a)[3])
   a<-a*m
