@@ -1724,8 +1724,8 @@
     r<-rast(a)
     ext(r)<-ext(rte)
     crs(r)<-crs(rte)
-    if (mult != 1) {ound()
-      varl<-paste(varl,"*",mult
+    if (mult != 1) {
+      varl<-paste(varl,"*",mult)
       unit<-paste(unit,"*",mult)
     }
   }
