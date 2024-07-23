@@ -1338,74 +1338,182 @@
 # ~~~~~~~~~~~~~ Bias-correct worker functions here ~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
 #' @title Converts era5 hourly data to daily to enable bias correction to be applied to ukcp data
-#' @param filein - filename (including path )of era5 nc file with all variables
+#' @param filein - filename (including path ) of era5 nc file with required variables
 #' @param pathout - directory in which to save data
 #' @param landsea - a landsea raster object of land fractions that must match the extent of the era5 data
+#' @param output - character of value tifs, singlenc or none - determines type of files (if any) written
+#' @param vars - variables for which daily values calculated
+#' @return list of daily spatRasters of each variable requested. Also write .tiff or .nc files if requested
 #' The function saves individual terra SpatRaster objects to disk (one for each variable)
-#' @noRd
-.era5todaily<-function(filein,pathout,landsea) {
+#' @keywords internal
+#' @examples
+#'  \dontrun{
+#' vars<-c('psl','hurs','u10','v10','swrad','difrad','lwrad')
+#' daily<-.era5todaily(filein=file.path(dir_era5,f),tempdir(),landsea=lsm,output='none',vars)
+#' }
+.era5todaily<-function(filein,pathout,landsea, output=c('tifs','singlenc','none'),
+                       vars=c('tasmax','tasmin','psl','hurs','huss','u10','v10','swrad','difrad','lwrad','skyem','pr')) {
   landsea[landsea==0]<-NA
   te<-rast(landsea)
   suppressWarnings(dir.create(pathout))
-  # dtr #
+
+  tme<-time(rast(filein,subds="t2m"))
+  daily_tme<-as.POSIXlt(seq(trunc(tme[1],"days"),trunc(tme[length(tme)],"days"),by=3600*24))
+  daily_list<-list()
+  vnames<-c()
+  lngnms<-c()
+  uts<-c()
+
+  # temperature
   a<-.nctoarray(filein,"t2m")
-  a<-.applymask(a,landsea)
-  tmx<-.hourtoday(a,max)
-  tmn<-.hourtoday(a,min)
-  dtr<-tmx-tmn
-  # apply coastal correction
-  dtr<-.coastalcorrect(dtr,landsea)
-  tmean<-(tmx+tmn)/2
-  tmx<-(tmean+0.5*dtr)-273.15
-  tmn<-(tmean-0.5*dtr)-273.15
-  # Save tmx and tmn
-  .saverast(tmx,te,pathout,"tasmax")
-  .saverast(tmn,te,pathout,"tasmin")
-  # psl
-  a2<-.nctoarray(filein,"sp")/1000
-  a2<-.applymask(a2,landsea)
-  psl<-.hourtoday(a2)
-  .saverast(psl,te,pathout,"psl")
-  # huss #
-  a3<-.nctoarray(filein,"d2m")
-  a3<-.applymask(a3,landsea)
-  ea<-.satvap(a3-273.15)
-  es<-.satvap(a-273.15)
-  rh<-(ea/es)*100
-  a3<-suppressWarnings(converthumidity(rh, intype = "relative", outtype = "specific",
-                                       tc = a-273.15, pk = a2))
-  huss<-.hourtoday(a3)
-  .saverast(huss,te,pathout,"huss")
-  # u10
-  a2<-.nctoarray(filein,"u10")
-  a2<-.applymask(a2,landsea)
-  uas<-.hourtoday(a2)
-  .saverast(uas,te,pathout,"uas")
-  #v10
-  a2<-.nctoarray(filein,"v10")
-  a2<-.applymask(a2,landsea)
-  vas<-.hourtoday(a2)
-  .saverast(vas,te,pathout,"vas")
-  # rss
-  a2<-.nctoarray(filein,"ssrd")
-  a2<-.applymask(a2,landsea)
-  rss<-.hourtoday(a2)/3600
-  .saverast(rss,te,pathout,"rss")
+  a<-mesoclim:::.applymask(a,landsea)
+  if('tasmax' %in% vars || 'tasmin' %in% vars){
+    tmx<-.hourtoday(a,max)
+    tmn<-.hourtoday(a,min)
+    dtr<-tmx-tmn
+    # apply coastal correction
+    dtr<-.coastalcorrect(dtr,landsea)
+    tmean<-(tmx+tmn)/2
+    tmx<-(tmean+0.5*dtr)-273.15
+    tmn<-(tmean-0.5*dtr)-273.15
+    # Save tmx and tmn
+    vnames<-c(vnames,'tasmax','tasmin')
+    lngnms<-c(lngnms,'Maximum temperature','Minimum temperature')
+    uts<-c(uts,'degC','degC')
+    if(output=='tifs') .saverast(tmx,te,pathout,"tasmax") else daily_list[["tasmax"]]<-.rast(tmx,te)
+    if(output=='tifs') .saverast(tmn,te,pathout,"tasmin") else daily_list[["tasmin"]]<-.rast(tmn,te)
+  }
+  # psl NOT converted to sea level pressure
+  if('psl' %in% vars){
+    a2<-.nctoarray(filein,"sp")/1000
+    a2<-.applymask(a2,landsea)
+    psl<-.hourtoday(a2)
+    vnames<-c(vnames,'psl')
+    lngnms<-c(lngnms,'Surface pressure')
+    uts<-c(uts,'kPa')
+    if(output=='tifs') .saverast(psl,te,pathout,"psl") else daily_list[["psl"]]<-.rast(psl,te)
+  }
+  # Humidity - specific or relative from dewpoint temp
+  if('huss' %in% vars || 'hurs' %in% vars){
+    a3<-.nctoarray(filein,"d2m")
+    a3<-.applymask(a3,landsea)
+    ea<-.satvap(a3-273.15)
+    es<-.satvap(a-273.15)
+    rh<-(ea/es)*100
+    if('hurs' %in% vars){
+      hurs<-.hourtoday(rh)
+      vnames<-c(vnames,'hurs')
+      lngnms<-c(lngnms,'Relative humidity')
+      uts<-c(uts,'%')
+      if(output=='tifs') .saverast(hurs,te,pathout,"huss") else daily_list[["hurs"]]<-.rast(hurs,te)
+    }
+    if('huss' %in% vars){
+      a3<-suppressWarnings(converthumidity(rh, intype = "relative", outtype = "specific",
+                                           tc = a-273.15, pk = a2))
+      huss<-.hourtoday(a3)
+      vnames<-c(vnames,'huss')
+      lngnms<-c(lngnms,'Specific humidity')
+      uts<-c(uts,'1')
+      if(output=='tifs') .saverast(huss,te,pathout,"huss") else daily_list[["huss"]]<-.rast(huss,te)
+    }
+  }
+  # u10 NOT converted to 2m height
+  if('u10' %in% vars){
+    a2<-.nctoarray(filein,"u10")
+    a2<-.applymask(a2,landsea)
+    uas<-.hourtoday(a2)
+    vnames<-c(vnames,'u10')
+    lngnms<-c(lngnms,'10 metre U wind component')
+    uts<-c(uts,'m/s')
+    if(output=='tifs') .saverast(uas,te,pathout,"uas") else daily_list[["uas"]]<-.rast(uas,te)
+  }
+  #v10 NOT converted to 2m height
+  if('v10' %in% vars){
+    a2<-.nctoarray(filein,"v10")
+    a2<-.applymask(a2,landsea)
+    vas<-.hourtoday(a2)
+    vnames<-c(vnames,'vas')
+    lngnms<-c(lngnms,'10 metre V wind component')
+    uts<-c(uts,'m/s')
+    if(output=='tifs') .saverast(vas,te,pathout,"vas") else daily_list[["vas"]]<-.rast(vas,te)
+  }
+  # rss / swrada - total downward shortwave
+  if('swrad' %in% vars){
+    a2<-.nctoarray(filein,"ssrd")
+    a2<-.applymask(a2,landsea)
+    rss<-.hourtoday(a2)/3600
+    vnames<-c(vnames,'swrad')
+    lngnms<-c(lngnms,'Total downward shortwave radiation')
+    uts<-c(uts,'watt/m^2')
+    if(output=='tifs') .saverast(rss,te,pathout,"swrad") else daily_list[["swrad"]]<-.rast(rss,te)
+  }
+  # Downward diffuse radiation
+  if('difrad' %in% vars){
+    a1<-.nctoarray(filein,"ssrd")
+    a2<-.nctoarray(filein,"fdir")
+    a3<-a1-a2
+    a3<-.applymask(a3,landsea)
+    difsw<-.hourtoday(a3)/3600
+    vnames<-c(vnames,'difrad')
+    lngnms<-c(lngnms,'Downward diffuse radiation')
+    uts<-c(uts,'watt/m^2')
+    if(output=='tifs') .saverast(difsw,te,pathout,"difrad") else daily_list[["difrad"]]<-.rast(difsw,te)
+  }
+
+  # Downward LW radiation
+  if('difrad' %in% vars){
+    a2<-.nctoarray(filein,"msdwlwrf")
+    a2<-.applymask(a2,landsea)
+    lwrad<-.hourtoday(a2)/3600
+    vnames<-c(vnames,'lwrad')
+    lngnms<-c(lngnms,'Total downward longwave radiation')
+    uts<-c(uts,'watt/m^2')
+    if(output=='tifs') .saverast(lwrad,te,pathout,"lwrad") else daily_list[["lwrad"]]<-.rast(lwrad,te)
+  }
+
   # skyem
-  lwdn<-.nctoarray(filein,"msdwlwrf")
-  lwme<-.nctoarray(filein,"msnlwrf")
-  lwup<-(-lwme+lwdn)
-  skyem<-lwdn/lwup
-  skyem<-.applymask(skyem,landsea)
-  skyem[skyem>1]<-1
-  skyem<-.hourtoday(skyem)
-  .saverast(skyem,te,pathout,"skyem")
+  if('skyem' %in% vars){
+    lwdn<-.nctoarray(filein,"msdwlwrf")
+    lwme<-.nctoarray(filein,"msnlwrf")
+    lwup<-(-lwme+lwdn)
+    skyem<-lwdn/lwup
+    skyem<-.applymask(skyem,landsea)
+    skyem[skyem>1]<-1
+    skyem<-.hourtoday(skyem)
+    vnames<-c(vnames,'skyem')
+    lngnms<-c(lngnms,'Sky emmisivity')
+    uts<-c(uts,'watt/m^2')
+    if(output=='tifs') .saverast(skyem,te,pathout,"skyem") else daily_list[["skyem"]]<-.rast(skyem,te)
+  }
+
   # pr
-  a<-.nctoarray(filein,"tp")
-  a[is.na(a)]<-0
-  pr<-.hourtoday(a,sum)*1000
-  pr<-.applymask(pr,landsea)
-  .saverast(pr,te,pathout,"pr")
+  if('pr' %in% vars){
+    a<-.nctoarray(filein,"tp")
+    a[is.na(a)]<-0
+    pr<-.hourtoday(a,sum)*1000
+    pr<-.applymask(pr,landsea)
+    vnames<-c(vnames,'pr')
+    lngnms<-c(lngnms,'Precipitation')
+    uts<-c(uts,'mm/day')
+    if(output=='tifs') .saverast(pr,te,pathout,"pr") else daily_list[["pr"]]<-.rast(pr,te)
+  }
+  # Add metadata to list
+  for(n in 1:length(daily_list)){
+    time(daily_list[[n]])<-daily_tme
+    units(daily_list[[n]])<-uts[n]
+    longnames(daily_list[[n]])<-lngnms[n]
+  }
+
+  # Write nc of all variables if requested
+  if(output=='singlenc'){
+    dat<-terra::sds(daily_list)
+    names(dat)<-vnames
+    longnames(dat)<-lngnms
+    units(dat)<-uts
+    filename<-paste0(tools::file_path_sans_ext(basename(filein)),"_daily.nc")
+    writeCDF(dat,file.path(pathout,filename),overwrite=TRUE,prec='double',compression=9)
+  }
+  return(daily_list)
 }
 #' @title Takes global ukcp data as inputs, ensures correct number of dates in each year,
 #' interpolating missing values, resamples data to match era5 and returns data for a whole true decade
@@ -1608,7 +1716,7 @@
 #' the nc file - e.g. if mult is 100 and unit is 'deg C', 'deg C * 100' is written
 #' @return out as the unit in the nc file
 #'@noRd
-.writenc<-function(r,fo,year,varn,varl,unit,asinteger= TRUE,mult=100) {
+.writenc<-function(r,fo,year,varn,varl,unit,timestep=c('daily','hourly'),asinteger= TRUE,mult=100) {
   if (asinteger) {
     rte<-r
     a<-as.array(r)
@@ -1616,18 +1724,19 @@
     r<-rast(a)
     ext(r)<-ext(rte)
     crs(r)<-crs(rte)
-    if (mult != 1) {
-      varl<-paste(varl,"*",mult)
+    if (mult != 1) {ound()
+      varl<-paste(varl,"*",mult
       unit<-paste(unit,"*",mult)
     }
   }
   st<-as.POSIXlt(0,origin=paste0(year,"-01-01 00:00"),tz="UTC")
   fn<-as.POSIXlt(0,origin=paste0(year,"-12-31 23:00"),tz="UTC")
-  tme<-as.POSIXlt(seq(st,fn,by=3600))
+  if(timestep=='hourly') tme<-as.POSIXlt(seq(st,fn,by=3600)) else tme<-as.POSIXlt(seq(st,fn,by=3600*24))
   terra::time(r)<-tme
   writeCDF(r,fo,overwrite=TRUE,compression=9,varname=varn,
            longname=varl,unit=unit)
 }
+
 #' @title terra version of microclima get_dem
 #' @import elevatr
 #' @export
