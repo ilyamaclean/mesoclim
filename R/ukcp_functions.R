@@ -795,7 +795,9 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
   }
 
   # Calculate derived variables: wind
-  clim_list$windspeed<-.rast(sqrt(as.array(clim_list$uas)^2+as.array(clim_list$vas)^2)*log(67.8*2-5.42)/log(67.8*10-5.42),dtmc) # Wind speed (m/s)
+  windspeed<-.sqrt(as.array(clim_list$uas)^2+as.array(clim_list$vas)^2)
+  windspeed<-.windhgt(windspeed,zi=10,zo=2) # convert to 2m above ground
+  clim_list$windspeed<-.rast(windspeed,dtmc) # Wind speed (m/s)
   clim_list$winddir<-.rast(as.array((terra::atan2(clim_list$uas,clim_list$vas)*180/pi+180)%%360),dtmc) # Wind direction (deg from N - from)
   units(clim_list$windspeed)<-'m/s'
   units(clim_list$winddir)<-'deg'
