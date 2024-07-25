@@ -182,7 +182,7 @@ biascorrect_apply<-function(fut_mod, biasmods, rangelims = NA) {
 #' @rdname precipcorrect
 #' @seealso [biascorrect()] for applying corrections to other climate variables and
 #' [precipcorrect_apply()] for applying correction coefficients to multiple datasets.
-precipcorrect <- function(hist_obs, hist_mod, fut_mod, mod_out = FALSE, rangelim = NA) {
+precipcorrect <- function(hist_obs, hist_mod, fut_mod=NA, mod_out = FALSE, rangelim = NA) {
   if (!inherits(hist_obs, "SpatRaster")) stop("hist_obs must be a SpatRaster")
   if (!inherits(hist_mod, "SpatRaster")) stop("hist_mod must be a SpatRaster")
   if (mod_out == FALSE & inherits(fut_mod, "logical")) fut_mod<-hist_mod
@@ -538,3 +538,6 @@ biascorrectukcpall<-function(pathtoera,pathtoukcp18,pathtoukcpdecade,pathout,dec
   fo<-paste0(pathout,"pr_",mtxt,"_",to,".nc")
   savenc(pr,byr,"pr","Precipitation rate","mm/day",fo)
 }
+
+
+
