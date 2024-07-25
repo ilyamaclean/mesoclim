@@ -1138,11 +1138,22 @@
   r
 }
 
-#' @title extracts array data from nc file
+#' @title extracts array data from nc file via spatRaster to allow cropping
+#' @param filein - file name of nc file
+#' @param varid - name of variable in nc file - required
+#' @param aoi - spatraster or extent to which nc data will be cropped
+#' @import terra
+#' @noRd
+.nctoarray <- function(filein, varid, aoi = NA) {
+  if (class(aoi)[1] %in% c('SpatRaster','SpatExtent')) a <-as.array(crop(rast(filein,varid),aoi)) else a <- as.array(rast(filein,varid))
+  return(a)
+}
+
+#' @title extracts array data from nc file TO DELETE!!!???
 #' @param filein - file name of nc file
 #' @param varid - name of variable in nc file
 #' @noRd
-.nctoarray <- function(filein, varid = NA) {
+.nctoarray_old <- function(filein, varid = NA, aoi = NA) {
   nc <- nc_open(filein)
   a <- aperm(ncvar_get(nc, varid = varid), c(2,1,3))
   #a <- apply(a, c(2,3), rev)
@@ -1340,7 +1351,9 @@
 #' @title Converts era5 hourly data to daily to enable bias correction to be applied to ukcp data
 #' @param filein - filename (including path ) of era5 nc file with required variables
 #' @param pathout - directory in which to save data
-#' @param landsea - a landsea raster object of land fractions that must match the extent of the era5 data
+#' @param landsea - a landsea raster object of land fractions that must match the extent (or less) and crs of the era5 data
+#'  era5 data will be cropped to lsm extent
+#' @param elev - a spatRaster of surface elevations to correct surface pressure to sea level pressure
 #' @param output - character of value tifs, singlenc or none - determines type of files (if any) written
 #' @param vars - variables for which daily values calculated
 #' @return list of daily spatRasters of each variable requested. Also write .tiff or .nc files if requested
@@ -1351,13 +1364,15 @@
 #' vars<-c('psl','hurs','u10','v10','swrad','difrad','lwrad')
 #' daily<-.era5todaily(filein=file.path(dir_era5,f),tempdir(),landsea=lsm,output='none',vars)
 #' }
-.era5todaily<-function(filein,pathout,landsea, output=c('tifs','singlenc','none'),
-                       vars=c('tasmax','tasmin','psl','hurs','huss','u10','v10','swrad','difrad','lwrad','skyem','pr')) {
-  landsea[landsea==0]<-NA
-  te<-rast(landsea)
+.era5todaily<-function(filein,pathout,landsea, elev, output=c('tifs','singlenc','none'),
+                       vars=c('tasmax','tasmin','ps','psl','hurs','huss','u10','v10','swrad','difrad','lwrad','skyem','pr')) {
+  landsea[landsea==0]<-NA # used to mask and crop
   suppressWarnings(dir.create(pathout))
 
-  tme<-time(rast(filein,subds="t2m"))
+  r<-crop(rast(filein,subds="t2m"),landsea)
+  te<-r[[1]] # use as template
+  tme<-time(r)
+
   daily_tme<-as.POSIXlt(seq(trunc(tme[1],"days"),trunc(tme[length(tme)],"days"),by=3600*24))
   daily_list<-list()
   vnames<-c()
@@ -1365,7 +1380,7 @@
   uts<-c()
 
   # temperature
-  a<-.nctoarray(filein,"t2m")
+  a<-.nctoarray(filein,"t2m",landsea)
   a<-mesoclim:::.applymask(a,landsea)
   if('tasmax' %in% vars || 'tasmin' %in% vars){
     tmx<-.hourtoday(a,max)
@@ -1383,19 +1398,34 @@
     if(output=='tifs') .saverast(tmx,te,pathout,"tasmax") else daily_list[["tasmax"]]<-.rast(tmx,te)
     if(output=='tifs') .saverast(tmn,te,pathout,"tasmin") else daily_list[["tasmin"]]<-.rast(tmn,te)
   }
-  # psl NOT converted to sea level pressure
-  if('psl' %in% vars){
-    a2<-.nctoarray(filein,"sp")/1000
+  #  pressure
+  if('psl' %in% vars || 'sp' %in% vars){
+    a2<-.nctoarray(filein,"sp",landsea)/1000
     a2<-.applymask(a2,landsea)
-    psl<-.hourtoday(a2)
-    vnames<-c(vnames,'psl')
-    lngnms<-c(lngnms,'Surface pressure')
-    uts<-c(uts,'kPa')
-    if(output=='tifs') .saverast(psl,te,pathout,"psl") else daily_list[["psl"]]<-.rast(psl,te)
+
+    # Output surface pressure
+    if('sp' %in% vars){
+      sp<-.hourtoday(a2)
+      vnames<-c(vnames,'sp')
+      lngnms<-c(lngnms,'Surface pressure')
+      uts<-c(uts,'kPa')
+      if(output=='tifs') .saverast(sp,te,pathout,"psl") else daily_list[["sp"]]<-.rast(sp,te)
+    }
+
+    # Calculate and output sea level pressure
+    if('psl' %in% vars){
+      dtm<-as.matrix(elev,wide=TRUE)
+      psl<-.is(a2)/(((293-0.0065*.rta(dtm,dim(a2)[3]))/293)^5.26)
+      psl<-.hourtoday(psl)
+      vnames<-c(vnames,'psl')
+      lngnms<-c(lngnms,'Sea surface pressure')
+      uts<-c(uts,'kPa')
+      if(output=='tifs') .saverast(psl,te,pathout,"psl") else daily_list[["psl"]]<-.rast(psl,te)
+    }
   }
   # Humidity - specific or relative from dewpoint temp
   if('huss' %in% vars || 'hurs' %in% vars){
-    a3<-.nctoarray(filein,"d2m")
+    a3<-.nctoarray(filein,"d2m",landsea)
     a3<-.applymask(a3,landsea)
     ea<-.satvap(a3-273.15)
     es<-.satvap(a-273.15)
@@ -1419,7 +1449,7 @@
   }
   # u10 NOT converted to 2m height
   if('u10' %in% vars){
-    a2<-.nctoarray(filein,"u10")
+    a2<-.nctoarray(filein,"u10",landsea)
     a2<-.applymask(a2,landsea)
     uas<-.hourtoday(a2)
     vnames<-c(vnames,'u10')
@@ -1429,7 +1459,7 @@
   }
   #v10 NOT converted to 2m height
   if('v10' %in% vars){
-    a2<-.nctoarray(filein,"v10")
+    a2<-.nctoarray(filein,"v10",landsea)
     a2<-.applymask(a2,landsea)
     vas<-.hourtoday(a2)
     vnames<-c(vnames,'vas')
@@ -1439,7 +1469,7 @@
   }
   # rss / swrada - total downward shortwave
   if('swrad' %in% vars){
-    a2<-.nctoarray(filein,"ssrd")
+    a2<-.nctoarray(filein,"ssrd",landsea)
     a2<-.applymask(a2,landsea)
     rss<-.hourtoday(a2)/3600
     vnames<-c(vnames,'swrad')
@@ -1449,8 +1479,8 @@
   }
   # Downward diffuse radiation
   if('difrad' %in% vars){
-    a1<-.nctoarray(filein,"ssrd")
-    a2<-.nctoarray(filein,"fdir")
+    a1<-.nctoarray(filein,"ssrd",landsea)
+    a2<-.nctoarray(filein,"fdir",landsea)
     a3<-a1-a2
     a3<-.applymask(a3,landsea)
     difsw<-.hourtoday(a3)/3600
@@ -1462,7 +1492,7 @@
 
   # Downward LW radiation
   if('difrad' %in% vars){
-    a2<-.nctoarray(filein,"msdwlwrf")
+    a2<-.nctoarray(filein,"msdwlwrf",landsea)
     a2<-.applymask(a2,landsea)
     lwrad<-.hourtoday(a2)/3600
     vnames<-c(vnames,'lwrad')
@@ -1473,8 +1503,8 @@
 
   # skyem
   if('skyem' %in% vars){
-    lwdn<-.nctoarray(filein,"msdwlwrf")
-    lwme<-.nctoarray(filein,"msnlwrf")
+    lwdn<-.nctoarray(filein,"msdwlwrf",landsea)
+    lwme<-.nctoarray(filein,"msnlwrf",landsea)
     lwup<-(-lwme+lwdn)
     skyem<-lwdn/lwup
     skyem<-.applymask(skyem,landsea)
@@ -1488,7 +1518,7 @@
 
   # pr
   if('pr' %in% vars){
-    a<-.nctoarray(filein,"tp")
+    a<-.nctoarray(filein,"tp",landsea)
     a[is.na(a)]<-0
     pr<-.hourtoday(a,sum)*1000
     pr<-.applymask(pr,landsea)
