@@ -3,28 +3,22 @@
 #'
 #' @param startdate - POSIXlt value indicating start date for data required
 #' @param enddate - POSIXlt value indicating end date for data required
-#' @param dtmc - spatraster coarse dtm
-#' @param basepath - "" for use with jasmin
-#' @param varn vector of variables required, one or more of: 'rainfall','tasmax','tasmin','hurs','psl','pv','sun','sfsWind'.
-#'  NOTE: Only `rainfall` (precipitation in mm), `tasmax`(maximum daily temperature, deg C) and
-#' `tasmin` (minimum daily temperature, deg C) are available at daily time steps (all other monthly only).
-#' @param freq - string of frequency required - either 'day' or 'mon' (monthly)
+#' @param dtmc - spatraster to which data will be resampled/cropped
+#' @param filepath - dir where HADUK source files located
+#' @param varn  variable required, one or more of: 'rainfall','tasmax','tasmin' available at daily time steps
 #'
-#' @return database detailing download details and success of all requested files
+#' @return
 #' @export
 #' @keywords jasmin
 #' @seealso [download_hadukdaily()]
 #' \dontrun{
 #'
 #' }
-addtrees_hadukdata<-function(startdate, enddate, dtmc, basepath="",
-                             varn=c('rainfall','tasmax','tasmin','hurs','psl','pv','sun','sfsWind'),
-                             freq=c('day','mon')
-) {
+addtrees_hadukdata<-function(startdate, enddate, dtmc, filepath="/badc/ukmo-hadobs/data/insitu/MOHC/HadOBS/HadUK-Grid/v1.2.0.ceda/1km/rainfall/day/latest",
+                             var=c('rainfall','tasmax','tasmin')) {
   # Checks
-  varn<-match.arg(varn, several.ok=TRUE)
-  freq<-match.arg(freq)
-  if (any(!varn %in% c("rainfall","tasmax","tasmin")) & freq=='day') stop("Daily data are not available for chosen variables!!" )
+  varn<-match.arg(var)
+  if (any(!var %in% c("rainfall","tasmax","tasmin")) ) stop("Chosen variables are not available as daily data!!" )
   if(class(startdate)[1]!="POSIXlt" | class(enddate)[1]!="POSIXlt") stop("Date parameters NOT POSIXlt class!!")
 
   # Derive months of data required
@@ -37,29 +31,27 @@ addtrees_hadukdata<-function(startdate, enddate, dtmc, basepath="",
   daysofmonth<-c(31,28,31,30,31,30,31,31,30,31,30,31)
   mdays<-daysofmonth[mnths]
   mdays<-ifelse((yrs%%4==0 & mnths==2),29,mdays)
-
-  # Create base url
-  basepath<-file.path(basepath,"badc/ukmo-hadobs/data/insitu/MOHC/HadOBS/HadUK-Grid/v1.2.0.ceda/1km/")
+  files<-paste0(var,"_hadukgrid_uk_1km_day_",yrs,mtxt,"01-",yrs,mtxt,mdays,".nc")
 
   # Get aoi in projection of HadUK data OS projection and extend by one cell
-  if(!compareCRS(dtmc,r,'epsg:27700')) dtmc<-terra::project(dtmc,'epsg:27700')
+  r<-rast(file.path(filepath,files[1]))
+  if(!compareCRS(dtmc,r)) dtmc<-terra::project(dtmc,r)
   dtmc_ext<-crop(extend(dtmc,1),dtmc)
 
-  # For each variable load all monthly files to spatRaster thwen crop
-  output_list<-list()
-  for (v in varns){
-    filepath<-file.path(basepath,v,"day","latest")
-    files<-paste0(v,"_hadukgrid_uk_1km_day_",yrs,mtxt,"01-",yrs,mtxt,mdays,".nc")
-    r<-rast(file.path(filepath,files))
-    #   r<-rast(fnames)
-    terra::crs(r)<-'epsg:27700'
+  # Load all monthly files to spatRaster then resample
+  r_list<-list()
+  n<-1
+  for (f in files){
+    r<-rast(file.path(filepath,f))
+    #terra::crs(r)<-'epsg:27700'
     e<-terra::crop(terra::extend(terra::crop(r[[1]],dtmc,snap='out'),1),r[[1]])
-    rout<-terra::crop(r,e)
-    rout<-.resample(rout,dtmc,msk=TRUE)
-    output_list[[v]]<-rout
+    r<-terra::crop(r,e)
+    r<-.resample(r,dtmc,msk=TRUE)
+    r_list[[n]]<-r
+    n<-n+1
   }
-
-  return(output_list)
+  rout<-rast(r_list)
+  return(rout)
 }
 
 
