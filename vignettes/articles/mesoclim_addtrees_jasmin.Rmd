@@ -129,7 +129,7 @@ prep_time= now()-t0
 # Calculate bias correction models from historic data
 
 ## Observational data
-For observed data we make use of ERA% and HadUK 1km gridded data. Data is resampled to match UKCPrcm inputs CRS and resolution.
+For observed data we make use of ERA5 and HadUK 1km gridded data. Data is resampled to match UKCPrcm inputs CRS and resolution.
 
 ### ERA5
 
