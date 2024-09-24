@@ -1467,7 +1467,7 @@
     uts<-c(uts,'m/s')
     if(output=='tifs') .saverast(vas,te,pathout,"vas") else daily_list[["vas"]]<-.rast(vas,te)
   }
-  # rss / swrada - total downward shortwave
+  # rss / swrada - total downward shortwave ssrd in Jm-2
   if('swrad' %in% vars){
     a2<-.nctoarray(filein,"ssrd",landsea)
     a2<-.applymask(a2,landsea)
@@ -1477,7 +1477,7 @@
     uts<-c(uts,'watt/m^2')
     if(output=='tifs') .saverast(rss,te,pathout,"swrad") else daily_list[["swrad"]]<-.rast(rss,te)
   }
-  # Downward diffuse radiation
+  # Downward diffuse radiation ssrd and fdir in Jm-2
   if('difrad' %in% vars){
     a1<-.nctoarray(filein,"ssrd",landsea)
     a2<-.nctoarray(filein,"fdir",landsea)
@@ -1490,11 +1490,11 @@
     if(output=='tifs') .saverast(difsw,te,pathout,"difrad") else daily_list[["difrad"]]<-.rast(difsw,te)
   }
 
-  # Downward LW radiation
-  if('difrad' %in% vars){
+  # Downward LW radiation - msdwlwrf in Wm-2
+  if('lwrad' %in% vars){
     a2<-.nctoarray(filein,"msdwlwrf",landsea)
     a2<-.applymask(a2,landsea)
-    lwrad<-.hourtoday(a2)/3600
+    lwrad<-.hourtoday(a2)
     vnames<-c(vnames,'lwrad')
     lngnms<-c(lngnms,'Total downward longwave radiation')
     uts<-c(uts,'watt/m^2')
