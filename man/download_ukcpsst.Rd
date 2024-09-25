@@ -38,16 +38,10 @@ download_ukcpsst(
 
 \item{cedapwd}{ceda password sting}
 
-\item{cedaprot}{\itemize{
-\item string of ceda protocol, set to https DO NOT CHANGE
-}}
-
-\item{cedaserv}{\itemize{
-\item string of the ceda server url, uses dap DO NOT CHANGE
-}}
+\item{access_token}{ceda access token as provided by \href{https://services-beta.ceda.ac.uk/account/token/?_ga=2.221117848.1874942177.1727205775-405001952.1710779653}{Ceda access token generator}}
 }
 \value{
-database detailing download details and success of all requested files
+downloaded file paths
 }
 \description{
 For description of the modelling used to produce sea surface temperatures then see:
@@ -57,11 +51,12 @@ For description of the modelling used to produce sea surface temperatures then s
 \dontrun{
  cedausr<-"your_user_name"
  cedapwd <- "your_password"
+ access_token<-"your_access_token"
  startdate<-as.POSIXlt('2017/12/31')
  enddate<-as.POSIXlt('2018/12/31')
  modelruns<-c('01')
  dir_out<-tempdir()
- download_ukcpsst(dir_out,startdate,enddate,modelruns, cedausr,cedapwd)
+ download_ukcpsst(dir_out,startdate,enddate,modelruns, cedausr,cedapwd,access_token)
  }
 }
 \keyword{download}

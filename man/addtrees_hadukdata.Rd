@@ -8,9 +8,9 @@ addtrees_hadukdata(
   startdate,
   enddate,
   dtmc,
-  basepath = "",
-  varn = c("rainfall", "tasmax", "tasmin", "hurs", "psl", "pv", "sun", "sfsWind"),
-  freq = c("day", "mon")
+  filepath =
+    "/badc/ukmo-hadobs/data/insitu/MOHC/HadOBS/HadUK-Grid/v1.2.0.ceda/1km/rainfall/day/latest",
+  var = c("rainfall", "tasmax", "tasmin")
 )
 }
 \arguments{
@@ -23,23 +23,17 @@ addtrees_hadukdata(
 }}
 
 \item{dtmc}{\itemize{
-\item spatraster coarse dtm
+\item spatraster to which data will be resampled/cropped
 }}
 
-\item{basepath}{\itemize{
-\item "" for use with jasmin
+\item{filepath}{\itemize{
+\item dir where HADUK source files located
 }}
 
-\item{varn}{vector of variables required, one or more of: 'rainfall','tasmax','tasmin','hurs','psl','pv','sun','sfsWind'.
-NOTE: Only \code{rainfall} (precipitation in mm), \code{tasmax}(maximum daily temperature, deg C) and
-\code{tasmin} (minimum daily temperature, deg C) are available at daily time steps (all other monthly only).}
-
-\item{freq}{\itemize{
-\item string of frequency required - either 'day' or 'mon' (monthly)
-}}
+\item{varn}{variable required, one or more of: 'rainfall','tasmax','tasmin' available at daily time steps}
 }
 \value{
-database detailing download details and success of all requested files
+spatRaster
 }
 \description{
 Get HadUK data from ceda archive on jasmine

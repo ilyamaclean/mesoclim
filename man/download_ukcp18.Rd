@@ -19,8 +19,7 @@ download_ukcp18(
   download_dtm = FALSE,
   cedausr,
   cedapwd,
-  cedaprot = "ftp://",
-  cedaserv = "ftp.ceda.ac.uk"
+  access_token
 )
 }
 \arguments{
@@ -48,13 +47,7 @@ download_ukcp18(
 
 \item{cedapwd}{ceda password sting}
 
-\item{cedaprot}{\itemize{
-\item string of ceda protocol, set to https DO NOT CHANGE
-}}
-
-\item{cedaserv}{\itemize{
-\item string of the ceda server url, uses dap DO NOT CHANGE
-}}
+\item{access_token}{ceda access token as provided by \href{https://services-beta.ceda.ac.uk/account/token/?_ga=2.221117848.1874942177.1727205775-405001952.1710779653}{Ceda access token generator}}
 }
 \value{
 downloads files to \code{dir_out}
@@ -63,18 +56,16 @@ downloads files to \code{dir_out}
 Using parameters the function will downloaded from ftp.ceda.ac.uk all available UCKP18 files containing relevant data to the user defined output directory
 }
 \details{
-To obtain a username and password, first register at https://services.ceda.ac.uk/.
-Your username will be the same as that given for your main CEDA account.
-Your FTP password is separate from the password for your CEDA web account. If
-you do not already have a password, or if you want to reset your FTP password
-go to MyCEDA and click on the 'Configure FTP account' button.
+start and end times are only used to identify decadal files containing data for this
+time period - downloaded files are not cut to time period
 }
 \examples{
  \dontrun{
 dir_ukcp <- tempdir()
 cedausr<-"your_user_name"
 cedapwd <- "your_password"
-download_ukcp18(dir_ukcp,as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01'),c('tasmax','tasmin'),download_dtm=TRUE, cedausr,cedapwd)
+access_token<-"your_access_token"
+download_ukcp18(dir_ukcp,as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01'),c('tasmax','tasmin'),download_dtm=TRUE, cedausr,cedapwd,access_token)
 }
 }
 \keyword{download}

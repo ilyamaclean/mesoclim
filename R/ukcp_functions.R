@@ -3,11 +3,9 @@
 # ------------------------------------ ------------------------------------ ------------------
 
 #' @title Downloads 1km gridded historic climata data for the UK
-#' @description The function `download_hadukdaily` downloads HadUK-Grid Gridded
+#' @description The function `download_hadukdaily` downloads 1km HadUK-Grid Gridded
 #' Climate Observation data on a 1km grid over the UK from CEDA.
 #' @param dir_out directory to which to save data
-#' @param cedausr string of ceda username
-#' @param cedapwd string of ceda username
 #' @param startdate - POSIXlt value indicating start date for data required
 #' @param enddate - POSIXlt value indicating end date for data required
 #' @param varn vector of variables required, one or more of: 'rainfall','tasmax','tasmin','hurs','psl','pv','sun','sfsWind'.
@@ -16,10 +14,9 @@
 #' @param freq - string of frequency required - either 'day' or 'mon' (monthly)
 #' @param cedausr ceda username string
 #' @param cedapwd ceda password sting
-#' @param cedaprot - ceda protocol used is https  - DO NOT CHANGE
-#' @param cedaserv - ceda service is dap - DO NOT CHANGE
-#' @return database detailing download details and success of all requested files
-#' @details Uses ceda dap https service that does not require username or password.
+#' @param access_token ceda access token as provided by \href{https://services-beta.ceda.ac.uk/account/token/?_ga=2.221117848.1874942177.1727205775-405001952.1710779653}{Ceda access token generator}
+#' @return names of downloaded files
+#' @details Uses ceda dap service.
 #' @import curl
 #' @export
 #' @keywords download
@@ -28,15 +25,13 @@
 #' dir_out <- tempdir()
 #' cedausr<-"your_user_name"
 #' cedapwd <- "your_password"
-#' download_hadukdaily(dir_out,as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),varn=c('tasmax','tasmin'),freq='day', cedausr,cedapwd)
+#' access_token<-"your_token"
+#' download_haduk(dir_out,as.POSIXlt('2018-01-01'),as.POSIXlt('2018-12-31'),varn=c('tasmax','tasmin'),freq='day', cedausr,cedapwd, access_token)
 #' }
-download_hadukdaily<-function(dir_out,
-                              startdate, enddate,
-                              varn=c('rainfall','tasmax','tasmin','hurs','psl','pv','sun','sfsWind'),
-                              freq=c('day','mon'),
-                              cedausr,cedapwd,
-                              cedaprot="https://",
-                              cedaserv="dap.ceda.ac.uk"
+download_haduk<-function(dir_out, startdate, enddate,
+                         varn=c('rainfall','tasmax','tasmin'),
+                         freq=c('day','mon'),
+                         cedausr,cedapwd,access_token
 ) {
   # Checks
   varn<-match.arg(varn, several.ok=TRUE)
@@ -51,34 +46,52 @@ download_hadukdaily<-function(dir_out,
 
   # Check time period requested
   tme<-as.POSIXlt(Sys.time())
-  yr<-tme$year+1900
-  if (any(yrs > yr)) stop("Function downloads observed data. Cannot be used for future years")
-  if (any(yrs == yr)) warning("Data may not yet be available for current year")
-  if (varn == "rainfall") {
-    if (year < 1891) stop("Rainfall data not available prior to 1891")
+  current_yr<-tme$year+1900
+  if (any(yrs > current_yr)) stop("Function downloads observed data. Cannot be used for future years")
+  if (any(yrs == current_yr)) warning("Data may not yet be available for current year")
+  if ("rainfall" %in% varn) {
+    if (any(yrs < 1891)) stop("Rainfall data not available prior to 1891")
   } else {
-    if (year < 1960) stop("Temperature data not available prior to 1960")
+    if (any(yrs < 1960)) stop("Temperature data not available prior to 1960")
   }
 
-  # Get date text used in file names
+  # Get date text used in file names - account for leap years
   mtxt<-ifelse(mnths<10,paste0("0",mnths),paste0("",mnths))
   daysofmonth<-c(31,28,31,30,31,30,31,31,30,31,30,31)
   mdays<-daysofmonth[mnths]
   mdays<-ifelse((yrs%%4==0 & mnths==2),29,mdays)
 
   # Create base url
-  urlbase<-paste0(cedaprot, cedaserv,"/badc/ukmo-hadobs/data/insitu/MOHC/HadOBS/HadUK-Grid/v1.2.0.ceda/1km/")
-  fullreport_df<-data.frame()
+  urlbase<-"https://dap.ceda.ac.uk/badc/ukmo-hadobs/data/insitu/MOHC/HadOBS/HadUK-Grid/v1.3.0.ceda/1km"
+
+  # Create handle with header
+  output<-c()
   for (v in varn){
-    urlvar<-file.path(urlbase,v,"day","latest")
+    urls<-file.path(urlbase,v,"day","latest")
     fnames<-paste0(v,"_hadukgrid_uk_1km_day_",yrs,mtxt,"01-",yrs,mtxt,mdays,".nc")
     destfiles<-file.path(dir_out,fnames)
-    dload_urls<-file.path(urlvar,fnames)
-    success_df<-curl::multi_download(urls=dload_urls, destfiles=destfiles, userpwd = paste0(cedausr,":",cedapwd) )
-    if(any(success_df$success==FALSE)) print(paste('UNSUCCESSFUL file downloads:',fnames[which(!success_df$success)])) else print('All downloads successful')
-    if(nrow(fullreport_df)==0) fullreport_df<-success_df else fullreport_df<-rbind(fullreport_df,success_df)
+    dload_urls<-file.path(urls,fnames)
+    output<-c(output,destfiles)
+    for(n in 1:length(dload_urls)){
+      print(paste('Downloading',v,'file',n))
+      h <- new_handle(verbose = FALSE)
+      handle_setheaders(h, .list=list("Authorization" = paste('Bearer',access_token)))
+      curl_download(dload_urls[n],destfile=destfiles[n], handle = h)
+    }
+    #results<-multi_download(dload_urls,destfiles=destfiles,resume=TRUE,progress=TRUE)
   }
-  return(fullreport_df)
+  # Checks downloaded files exist
+  if(any(file.exists(output))==FALSE){
+    warning('Download files not found!!!')
+    print(output[which(file.exists(output)==FALSE)])
+  }
+  # Checks downloaded files >40MB
+  info<-file.info(output)
+  if(any(info$size<40000000)){
+    warning('Downloaded files not expected size!!!')
+    print(output[which(info$size<40000000)])
+  }
+  return(output)
 }
 
 #' Download UKCP18 climate data
@@ -95,14 +108,10 @@ download_hadukdaily<-function(dir_out,
 #' @param download_dtm - if TRUE and orography (elevation) available will also download to dir_out
 #' @param cedausr ceda username string
 #' @param cedapwd ceda password sting
-#' @param cedaprot - string of ceda protocol, set to https DO NOT CHANGE
-#' @param cedaserv - string of the ceda server url, uses dap DO NOT CHANGE
+#' @param access_token ceda access token as provided by \href{https://services-beta.ceda.ac.uk/account/token/?_ga=2.221117848.1874942177.1727205775-405001952.1710779653}{Ceda access token generator}
 #' @return downloads files to `dir_out`
-#' @details To obtain a username and password, first register at https://services.ceda.ac.uk/.
-#' Your username will be the same as that given for your main CEDA account.
-#' Your FTP password is separate from the password for your CEDA web account. If
-#' you do not already have a password, or if you want to reset your FTP password
-#' go to MyCEDA and click on the 'Configure FTP account' button.
+#' @details start and end times are only used to identify decadal files containing data for this
+#' time period - downloaded files are not cut to time period
 #' @import curl
 #' @export
 #' @keywords download ukcp18
@@ -111,7 +120,8 @@ download_hadukdaily<-function(dir_out,
 #' dir_ukcp <- tempdir()
 #' cedausr<-"your_user_name"
 #' cedapwd <- "your_password"
-#' download_ukcp18(dir_ukcp,as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01'),c('tasmax','tasmin'),download_dtm=TRUE, cedausr,cedapwd)
+#' access_token<-"your_access_token"
+#' download_ukcp18(dir_ukcp,as.POSIXlt('2018-05-01'),as.POSIXlt('2018-05-31'),'land-rcm','uk','rcp85',c('01'),c('tasmax','tasmin'),download_dtm=TRUE, cedausr,cedapwd,access_token)
 #' }
 download_ukcp18<-function(
     dir_out,
@@ -126,8 +136,7 @@ download_ukcp18<-function(
     download_dtm=FALSE,
     cedausr,
     cedapwd,
-    cedaprot= "ftp://",
-    cedaserv="ftp.ceda.ac.uk"
+    access_token
 ){
   # Check parameters
   if(!dir.exists(dir_out)) stop(paste("Output directory does not exist:",dir_out))
@@ -159,7 +168,7 @@ download_ukcp18<-function(
   if(collection=='land-rcm') res<-"12km"
   if(collection=='land-gcm') res<-"60km"
 
-  url<-file.path(paste0(cedaprot,cedaserv),"badc","ukcp18","data",collection,domain,res,rcp)
+  url<-file.path("https://dap.ceda.ac.uk","badc","ukcp18","data",collection,domain,res,rcp)
 
   print('Parameters chosen:')
   print(collection)
@@ -171,31 +180,54 @@ download_ukcp18<-function(
   print(paste('Downloading from',url))
 
   # Download files - loop over model runs and vars - use lapply to download all decades
-  fullreport_df<-data.frame()
+  output<-c()
   for(run in member){
     for(v in vars){
       fnames<-paste0(v,'_',rcp,'_',collection,'_',domain,'_',res,'_',run,'_day_',decades,'.nc')
       dload_urls<-file.path(url,run,v,'day','latest',fnames)
       destfiles<-file.path(dir_out,fnames)
+      output<-c(output,destfiles)
       print(length(destfiles)==length(dload_urls))
+      for(n in 1:length(dload_urls)){
+        print(paste('Downloading',run,v,'file',n))
+        h <- new_handle(verbose = FALSE)
+        handle_setheaders(h, .list=list("Authorization" = paste('Bearer',access_token)))
+        curl_download(dload_urls[n],destfile=destfiles[n], handle = h)
+      }
       #h <- curl::new_handle()
       #curl::handle_setopt(h, userpwd = paste0(cedausr,":",cedapwd))
-      success_df<-curl::multi_download(urls=dload_urls, destfiles=destfiles, userpwd = paste0(cedausr,":",cedapwd))
-      if(any(success_df$success==FALSE)) print(paste('UNSUCCESSFUL file downloads:',fnames[which(!success_df$success)])) else print('All downloads successful')
-      if(nrow(fullreport_df)==0) fullreport_df<-success_df else fullreport_df<-rbind(fullreport_df,success_df)
+      #success_df<-curl::multi_download(urls=dload_urls, destfiles=destfiles, userpwd = paste0(cedausr,":",cedapwd))
+      #if(any(success_df$success==FALSE)) print(paste('UNSUCCESSFUL file downloads:',fnames[which(!success_df$success)])) else print('All downloads successful')
+      #if(nrow(fullreport_df)==0) fullreport_df<-success_df else fullreport_df<-rbind(fullreport_df,success_df)
     }
   }
   # Download orography if requested
   if(download_dtm){
     print('Downloading orography for UK rcm...')
-    fnames<-'orog_land-rcm_uk_12km_osgb.nc'
-    destfiles<-file.path(dir_out,fnames)
-    dload_urls<-paste0(cedaprot,cedaserv,'/badc/ukcp18/data/land-rcm/ancil/orog/',fnames)
-    success_df<-curl::multi_download(urls=dload_urls, destfiles=destfiles, userpwd = paste0(cedausr,":",cedapwd) )
-    if(any(success_df$success==FALSE)) print(paste('UNSUCCESSFUL file downloads:',fnames[which(!success_df$success)])) else print('All downloads successful')
-    if(nrow(fullreport_df)==0) fullreport_df<-success_df else fullreport_df<-rbind(fullreport_df,success_df)
+    fname<-'orog_land-rcm_uk_12km_osgb.nc'
+    orogfile<-file.path(dir_out,fname)
+    orog_url<-paste0("https://dap.ceda.ac.uk/badc/ukcp18/data/land-rcm/ancil/orog/",fname)
+    h <- new_handle(verbose = FALSE)
+    handle_setheaders(h, .list=list("Authorization" = paste('Bearer',access_token)))
+    curl_download(orog_url,destfile=orogfile, handle = h)
+
+    #success_df<-curl::multi_download(urls=dload_urls, destfiles=destfiles, userpwd = paste0(cedausr,":",cedapwd) )
+    #if(any(success_df$success==FALSE)) print(paste('UNSUCCESSFUL file downloads:',fnames[which(!success_df$success)])) else print('All downloads successful')
+    #if(nrow(fullreport_df)==0) fullreport_df<-success_df else fullreport_df<-rbind(fullreport_df,success_df)
   }
-  return(fullreport_df)
+  # Checks expected downloaded files exist
+  if(any(file.exists(output))==FALSE){
+    warning('Download files not found!!!')
+    print(output[which(file.exists(output)==FALSE)])
+  }
+  # Checks downloaded files >100MB
+  info<-file.info(output)
+  if(any(info$size<100000000)){
+    warning('Downloaded files not expected size!!!')
+    print(output[which(info$size<100000000)])
+  }
+  if(download_dtm) output<-c(destfiles,orogfile)
+  return(output)
 }
 #' @title Download 1km albedo data
 #' @description The function `download_globalbedo` downloads monthly GlobAlbedo tiled
@@ -249,21 +281,21 @@ download_globalbedo<-function(dir_out,
 #' @param modelruns - vector of two character strings of model numbers
 #' @param cedausr ceda username string
 #' @param cedapwd ceda password sting
-#' @param cedaprot - string of ceda protocol, set to https DO NOT CHANGE
-#' @param cedaserv - string of the ceda server url, uses dap DO NOT CHANGE
+#' @param access_token ceda access token as provided by \href{https://services-beta.ceda.ac.uk/account/token/?_ga=2.221117848.1874942177.1727205775-405001952.1710779653}{Ceda access token generator}
 #'
-#' @return database detailing download details and success of all requested files
+#' @return downloaded file paths
 #' @export
 #' @keywords download ukcp18
 #' @examples
 #' \dontrun{
 #'  cedausr<-"your_user_name"
 #'  cedapwd <- "your_password"
+#'  access_token<-"your_access_token"
 #'  startdate<-as.POSIXlt('2017/12/31')
 #'  enddate<-as.POSIXlt('2018/12/31')
 #'  modelruns<-c('01')
 #'  dir_out<-tempdir()
-#'  download_ukcpsst(dir_out,startdate,enddate,modelruns, cedausr,cedapwd)
+#'  download_ukcpsst(dir_out,startdate,enddate,modelruns, cedausr,cedapwd,access_token)
 #'  }
 download_ukcpsst<-function(
     dir_out,
@@ -290,19 +322,33 @@ download_ukcpsst<-function(
   start<-startdate %m-% months(1)
   end<-enddate %m+% months(1)
   yrs<-unique(c(year(start):year(end)))
-  fullreport_df<-data.frame()
 
+  output<-c()
   for(id in memberid){
     url<-paste0(cedaprot,cedaserv,"/badc/deposited2023/marine-nwsclim/NWSPPE/",id,"/annual")
     fnames<-paste0("NWSClim_NWSPPE_",id,"_",yrs,"_gridT.nc")
     dload_urls<-file.path(url,fnames)
     destfiles<-file.path(dir_out,fnames)
-    # Handles Multifile Download from server
-    success_df<-curl::multi_download(urls=dload_urls, destfiles=destfiles, userpwd = paste0(cedausr,":",cedapwd) )
-    if(any(success_df$success==FALSE)) print(paste('UNSUCCESSFUL file downloads:',fnames[which(!success_df$success)])) else print('All downloads successful')
-    if(nrow(fullreport_df)==0) fullreport_df<-success_df else fullreport_df<-rbind(fullreport_df,success_df)
+    output<-c(output,destfiles)
+    for(n in 1:length(dload_urls)){
+      print(paste('Downloading',id,'file',n))
+      h <- new_handle(verbose = FALSE)
+      handle_setheaders(h, .list=list("Authorization" = paste('Bearer',access_token)))
+      curl_download(dload_urls[n],destfile=destfiles[n], handle = h)
+    }
   }
-  return(fullreport_df)
+  # Checks expected downloaded files exist
+  if(any(file.exists(output))==FALSE){
+    warning('Download files not found!!!')
+    print(output[which(file.exists(output)==FALSE)])
+  }
+  # Checks downloaded files >40MB
+  info<-file.info(output)
+  if(any(info$size<40000000)){
+    warning('Downloaded files not expected size!!!')
+    print(output[which(info$size<40000000)])
+  }
+  return(output)
 }
 
 # ------------------------------------ ------------------------------------ ------------------

@@ -7,7 +7,7 @@
 #' @param filepath - dir where HADUK source files located
 #' @param varn  variable required, one or more of: 'rainfall','tasmax','tasmin' available at daily time steps
 #'
-#' @return
+#' @return spatRaster
 #' @export
 #' @keywords jasmin
 #' @seealso [download_hadukdaily()]

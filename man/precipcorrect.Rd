@@ -4,7 +4,7 @@
 \alias{precipcorrect}
 \title{Applies bias correction to precipitation data}
 \usage{
-precipcorrect(hist_obs, hist_mod, fut_mod, mod_out = FALSE, rangelim = NA)
+precipcorrect(hist_obs, hist_mod, fut_mod = NA, mod_out = FALSE, rangelim = NA)
 }
 \arguments{
 \item{hist_obs}{a stacked SpatRast of precipitation data.}
