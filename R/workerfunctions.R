@@ -1369,9 +1369,12 @@
   landsea[landsea==0]<-NA # used to mask and crop
   suppressWarnings(dir.create(pathout))
 
-  r<-crop(rast(filein,subds="t2m"),landsea)
+  nc<-nc_open(filein)
+  validvar<-names(nc$var)[length(nc$var)]
+  r<-crop(rast(filein,subds=validvar),landsea)
   te<-r[[1]] # use as template
-  tme<-time(r)
+  if("expver" %in% names(nc$var)) tme<-as.POSIXlt(nc$var$expver$dim[[1]]$vals,tz='GMT',origin="1970-01-01") else tme<-time(r)
+  nc_close(nc)
 
   daily_tme<-as.POSIXlt(seq(trunc(tme[1],"days"),trunc(tme[length(tme)],"days"),by=3600*24))
   daily_list<-list()

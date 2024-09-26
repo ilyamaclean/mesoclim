@@ -22,7 +22,7 @@
 #' dir_out <- tempdir()
 #' cds_user<-"your_user_name"
 #' cds_key<-"your_key_string"
-#' download_era5(dir_out,file_out='test.nc',year=2020,area = c(55,-3,49,3)variables =c("2m temperature"),era5_user=cds_user,era5_key=cds_key)
+#' download_era5(dir_out,file_out='test.nc',year=2020,area = c(55,-3,49,3),variables =c("2m temperature"),era5_user=cds_user,era5_key=cds_key)
 #' }
 download_era5<-function(dir_out,
                         file_out,
@@ -73,6 +73,57 @@ download_era5<-function(dir_out,
   return(file)
 }
 
+#' Download ancillary era5 data (geopotential and lansea mask)
+#'
+#' @param dir_out - directory to download files to
+#' @param area - lat lon of area
+#' @param variables one or both of geopotential and land_sea_mask
+#' @param era5_user
+#' @param era5_key
+#'
+#' @return filepaths of outputs
+#' @details Downloads a single instance of ancillary dat for reanalysis-era5-single-levels as netcdf files.
+#' @import curl
+#' @import ecmwfr
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' dir_out <- tempdir()
+#' cds_user<-"your_user_name"
+#' cds_key<-"your_key_string"
+#' download_ancillary_era5(dir_out,area = c(55,-3,49,3),variables =c("geopotential","land_sea_mask" ),era5_user=cds_user,era5_key=cds_key)
+#' }
+download_ancillary_era5<-function(dir_out,
+                                  area = c(61, -11.2, 48.7, 2.5),
+                                  variables = c("geopotential",
+                                                "land_sea_mask" ),
+                                  era5_user,
+                                  era5_key
+){
+
+  wf_set_key(key=era5_key,user= era5_user)
+  for(v in variables){
+    request <- list(
+      dataset_short_name = "reanalysis-era5-single-levels",
+      product_type = "reanalysis",
+      variable = v,
+      year = 2020,
+      month =c('01'),
+      day = c('01'),
+      time =c('00:00'),
+      data_format = "netcdf",
+      download_format = "unarchived",
+      area = area,
+      target = paste0("era5_",v,".nc")
+    )
+    file<-wf_request(request = request,
+                     user = era5_user,
+                     transfer = TRUE,
+                     path = dir_out)
+  }
+  return(file)
+}
 #' @title convert era4 ncdf4 file to format required for model
 #' @description The function `era5toclimarray` converts data in a netCDF4 file returned
 #' by mcera5 pkg function request_era5 to the correct formal required for subsequent modelling.
