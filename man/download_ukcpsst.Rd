@@ -13,8 +13,7 @@ download_ukcpsst(
     "27", "28"),
   cedausr,
   cedapwd,
-  cedaprot = "https://",
-  cedaserv = "dap.ceda.ac.uk"
+  access_token
 )
 }
 \arguments{

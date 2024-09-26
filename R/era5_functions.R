@@ -1,3 +1,78 @@
+
+#' Download ERA5 reanalysis data
+#'
+#' @param dir_out - Local output directory
+#' @param file_out - Output filename
+#' @param year - year of data to retrieve
+#' @param area - bounding box with order c(ymax,xmin,ymin,xmax)
+#' @param variables - Long names of variables to retrieve
+#' @param era5_user - cds user name/email
+#' @param era5_key - cds api key
+#'
+#' @return filepath of output
+#' @details Downloads a whole single year of reanalysis-era5-single-levels as netcdf file.
+#' Variables chosen and size of area defaults match UK/Eire and variables required for microclimate modelling.
+#' Limits on download file may restrict size of area and/or number of variables that can be downloaded to single file.
+#' @import curl
+#' @import ecmwfr
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' dir_out <- tempdir()
+#' cds_user<-"your_user_name"
+#' cds_key<-"your_key_string"
+#' download_era5(dir_out,file_out='test.nc',year=2020,area = c(55,-3,49,3)variables =c("2m temperature"),era5_user=cds_user,era5_key=cds_key)
+#' }
+download_era5<-function(dir_out,
+                        file_out,
+                        year,
+                        area = c(61, -11, 48.8, 2.3),
+                        variables = C("10m u-component of wind",
+                                      "10m v-component of wind",
+                                      "2m dewpoint temperature",
+                                      "2m temperature",
+                                      "Mean sea level pressure",
+                                      "Surface pressure",
+                                      "Total precipitation",
+
+                                      "Surface solar radiation downwards",
+                                      "Total sky direct solar radiation at surface",
+
+                                      "Mean surface downward short-wave radiation flux",
+                                      "Mean surface direct short-wave radiation flux",
+                                      "Mean surface downward long-wave radiation flux",
+                                      "Mean surface net long-wave radiation flux" ),
+                        era5_user,
+                        era5_key
+){
+
+  wf_set_key(key=era5_key,user= era5_user)
+
+  request <- list(
+    dataset_short_name = "reanalysis-era5-single-levels",
+    product_type = "reanalysis",
+    variable = variables,
+    year = year,
+    month =c('01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'),
+    day = c('01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12',
+            '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24',
+            '25', '26', '27', '28', '29', '30', '31'),
+    time =c('00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00',
+            '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00',
+            '18:00', '19:00', '20:00', '21:00', '22:00', '23:00'),
+    data_format = "netcdf",
+    download_format = "unarchived",
+    area = area,
+    target = file_out
+  )
+  file<-wf_request(request = request,
+                   user = era5_user,
+                   transfer = TRUE,
+                   path = dir_out)
+  return(file)
+}
+
 #' @title convert era4 ncdf4 file to format required for model
 #' @description The function `era5toclimarray` converts data in a netCDF4 file returned
 #' by mcera5 pkg function request_era5 to the correct formal required for subsequent modelling.

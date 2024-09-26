@@ -94,6 +94,7 @@ download_haduk<-function(dir_out, startdate, enddate,
   return(output)
 }
 
+
 #' Download UKCP18 climate data
 #' @description
 #' Using parameters the function will downloaded from ftp.ceda.ac.uk all available UCKP18 files containing relevant data to the user defined output directory
@@ -210,10 +211,6 @@ download_ukcp18<-function(
     h <- new_handle(verbose = FALSE)
     handle_setheaders(h, .list=list("Authorization" = paste('Bearer',access_token)))
     curl_download(orog_url,destfile=orogfile, handle = h)
-
-    #success_df<-curl::multi_download(urls=dload_urls, destfiles=destfiles, userpwd = paste0(cedausr,":",cedapwd) )
-    #if(any(success_df$success==FALSE)) print(paste('UNSUCCESSFUL file downloads:',fnames[which(!success_df$success)])) else print('All downloads successful')
-    #if(nrow(fullreport_df)==0) fullreport_df<-success_df else fullreport_df<-rbind(fullreport_df,success_df)
   }
   # Checks expected downloaded files exist
   if(any(file.exists(output))==FALSE){
@@ -229,48 +226,7 @@ download_ukcp18<-function(
   if(download_dtm) output<-c(destfiles,orogfile)
   return(output)
 }
-#' @title Download 1km albedo data
-#' @description The function `download_globalbedo` downloads monthly GlobAlbedo tiled
-#' albedo data from Jasmin available for the years 1998-2011. Whole of the UK covered by default tiles. For further information see:
-#' \url{http://www.globalbedo.org/index.php}
-#' @param dir_out directory to which to save data
-#' @param year numeric vector indicating the years for which data are required
-#' @param month string vector  indicating the month for which data are required
-#' @param tiles vector of strings of the file name in the format 'h##v##'. Whole of the UK covered by default tiles.
-#' @details No username or password currently required.
-#' @return database detailing download details and success of all requested files
-#' @import curl
-#' @export
-#' @keywords download
-download_globalbedo<-function(dir_out,
-                              tiles=c('h17v03','h17v04','h18v03'),
-                              months=c('01','02','03','04','05','06','07','08','09','10','11','12'),
-                              years=seq(1998,2011),
-                              url='http://gws-access.jasmin.ac.uk'
-                               ){
-  # Check parameters
-  if(!dir.exists(dir_out)) stop(paste("Output directory does not exist:",dir_out))
-  months<-match.arg(months,several.ok=TRUE)
-  years<-match.arg(years,several.ok=TRUE)
-  tiles<-match.arg(tiles,several.ok=TRUE)
 
-  path<-'public/qa4ecv/albedo/netcdf_cf/1km/monthly'
-  fullreport_df<-data.frame()
-
-  for(t in tiles){
-    for(y in years){
-      print(paste('Downloading files for ',t,'-',y))
-      fnames<-paste0('GlobAlbedo.merge.albedo.',y,months,'.',t,'.nc')
-      dload_urls<-file.path(url,path,t,y,fnames)
-      destfiles<-file.path(dir_out,fnames)
-
-      success_df<-curl::multi_download(urls=dload_urls, destfiles=destfiles )
-      if(any(success_df$success==FALSE)) print(paste('UNSUCCESSFUL file downloads:',fnames[which(!success_df$success)])) else print('All downloads successful')
-      if(nrow(fullreport_df)==0) fullreport_df<-success_df else fullreport_df<-rbind(fullreport_df,success_df)
-    }
-  }
-  return(fullreport_df)
-}
 
 #' @title Download UKCP18rcm driven sea surface temperature predictions
 #' @description For description of the modelling used to produce sea surface temperatures then see:
@@ -305,8 +261,7 @@ download_ukcpsst<-function(
                 '16','17','18','19','20','21','22','23','24','25','26','27','28'),
     cedausr,
     cedapwd,
-    cedaprot="https://",
-    cedaserv="dap.ceda.ac.uk"
+    access_token
 ){
   # Check parameters
   modelruns<-match.arg(modelruns,several.ok=TRUE)
@@ -325,7 +280,7 @@ download_ukcpsst<-function(
 
   output<-c()
   for(id in memberid){
-    url<-paste0(cedaprot,cedaserv,"/badc/deposited2023/marine-nwsclim/NWSPPE/",id,"/annual")
+    url<-paste0("https://dap.ceda.ac.uk/badc/deposited2023/marine-nwsclim/NWSPPE/",id,"/annual")
     fnames<-paste0("NWSClim_NWSPPE_",id,"_",yrs,"_gridT.nc")
     dload_urls<-file.path(url,fnames)
     destfiles<-file.path(dir_out,fnames)
@@ -350,6 +305,50 @@ download_ukcpsst<-function(
   }
   return(output)
 }
+
+#' @title Download 1km albedo data
+#' @description The function `download_globalbedo` downloads monthly GlobAlbedo tiled
+#' albedo data from Jasmin available for the years 1998-2011. Whole of the UK covered by default tiles. For further information see:
+#' \url{http://www.globalbedo.org/index.php}
+#' @param dir_out directory to which to save data
+#' @param year numeric vector indicating the years for which data are required
+#' @param month string vector  indicating the month for which data are required
+#' @param tiles vector of strings of the file name in the format 'h##v##'. Whole of the UK covered by default tiles.
+#' @details No username or password currently required.
+#' @return database detailing download details and success of all requested files
+#' @import curl
+#' @export
+#' @keywords download
+download_globalbedo<-function(dir_out,
+                              tiles=c('h17v03','h17v04','h18v03'),
+                              months=c('01','02','03','04','05','06','07','08','09','10','11','12'),
+                              years=seq(1998,2011),
+                              url='http://gws-access.jasmin.ac.uk'
+){
+  # Check parameters
+  if(!dir.exists(dir_out)) stop(paste("Output directory does not exist:",dir_out))
+  months<-match.arg(months,several.ok=TRUE)
+  years<-match.arg(years,several.ok=TRUE)
+  tiles<-match.arg(tiles,several.ok=TRUE)
+
+  path<-'public/qa4ecv/albedo/netcdf_cf/1km/monthly'
+  fullreport_df<-data.frame()
+
+  for(t in tiles){
+    for(y in years){
+      print(paste('Downloading files for ',t,'-',y))
+      fnames<-paste0('GlobAlbedo.merge.albedo.',y,months,'.',t,'.nc')
+      dload_urls<-file.path(url,path,t,y,fnames)
+      destfiles<-file.path(dir_out,fnames)
+
+      success_df<-curl::multi_download(urls=dload_urls, destfiles=destfiles )
+      if(any(success_df$success==FALSE)) print(paste('UNSUCCESSFUL file downloads:',fnames[which(!success_df$success)])) else print('All downloads successful')
+      if(nrow(fullreport_df)==0) fullreport_df<-success_df else fullreport_df<-rbind(fullreport_df,success_df)
+    }
+  }
+  return(fullreport_df)
+}
+
 
 # ------------------------------------ ------------------------------------ ------------------
 # --------------------------------- PRE PROCESSING FUNCTIONS ---------------------------------
