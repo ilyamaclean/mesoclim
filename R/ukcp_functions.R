@@ -706,6 +706,8 @@ create_ukcpsst_data<-function(
 #' @param ukcp_vars UKCP18 variable names to be extracted DO NOT CHANGE
 #' @param ukcp_units units of the UKCP18 variables extracted DO NOT CHANGE
 #' @param output_units units required for output DO NOT CHANGE CHECK CORRECT
+#' @param temp_hgt height of output temperature above ground (in metres)
+#' @param wind_hgt height of output wind speed above ground (in metres)
 #' @param toArrays logical determining if climate data returned as list of arrays. If FALSE returns list of Spatrasts.
 #' @param sampleplot if TRUE plots examples of interpolated dates when converting from 360 to 366 day years
 #'
@@ -762,6 +764,7 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
                                            'degC','degC','m/s','m/s'),
                               output_units=c('%','%','mm/day','kPa','watt/m^2','watt/m^2',
                                              'degC','degC','m/s','m/s'),
+                              temp_hgt=2, wind_hgt=2,
                               toArrays=TRUE, sampleplot=FALSE){
   # Parameter check
   collection<-match.arg(collection)
@@ -841,7 +844,7 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
 
   # Calculate derived variables: wind
   windspeed<-sqrt(as.array(clim_list$uas)^2+as.array(clim_list$vas)^2)
-  windspeed<-.windhgt(windspeed,zi=10,zo=2) # convert to 2m above ground
+  windspeed<-.windhgt(windspeed,zi=10,zo=wind_hgt) # convert to 2m above ground
   clim_list$windspeed<-.rast(windspeed,dtmc) # Wind speed (m/s)
   clim_list$winddir<-.rast(as.array((terra::atan2(clim_list$uas,clim_list$vas)*180/pi+180)%%360),dtmc) # Wind direction (deg from N - from)
   units(clim_list$windspeed)<-'m/s'

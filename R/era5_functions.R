@@ -27,7 +27,7 @@
 download_era5<-function(dir_out,
                         file_out,
                         year,
-                        area = c(61, -11, 48.8, 2.3),
+                        area = c(61, -11.25, 48.75, 2.5),
                         variables = C("10m u-component of wind",
                                       "10m v-component of wind",
                                       "2m dewpoint temperature",
@@ -95,7 +95,7 @@ download_era5<-function(dir_out,
 #' download_ancillary_era5(dir_out,area = c(55,-3,49,3),variables =c("geopotential","land_sea_mask" ),era5_user=cds_user,era5_key=cds_key)
 #' }
 download_ancillary_era5<-function(dir_out,
-                                  area = c(61, -11.2, 48.7, 2.5),
+                                  area = c(61, -11.25, 48.75, 2.5),
                                   variables = c("geopotential",
                                                 "land_sea_mask" ),
                                   era5_user,
