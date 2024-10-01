@@ -134,6 +134,7 @@ download_ancillary_era5<-function(dir_out,
 #' correction of coastal grid cells. Default = 1.285, based on calibration against UK Met Office
 #' observations. If set to zero, no correction is applied.
 #' @param toArrays logical determining if climate data returned as list of arrays. If FALSE returns list of Spatrasters.
+#' @param zo= height of wind speed above ground in metres to be output
 #' @return a list of the following:
 #' \describe{
 #'    \item{dtm}{Digital elevation of downscaled area in metres (as Spatraster)}
@@ -166,7 +167,7 @@ download_ancillary_era5<-function(dir_out,
 #' plot_q_layers(.rast(era5input$temp,era5input$dtm))
 #' checkinputs(era5input,'hour')
 #' }
-era5toclimarray <- function(ncfile, dtm=NA, aoi=NA, dtr_cor_fac = 1.285, toArrays=TRUE)  {
+era5toclimarray <- function(ncfile, dtm=NA, aoi=NA, dtr_cor_fac = 1.285, toArrays=TRUE, zo=2)  {
   # Get extent of aoi and project to same as ukcp data (lat lon) - check if any provided dtm covers
   if(class(aoi)[1]!='logical'){
     if(!class(aoi)[1] %in% c("SpatRaster","SpatVector","sf")) stop("Parameter aoi NOT of suitable spatial class ")
@@ -232,7 +233,7 @@ era5toclimarray <- function(ncfile, dtm=NA, aoi=NA, dtr_cor_fac = 1.285, toArray
   swrad<-as.array(ssrd)/3600 # Downward shortwave radiation (W/m^2)
   difrad<-swrad-as.array(fdir)/3600 # Downward diffuse radiation (W/m^2)
   lwrad<-as.array(msdwlwrf) # Downward longwave radiation
-  windspeed<-sqrt(as.array(u10)^2+as.array(v10)^2)*log(67.8*2-5.42)/log(67.8*10-5.42) # Wind speed (m/s)
+  windspeed<-sqrt(as.array(u10)^2+as.array(v10)^2)*log(67.8*zo-5.42)/log(67.8*10-5.42) # Wind speed (m/s)
   winddir<-as.array((terra::atan2(u10,v10)*180/pi+180)%%360) # Wind direction (deg from N)
   prec<-as.array(tp)*1000
   # Generate POSIXlt object of times
