@@ -8,8 +8,8 @@ download_era5(
   dir_out,
   file_out,
   year,
-  area = c(61, -11, 48.8, 2.3),
-  variables = C("10m u-component of wind", "10m v-component of wind",
+  area = c(61, -11.25, 48.75, 2.5),
+  variables = c("10m u-component of wind", "10m v-component of wind",
     "2m dewpoint temperature", "2m temperature", "Mean sea level pressure",
     "Surface pressure", "Total precipitation", "Surface solar radiation downwards",
     "Total sky direct solar radiation at surface",
@@ -66,6 +66,6 @@ Limits on download file may restrict size of area and/or number of variables tha
 dir_out <- tempdir()
 cds_user<-"your_user_name"
 cds_key<-"your_key_string"
-download_era5(dir_out,file_out='test.nc',year=2020,area = c(55,-3,49,3)variables =c("2m temperature"),era5_user=cds_user,era5_key=cds_key)
+download_era5(dir_out,file_out='test.nc',year=2020,area = c(55,-3,49,3),variables =c("2m temperature"),era5_user=cds_user,era5_key=cds_key)
 }
 }

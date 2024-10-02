@@ -22,6 +22,8 @@ ukcp18toclimarray(
     "m/s", "m/s"),
   output_units = c("\%", "\%", "mm/day", "kPa", "watt/m^2", "watt/m^2", "degC", "degC",
     "m/s", "m/s"),
+  temp_hgt = 2,
+  wind_hgt = 2,
   toArrays = TRUE,
   sampleplot = FALSE
 )
@@ -46,6 +48,10 @@ ukcp18toclimarray(
 \item{ukcp_units}{units of the UKCP18 variables extracted DO NOT CHANGE}
 
 \item{output_units}{units required for output DO NOT CHANGE CHECK CORRECT}
+
+\item{temp_hgt}{height of output temperature above ground (in metres)}
+
+\item{wind_hgt}{height of output wind speed above ground (in metres)}
 
 \item{toArrays}{logical determining if climate data returned as list of arrays. If FALSE returns list of Spatrasts.}
 

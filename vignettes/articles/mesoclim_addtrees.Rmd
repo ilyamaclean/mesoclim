@@ -65,7 +65,7 @@ dir_out<-file.path(dir_root,'mesoclim_inputs/outputs')  # output dir
 ftr_sdate<-as.POSIXlt('2020/01/01')
 ftr_edate<-as.POSIXlt('2020/12/31') # If using shared data folder use max value of as.POSIXlt('2039/12/31')
 
-modelrun<-c('06') 
+modelrun<-c('01') 
 collection<-'land-rcm'
 domain<-'uk'
 rcp<-'rcp85'
@@ -90,6 +90,8 @@ report<-download_ukcp18(
     cedausr=cedausr, cedapwd=cedapwd
 )
 print(report)
+
+
 ```
 
 **Download UKCP18 driven sea surface temperature data:**
