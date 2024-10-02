@@ -17,9 +17,9 @@ era5toclimarray(
 \arguments{
 \item{ncfile}{character vector containing the path and filename of the nc file}
 
-\item{dtmc}{a SpatRaster object of ERA5 elevations covering the same extent and resolution as ncfile (see details)}
+\item{dtmc}{a SpatRaster object of ERA5 elevations of same or larger extent as aoi and same resolution as ncfile (see details)}
 
-\item{lsm}{a SpatRaster object of ERA5 landsea mask covering the same extent and resolution as ncfile}
+\item{lsm}{a SpatRaster object of ERA5 landsea mask of same or larger extent as aoi and same resolution as ncfile}
 
 \item{aoi}{a  SpatRaster, sf or vect of the area to which outputs are cropped & reprojected - if NA extent/projection same as ncfile}
 
@@ -55,10 +55,9 @@ by mcera5 pkg function request_era5 to the correct formal required for subsequen
 }
 \details{
 the model requires that input climate data are projected using a coordinate reference
-system in which x and y are in metres. Since values returned by mcera5 function request_era5()
-are in lat long, the output data are reprojected using the coordinate reference system and
-extent of dtm (but retain the approximate original grid resolution of the input climate data).
-Returned climate data match the resolution, coordinate reference system and extent of \code{dtmc}.
+system in which x and y are in metres. The output data are reprojected using the coordinate reference system and
+extent of aoi (but SHOULD retain the approximate original grid resolution of the input climate data).
+Suitable lsm can be derived from ERA5 landsea mask and dtmc can be derived from ERA5 geopotential ancillary data.
 }
 \examples{
  \dontrun{

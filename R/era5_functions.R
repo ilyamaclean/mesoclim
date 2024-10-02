@@ -129,8 +129,8 @@ download_ancillary_era5<-function(dir_out,
 #' by mcera5 pkg function request_era5 to the correct formal required for subsequent modelling.
 #'
 #' @param ncfile character vector containing the path and filename of the nc file
-#' @param dtmc a SpatRaster object of ERA5 elevations covering the same extent and resolution as ncfile (see details)
-#' @param lsm  a SpatRaster object of ERA5 landsea mask covering the same extent and resolution as ncfile
+#' @param dtmc a SpatRaster object of ERA5 elevations of same or larger extent as aoi and same resolution as ncfile (see details)
+#' @param lsm  a SpatRaster object of ERA5 landsea mask of same or larger extent as aoi and same resolution as ncfile
 #' @param aoi a  SpatRaster, sf or vect of the area to which outputs are cropped & reprojected - if NA extent/projection same as ncfile
 #' @param dtr_cor_fac numeric value to be used in the diurnal temperature range
 #' correction of coastal grid cells. Default = 1.285, based on calibration against UK Met Office
@@ -156,10 +156,9 @@ download_ancillary_era5<-function(dir_out,
 #' @export
 #' @keywords preprocess era5
 #' @details the model requires that input climate data are projected using a coordinate reference
-#' system in which x and y are in metres. Since values returned by mcera5 function request_era5()
-#' are in lat long, the output data are reprojected using the coordinate reference system and
-#' extent of dtm (but retain the approximate original grid resolution of the input climate data).
-#' Returned climate data match the resolution, coordinate reference system and extent of `dtmc`.
+#' system in which x and y are in metres. The output data are reprojected using the coordinate reference system and
+#' extent of aoi (but SHOULD retain the approximate original grid resolution of the input climate data).
+#' Suitable lsm can be derived from ERA5 landsea mask and dtmc can be derived from ERA5 geopotential ancillary data.
 #' @examples
 #'  \dontrun{
 #' ncfile<-'path_to_downloaded_era5_file'
@@ -170,100 +169,88 @@ download_ancillary_era5<-function(dir_out,
 #' checkinputs(era5input,'hour')
 #' }
 era5toclimarray <- function(ncfile, dtmc, lsm, aoi=NA, dtr_cor_fac = 1.285, toArrays=TRUE, zo=2)  {
-  # Get extent of aoi and project to same as ukcp data (lat lon) - check if any provided dtm covers
-  if(class(aoi)[1]!='logical'){
-    if(!class(aoi)[1] %in% c("SpatRaster","SpatVector","sf")) stop("Parameter aoi NOT of suitable spatial class ")
-    if(class(aoi)[1]=="sf") aoi<-vect(aoi)
-    target_crs<-crs(rast(ncfile[1]))
-    aoi_e<-ext(terra::project(aoi,target_crs) )
-    if(class(dtm)[1]!='logical'){
-      dtm_e<-terra::ext(project(dtm,target_crs))
-      if(aoi_e$xmin<dtm_e$xmin|aoi_e$ymin<dtm_e$ymin|aoi_e$xmax>dtm_e$xmax|aoi_e$ymax>dtm_e$ymax) stop('DTM provided small than aoi provided!!')
-    }
+  # Get extent of aoi and check equal or smaller than dtmc and lsm inputs
+  if (class(aoi)[1] != "logical"){
+    if (!class(aoi)[1] %in% c("SpatRaster", "SpatVector",
+                              "sf"))
+      stop("Parameter aoi NOT of suitable spatial class ")
+    if (class(aoi)[1] == "sf") aoi <- vect(aoi)
+    # Check dtmc and lsm extent equals or exceeds aoi
+    if(ext(dtmc)<ext(project(aoi,crs(dtmc)))) stop("dtmc smaller than aoi!!!")
+    if(ext(lsm)<ext(project(aoi,crs(dtmc)))) stop("dtmc smaller than aoi!!!")
   }
+  # If no aoi assume same as dtmc
+  if(class(aoi)[1]=="logical") aoi <- dtmc
 
-  # What variables in era5 file
-  nc<-nc_open(ncfile)
-  era5vars<-names(nc$var)
+  # Check vars and get time
+  nc <- nc_open(ncfile)
+  era5vars <- names(nc$var)
+  if("expver" %in% era5vars) tme<-as.POSIXlt(nc$var$expver$dim[[1]]$vals,tz='GMT',origin="1970-01-01")
+  if(!"expver" %in% era5vars) tme<-as.POSIXlt(time(rast(ncfile,"t2m")), tz = "UTC")
   nc_close(nc)
 
-  # Get variables
-  t2m<-rast(ncfile,subds = "t2m") # Air temperature (K)
-  d2m<-rast(ncfile,subds = "d2m") # Dewpoint temperature (K)
-  sp<-rast(ncfile,subds = "sp") # Surface pressure (Pa)
-  u10<-rast(ncfile,subds = "u10") # U-wind at 10m (m/s)
-  v10<-rast(ncfile,subds = "v10") # V-wind at 10m (m/s)
-  tp<-rast(ncfile,subds = "tp") # Total precipitation (m)
-  #msnlwrf<-rast(ncfile,subds = "msnlwrf")   # Mean surface net long-wave radiation flux (W/m^2)
-  msdwlwrf<-rast(ncfile,subds = "msdwlwrf") # Mean surface downward long-wave radiation flux (W/m^2)
-
-  # SW radiation - method depends on avail variables
-  if(all(c("fdir","ssrd") %in% era5vars)){ # Use total values in J
-    fdir<-rast(ncfile,subds = "fdir")/3600 #  Total sky direct solar radiation at surface converted to W/m^2
-    ssrd<-rast(ncfile,subds = "ssrd")/3600 # Surface short-wave (solar) radiation downwards converted to W/m^2
-  } else if(all(c("msdwswrf","msdrswrf") %in% era5vars)){ # Use mean values in W/m^2
-    fdir<-rast(ncfile,subds = "msdwswrf")
-    ssrd<-rast(ncfile,subds = "msdrswrf")
+  t2m <- rast(ncfile, subds = "t2m")
+  d2m <- rast(ncfile, subds = "d2m")
+  sp <- rast(ncfile, subds = "sp")
+  u10 <- rast(ncfile, subds = "u10")
+  v10 <- rast(ncfile, subds = "v10")
+  tp <- rast(ncfile, subds = "tp")
+  msdwlwrf <- rast(ncfile, subds = "msdwlwrf")
+  if (all(c("fdir", "ssrd") %in% era5vars)) {
+    fdir <- rast(ncfile, subds = "fdir")/3600
+    ssrd <- rast(ncfile, subds = "ssrd")/3600
+  } else if (all(c("msdwswrf", "msdrswrf") %in% era5vars)) {
+    fdir <- rast(ncfile, subds = "msdwswrf")
+    ssrd <- rast(ncfile, subds = "msdrswrf")
   } else stop("Missing necessary SW radiation variables!!!")
 
-  #lsm<-rast(ncfile,subds = "lsm") # Land sea mask
-  #geop<-rast(ncfile,subds = "z") # Geopotential
-
-  # Create coarse-resolution dtm if finer resolution dtm provided
-  if(class(dtmc)[1]!='logical'){
-    te<-terra::project(t2m[[1]],terra::crs(dtmc))
-    agf<-terra::res(te)[1]/terra::res(dtmc)[1]
-    dtmc<-terra::aggregate(dtmc,fact=agf,fun=mean,na.rm=T)
+  # Aggregate dtmc if not of same resolution as ncfile data
+  if(res(dtmc)[1]!=res(t2m)[1]){
+    agf <- terra::res(t2m)[1]/terra::res(dtmc)[1]
+    dtmc <- terra::aggregate(dtmc, fact = agf, fun = mean, na.rm = T)
   }
 
-  # Convert temperature to Celsius
-  t2m<-t2m-273.15
+  # Reproject and crop all variables to aoi
+  t2m <- terra::project(t2m, aoi)
+  d2m<- terra::project(d2m, aoi)
+  sp <- terra::project(sp, aoi)
+  u10 <- terra::project(u10, aoi)
+  v10 <- terra::project(v10, aoi)
+  tp <- terra::project(tp, aoi)
+  msdwlwrf <- terra::project(msdwlwrf, aoi)
+  fdir <- terra::project(fdir, aoi)
+  ssrd <- terra::project(ssrd, aoi)
+  dtmc<-project(dtmc,aoi)
+  lsm<-project(lsm,aoi)
 
-  # Apply coastal correction to temperature data
-  tmn<-.ehr(.hourtoday(as.array(t2m),min))
-  mu<-(1-as.array(lsm))*dtr_cor_fac+1
-  tc<-.rast(((as.array(t2m))-tmn)*mu+tmn,t2m)
+  # Convert temp to Celsius
+  t2m <- t2m - 273.15
 
-  # Calculate vapour pressure
-  ea<-.rast(.satvap(as.array(d2m)),t2m)
+  # Coastal correction of temperature
+  tmn <- .ehr(.hourtoday(as.array(t2m), min))
+  a<-as.array(rep(lsm,dim(tmn)[3]))
+  mu<-(1-a)*dtr_cor_fac+1
+  tc <- .rast(((as.array(t2m)) - tmn) * mu + tmn, t2m)
 
-  # IF aoi provided transform all variables to same projection and extent
-  if(class(aoi)[1]!='logical') dtmc<-terra::crop(terra::project(dtmc,crs(aoi)),aoi) else aoi<-dtmc
+  # Calculate output variables
+  ea <- .rast(.satvap(as.array(d2m)-273.15), tc)
+  temp <- as.array(tc)
+  relhum <- (as.array(ea)/.satvap(temp)) * 100
+  pres <- as.array(sp)/1000
+  swrad <- as.array(ssrd)
+  difrad <- swrad - as.array(fdir)
+  lwrad <- as.array(msdwlwrf)
+  windspeed <- sqrt(as.array(u10)^2 + as.array(v10)^2) * log(67.8 *
+                                                               zo - 5.42)/log(67.8 * 10 - 5.42)
+  winddir <- as.array((terra::atan2(u10, v10) * 180/pi + 180)%%360)
+  prec <- as.array(tp) * 1000
+  out <- list(dtm = dtmc, tme = tme, windheight_m = 10, tempheight_m = 2)
+  climout <- list(temp = temp, relhum = relhum, pres = pres,
+                  swrad = swrad, difrad = difrad, lwrad = lwrad, windspeed = windspeed,
+                  winddir = winddir, prec = prec)
 
-  tc<-terra::project(tc,aoi)
-  ea<-terra::project(ea,aoi)
-  sp<-terra::project(sp,aoi)
-  u10<-terra::project(u10,aoi)
-  v10<-terra::project(v10,aoi)
-  tp<-terra::project(tp,aoi)
-  #msnlwrf<-terra::project(msnlwrf,aoi)
-  msdwlwrf<-terra::project(msdwlwrf,aoi)
-  fdir<-terra::project(fdir,aoi)
-  ssrd<-terra::project(ssrd,aoi)
+  if (toArrays == FALSE) climout <- lapply(climout, .rast, tem = dtmc)
 
-  # Derive variables
-  temp<-as.array(tc) # Temperature (deg c)
-  relhum<-(as.array(ea)/.satvap(temp))*100 # Relative humidity (%)
-  pres<-as.array(sp)/1000  #  surface pressure (kPa)
-  swrad<-as.array(ssrd) # Downward shortwave radiation (W/m^2)
-  difrad<-swrad-as.array(fdir) # Downward diffuse radiation (W/m^2)
-  lwrad<-as.array(msdwlwrf) # Downward longwave radiation
-  windspeed<-sqrt(as.array(u10)^2+as.array(v10)^2)*log(67.8*zo-5.42)/log(67.8*10-5.42) # Wind speed (m/s)
-  winddir<-as.array((terra::atan2(u10,v10)*180/pi+180)%%360) # Wind direction (deg from N)
-  prec<-as.array(tp)*1000
-
-  # Generate POSIXlt object of times
-  tme<-as.POSIXlt(time(t2m),tz="UTC")
-
-  # Create output list of dtm, tme and climate variables
-  out<-list(dtm=dtmc, tme=tme,windheight_m=10,tempheight_m=2)
-  climout<-list(temp=temp,relhum=relhum,pres=pres,swrad=swrad,difrad=difrad,
-                lwrad=lwrad,windspeed=windspeed,winddir=winddir,prec=prec)
-
-  # Convert climate data to SpatRasters if requested
-  if(toArrays==FALSE) climout<-lapply(climout,.rast,tem=dtmc)
-
-  # Output for returning
-  out<-c(out,climout)
+  out <- c(out, climout)
   return(out)
 }
