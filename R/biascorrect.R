@@ -74,6 +74,7 @@ biascorrect <- function(hist_obs, hist_mod, fut_mod = NA, mod_out = FALSE, range
         if (mod_out) {
           m[i,j]<-counter
           mods[[counter]]<-m1
+          counter<-counter+1
         } else {
           v3<-a3[i,j,]
           xx <- predict.gam(m1, newdata = data.frame(v2 = v3))
