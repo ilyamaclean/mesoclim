@@ -886,8 +886,8 @@
   u<-u[is.na(u) == FALSE]
   u<-u[order(u)]
   m<-array(renumberbasin(m,u),dim=dim(m))
-  bout<-.rast(m,bout)
-  return(bma)
+  bout<-.rast(m,dtm)
+  return(bout)
 }
 #' @title Calculate flow direction
 # '@noRd
@@ -1023,7 +1023,7 @@
   # determine whether cold-air drainage conditions exist
   d<-0.65*0.12
   zm<-0.1*0.12
-  # Extract additional ccimate variables
+  # Extract additional climate variables
   u2<-climdata$windspeed
   swrad<-climdata$swrad
   lwrad<-climdata$lwrad
@@ -1190,8 +1190,7 @@
 #' @returns a 3D array with masked areas set to NA
 #' @noRd
 .applymask <- function(a, mask) {
-  if (class(mask)[1]=="RasterLayer") m<-getValues(mask,format="matrix")
-  if (class(mask)[1]=="SpatRaster") m<-as.matrix(mask,wide=TRUE)
+  m<-.is(mask)
   m[is.na(m)==F]<-1
   m<-.mta(m,dim(a)[3])
   a<-a*m
@@ -1252,7 +1251,7 @@
 #' @returns diurnal temperature range with coastal correction (deg C)
 #' @noRd
 .coastalcorrect<-function(dtr, landsea) {
-  lp<-getValues(landsea,format="matrix")
+  lp<-.is(landsea)
   m<-(1-lp)*1.285+1
   m<-.mta(m,dim(dtr)[3])
   dtr<-dtr*m
@@ -1365,14 +1364,14 @@
 #' daily<-.era5todaily(filein=file.path(dir_era5,f),tempdir(),landsea=lsm,output='none',vars)
 #' }
 .era5todaily<-function(filein,pathout,landsea, elev, output=c('tifs','singlenc','none'),
-                       vars=c('tasmax','tasmin','ps','psl','hurs','huss','u10','v10','swrad','difrad','lwrad','skyem','pr')) {
+                       vars=c('tasmax','tasmin','sp','psl','hurs','huss','u10','v10','swrad','difrad','lwrad','skyem','pr')) {
   landsea[landsea==0]<-NA # used to mask and crop
   suppressWarnings(dir.create(pathout))
 
   # Find out what vars in era5 data
   nc<-nc_open(filein)
   era5vars<-names(nc$var)[which(names(nc$var) %in% c("number","expver")==FALSE)]
-  validvar<-allvars[length(era5vars)]
+  validvar<-era5vars[length(era5vars)]
   r<-crop(rast(filein,subds=validvar),landsea)
   te<-r[[1]] # use as template
   if("expver" %in% names(nc$var)) tme<-as.POSIXlt(nc$var$expver$dim[[1]]$vals,tz='GMT',origin="1970-01-01") else tme<-time(r)
@@ -1489,7 +1488,7 @@
     vnames<-c(vnames,'u10')
     lngnms<-c(lngnms,'10 metre U wind component')
     uts<-c(uts,'m/s')
-    if(output=='tifs') .saverast(uas,te,pathout,"uas") else daily_list[["uas"]]<-.rast(uas,te)
+    if(output=='tifs') .saverast(uas,te,pathout,"uas") else daily_list[["u10"]]<-.rast(uas,te)
   }
   # Wind v10 NOT converted to 2m height
   if('v10' %in% vars){
@@ -1500,7 +1499,7 @@
     vnames<-c(vnames,'vas')
     lngnms<-c(lngnms,'10 metre V wind component')
     uts<-c(uts,'m/s')
-    if(output=='tifs') .saverast(vas,te,pathout,"vas") else daily_list[["vas"]]<-.rast(vas,te)
+    if(output=='tifs') .saverast(vas,te,pathout,"vas") else daily_list[["v10"]]<-.rast(vas,te)
   }
 
   # swdown - total downward shortwave from total or mean radiation
