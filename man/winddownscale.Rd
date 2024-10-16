@@ -4,7 +4,7 @@
 \alias{winddownscale}
 \title{Downscale wind speed accounting for elevation and terrain sheltering effects}
 \usage{
-winddownscale(wspeed, wdir, dtmf, dtmm, dtmc, zi = 10, zo = 2)
+winddownscale(wspeed, wdir, dtmf, dtmm, dtmc, wca = NA, zi = 10, zo = 2)
 }
 \arguments{
 \item{wspeed}{a coarse-resolution array of wind speeds (m/s)}
@@ -18,6 +18,10 @@ than dtmf (see details)}
 
 \item{dtmc}{a coarse-resolution SpatRast of elevations matching
 the resolution, extent and coordinate reference system of \code{wspeed}.}
+
+\item{wca}{\itemize{
+\item wind shelter coeeficient array as produced by \code{calculate_windcoeffs} or NA to calculate
+}}
 
 \item{zi}{height above ground (m) of \code{wspeed}.}
 

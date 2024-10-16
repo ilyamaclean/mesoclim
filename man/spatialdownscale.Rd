@@ -10,6 +10,7 @@ spatialdownscale(
   dtmf,
   dtmm = NA,
   basins = NA,
+  wca = NA,
   cad = TRUE,
   coastal = TRUE,
   thgto = 2,
@@ -36,6 +37,10 @@ than dtmf (only needed for coastal effects - see details under \code{\link[=temp
 
 \item{basins}{optionally, a fine-resolution SpatRast of basins as returned by \code{\link[=basindelin]{basindelin()}}
 matching the coordinate reference system and extent of \code{dtmf}. Calculated if
+not supplied.}
+
+\item{wca}{optionally, an array of wind shelter coeffs in 8 directions
+matching the x,y dimensions of \code{dtmf} as calculated by \code{calculate_windcoeffs}. Calculated if
 not supplied.}
 
 \item{cad}{optional logical indicating whether to calculate cold-air drainage effects}

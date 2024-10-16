@@ -199,12 +199,12 @@ precipcorrect <- function(hist_obs, hist_mod, fut_mod=NA, mod_out = FALSE, range
   rcount[rcount > 0] <-1
   rtot1<-apply(.is(hist_obs),c(1,2),sum)
   tfrac1<-apply(.is(rcount),c(1,2),sum)/dim(rcount)[3]
-  # Calculate observed rainfall total and rain day frac
+  # Calculate modelled rainfall total and rain day frac
   rcount<-hist_mod
   rcount[rcount > 0] <-1
   rtot2<-apply(.is(hist_mod),c(1,2),sum)
   tfrac2<-apply(.is(rcount),c(1,2),sum)/dim(rcount)[3]
-  # Calculate ratios
+  # Calculate ratios obs/modelled
   mu_tot<-rtot1/rtot2
   mu_frac<-tfrac1/tfrac2
   if (mod_out) {

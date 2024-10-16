@@ -10,7 +10,7 @@
   landsea,
   elev,
   output = c("tifs", "singlenc", "none"),
-  vars = c("tasmax", "tasmin", "ps", "psl", "hurs", "huss", "u10", "v10", "swrad",
+  vars = c("tasmax", "tasmin", "sp", "psl", "hurs", "huss", "u10", "v10", "swrad",
     "difrad", "lwrad", "skyem", "pr")
 )
 }
