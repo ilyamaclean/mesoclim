@@ -1,3 +1,21 @@
+# Calculate wind coefficients - for use in wind downscaling
+#' @param dtmc - coarse resolution raster overing wider extent than dtmf
+#' @param dtmm - medium resolution raster covering wider extent than dtmf
+#' @param dtmf - fine scale raster of downscaling area
+#' @param zo - wind height in metres of coeeficients
+#'
+#' @return wca2 - array of wind coeeficients for each of 8 wind directions
+#' @export
+calculate_windcoeffs<-function(dtmc,dtmm,dtmf,zo){
+  # Calculate terrain adjustment coefs in each of 8 directions for output wind height zo
+  wca<-array(NA,dim=c(dim(dtmf)[1:2],8))
+  for (i in 0:7) wca[,,i+1]<-.is(windelev(dtmf,dtmm,dtmc,i*45,zo))
+  # smooth results
+  wca2<-wca
+  for (i in 0:7) wca2[,,i+1]<-0.25*wca[,,(i-1)%%8+1]+0.5*wca[,,i%%8+1]+0.25*wca[,,(i+1)%%8+1]
+  return(wca2)
+}
+
 #' @title delineate hydrological or cold-air drainage basins
 #' @description The function `basindelin` uses a digital elevation dataset to delineate
 #' hydrological basins, merging adjoining basis seperated by a low boundary if specified.
@@ -56,7 +74,7 @@ flowacc <- function (dtm, basins = NA) {
     x2<-x+(f-1)%%3-1
     y2<-y+(f-1)%/%3-1
     # If basin file provided only add flow accumulation of from same basin
-    if (class(basins) != "logical" & x2>0 & y2>0) {
+    if (class(basins) != "logical" & x2>0 & y2>0 & x2<=dim(dm)[1] & y2<=dim(dm)[2]) {
       b1<-ba[x,y]
       b2<-ba[x2,y2]
       if(!is.na(b1) && !is.na(b2)){ # Check if both b1 and b2 valid basins
