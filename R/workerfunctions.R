@@ -995,7 +995,7 @@
   if (class(basins) == "logical") basins<-basindelin(dtmf,refhgt)
   b<-.is(basins)
   d<-.is(dtmf)
-  u<-unique(b)
+  u<-unique(as.vector(b))
   u<-u[is.na(u)==FALSE]
   bmx<-b*0
   for (i in 1:length(u)) {
