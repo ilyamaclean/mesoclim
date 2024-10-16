@@ -60,8 +60,8 @@ tempdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, u2 = NA,
     tcad<-.tempcad(climdata,dtmf,basins,thgto) # output temp height defines basin merge
     tcf<-tcf+tcad
   }
-  # Coastal effects
-  if (coastal) {
+  # Coastal effects - checks if non NA values in sstdata
+  if (coastal & any(!is.na(values(sstdata)))) {
     # fill any spatial cells without data and interpolate to climdata timeseries
     if (any(global(sst,anyNA))) sstinterp<-.spatinterp(sst) else sstinterp<-sst
     sstinterp<-.tmeinterp(sstinterp,NA,tme)
@@ -275,6 +275,7 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)
 #' than dtmf (see details)
 #' @param dtmc a coarse-resolution SpatRast of elevations matching
 #' the resolution, extent and coordinate reference system of `wspeed`.
+#' @param wca - wind shelter coeeficient array as produced by `calculate_windcoeffs` or NA to calculate
 #' @param zi height above ground (m) of `wspeed`.
 #' @param zo height above ground (m) of output windspeeds (corrected to 0.2 if <0.2?)
 #' @return a stacked SpatRast of wind speeds matching the resolution,
@@ -301,13 +302,9 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)
 #' dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
 #' wsf <- winddownscale(ukcpinput$windspeed, ukcpinput$winddir, dtmf, dtmm, ukcpinput$dtm, zi=ukcpinput$windheight_m)
 #' plot_q_layers(wsf)
-winddownscale <- function(wspeed, wdir, dtmf, dtmm, dtmc, zi=10, zo = 2) {
-  # Calculate terrain adjustment coefs in each of 8 directions for output wind height zo
-  wca<-array(NA,dim=c(dim(dtmf)[1:2],8))
-  for (i in 0:7) wca[,,i+1]<-.is(windelev(dtmf,dtmm,dtmc,i*45,zo))
-  # smooth results
-  wca2<-wca
-  for (i in 0:7) wca2[,,i+1]<-0.25*wca[,,(i-1)%%8+1]+0.5*wca[,,i%%8+1]+0.25*wca[,,(i+1)%%8+1]
+winddownscale <- function(wspeed, wdir, dtmf, dtmm, dtmc, wca=NA, zi=10, zo = 2) {
+  # If not supplied, calculate terrain adjustment coefs for 8 directions at wind height zo
+  if(class(wca)[1]=='logical') wca2<-calculate_windcoeffs(dtmc,dtmm,dtmf,zo) else wca2<-wca
   # Calculate wind direction of centre of study area
   wdr<-.rast(wdir,dtmc)
   ll<-.latlongfromrast(wdr)
@@ -527,6 +524,9 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
 #' @param basins optionally, a fine-resolution SpatRast of basins as returned by [basindelin()]
 #' matching the coordinate reference system and extent of `dtmf`. Calculated if
 #' not supplied.
+#' @param wca optionally, an array of wind shelter coeffs in 8 directions
+#' matching the x,y dimensions of `dtmf` as calculated by `calculate_windcoeffs`. Calculated if
+#' not supplied.
 #' @param cad optional logical indicating whether to calculate cold-air drainage effects
 #' @param coastal optional logical indicating whether to calculate coastal effects
 #' @param thgto height above ground of temperature output.
@@ -575,8 +575,8 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
 #'  climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 #'  dailymesodat<-spatialdownscale(climdata, sst, dtmf, dtmm, noraincut=0.01)
 #'  plot_q_layers(dailymesodat$tmin)
-spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, cad = TRUE,
-                           coastal = TRUE, thgto =2, whgto=2, #refhgt = 2, uhgt = 2,
+spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, cad = TRUE,
+                           coastal = TRUE, thgto =2, whgto=2,
                            rhmin = 20, pksealevel = TRUE, patchsim = TRUE, terrainshade = TRUE,
                            precipmethod = "Elev",fast = TRUE, noraincut = 0, toArrays=FALSE) {
   tme<-as.POSIXlt(climdata$tme,tz="UTC")
@@ -606,12 +606,13 @@ spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, cad = TR
 
   # ================== Downscale variables ===============================  #
   message('Downscaling wind...')
-  uzf<-winddownscale(wspeed,wdir,dtmf,dtmm,dtmc,whgti,whgto)
+  uzf<-winddownscale(wspeed,wdir,dtmf,dtmm,dtmc,wca,whgti,whgto)
   #if (uhgt!=2) {   # NOT REQUIRED - use uzf at requested output height whgto
   #  u2<-.is(uzf)*4.8699/log(67.8*uhgt-5.42)
   #  u2<-.rast(u2,dtmf)
   #} else u2<-uzf
-  # winddir"
+
+  # winddir
   uu<-.rast(wspeed*cos(wdir*pi/180),dtmc)
   vv<-.rast(wspeed*sin(wdir*pi/180),dtmc)
   if (crs(uu) != crs(dtmf)) uu<-project(uu,crs(dtmf))
