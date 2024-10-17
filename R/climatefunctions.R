@@ -1,4 +1,4 @@
-# Calculate wind coefficients - for use in wind downscaling
+#' @title Calculate wind coefficients - for use in wind downscaling
 #' @param dtmc - coarse resolution raster overing wider extent than dtmf
 #' @param dtmm - medium resolution raster covering wider extent than dtmf
 #' @param dtmf - fine scale raster of downscaling area
