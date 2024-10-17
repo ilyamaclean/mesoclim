@@ -42,6 +42,10 @@
 #' @keywords internal
 #' @noRd
 .rast <- function(m,tem) {
+  if(class(m)[1]!='matrix'){
+    warning("Converting values provided to .rast to matrix!")
+    m<-matrix(m,ncol=ncol(tem),nrow=nrow(tem))
+  }
   r<-rast(m)
   ext(r)<-ext(tem)
   crs(r)<-crs(tem)
