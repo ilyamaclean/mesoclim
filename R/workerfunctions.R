@@ -42,10 +42,10 @@
 #' @keywords internal
 #' @noRd
 .rast <- function(m,tem) {
-  if(class(m)[1]!='matrix'){
-    warning("Converting values provided to .rast to matrix!")
-    m<-matrix(m,ncol=ncol(tem),nrow=nrow(tem))
-  }
+  #if(class(m)[1]!='matrix'){
+  #  warning("Converting values provided to .rast to matrix!")
+  #  m<-matrix(m,ncol=ncol(tem),nrow=nrow(tem))
+  #}
   r<-rast(m)
   ext(r)<-ext(tem)
   crs(r)<-crs(tem)
@@ -561,6 +561,7 @@
   bsn<-basinCpp(dm2, bsn, dun)
   dd<-dim(bsn)
   bsn<-bsn[2:(dd[1]-1),2:(dd[2]-1)]
+  if(class(bsn)[1]!='matrix') bsn<-matrix(bsn,ncol=ncol(dtm),nrow=nrow(dtm))
   r<-.rast(bsn,dtm)
   return(r)
 }
@@ -692,6 +693,8 @@
   }
   dd<-dim(bm3)
   bsn<-bm3[2:(dd[1]-1),2:(dd[2]-1)]
+  # case where single column/row and bsn is a vector
+  if(class(bsn)[1]!='matrix') bsn<-matrix(bsn,ncol=ncol(dtm),nrow=nrow(dtm))
   r<-.rast(bsn,dtm)
 }
 
