@@ -1145,14 +1145,24 @@
   r
 }
 
-#' @title extracts array data from nc file via spatRaster to allow cropping
+#' @title extracts array data from nc file via spatRaster if cropping required
 #' @param filein - file name of nc file
 #' @param varid - name of variable in nc file - required
 #' @param aoi - spatraster or extent to which nc data will be cropped
+#' @details
+#' Data values of new beta CDS ncdf format is not reliably read by terra,
+#' therefore gets spatial info via rast but values via ncdf4::ncvar_get
 #' @import terra
+#' @import ncdf4
 #' @noRd
 .nctoarray <- function(filein, varid, aoi = NA) {
-  if (class(aoi)[1] %in% c('SpatRaster','SpatExtent')) a <-as.array(crop(rast(filein,varid),aoi)) else a <- as.array(rast(filein,varid))
+   nc <- nc_open(filein)
+   if (class(aoi)[1] %in% c('SpatRaster','SpatExtent')){
+    r<-rast(filein,varid)
+    r<-setValues(r,aperm(ncvar_get(nc, varid = varid), c(2,1,3))) # new format era5 ncdf vals cannot be read by reliably terra
+    a <-as.array(crop(r,aoi))
+  } else a <- aperm(ncvar_get(nc, varid = varid), c(2,1,3))
+  nc_close(nc)
   return(a)
 }
 
@@ -1161,7 +1171,7 @@
 #' @param varid - name of variable in nc file
 #' @noRd
 .nctoarray_old <- function(filein, varid = NA, aoi = NA) {
-  nc <- nc_open(filein)
+
   a <- aperm(ncvar_get(nc, varid = varid), c(2,1,3))
   #a <- apply(a, c(2,3), rev)
   nc_close(nc)
@@ -1379,7 +1389,8 @@
   nc<-nc_open(filein)
   era5vars<-names(nc$var)[which(names(nc$var) %in% c("number","expver")==FALSE)]
   validvar<-era5vars[length(era5vars)]
-  r<-crop(rast(filein,subds=validvar),landsea)
+  r<-rast(filein,subds=validvar)[[1]]
+  r<-crop(r,landsea)
   te<-r[[1]] # use as template
   if("expver" %in% names(nc$var)) tme<-as.POSIXlt(nc$var$expver$dim[[1]]$vals,tz='GMT',origin="1970-01-01") else tme<-time(r)
   nc_close(nc)
