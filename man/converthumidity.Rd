@@ -26,7 +26,7 @@ converthumidity(
 }}
 
 \item{pk}{\itemize{
-\item surface pressure
+\item surface pressure in kPa
 }}
 
 \item{h-}{humidity}

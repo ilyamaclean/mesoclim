@@ -11,7 +11,7 @@ precipcorrect_apply(fut_mod, biasmods)
 for e.g. a future period to which corrections are applied. reprojected and
 resampled to match data held in \code{mod_out} if necessary.}
 
-\item{a}{list containing two wrapped SpatRasters derived using \code{\link[=precipcorrect]{precipcorrect()}}
+\item{biasmods}{list containing two wrapped SpatRasters derived using \code{\link[=precipcorrect]{precipcorrect()}}
 representing the amount by which to adjust rainfall totals and rainfall days,
 which is used as a basis for adjusting individual rainfall events. `}
 }
