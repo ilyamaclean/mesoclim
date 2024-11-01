@@ -26,7 +26,7 @@
 #' @rdname biascorrect
 #' @seealso [precipcorrect()] for applying corrections to precipitation data and
 #' [biascorrect_apply()] for applying corrections to multiple datasets.
-biascorrect <- function(hist_obs, hist_mod, fut_mod = NA, mod_out = FALSE, rangelims = NA) {
+biascorrect <- function(hist_obs, hist_mod, fut_mod = NA, mod_out = FALSE, rangelims = NA, samplenum=1000) {
   if (!inherits(hist_obs, "SpatRaster")) stop("hist_obs must be a SpatRaster")
   if (!inherits(hist_mod, "SpatRaster")) stop("hist_mod must be a SpatRaster")
   if (mod_out == FALSE & inherits(fut_mod, "logical")) fut_mod<-hist_mod
@@ -49,7 +49,7 @@ biascorrect <- function(hist_obs, hist_mod, fut_mod = NA, mod_out = FALSE, range
   # Check whether dataset has more than 1000 entries per time-series and
   # subset if it does
   n<-dim(a1)[3]
-  if (n > 1000) s<-sample(0:n,998,replace = FALSE)  # 998 so min and max can be tagged on
+  if (n > samplenum) s<-sample(0:n,samplenum-2,replace = FALSE)  # two less so min and max can be tagged on
   if (mod_out) {
     mods<-list()
     m<-a1[,,1]
@@ -65,7 +65,7 @@ biascorrect <- function(hist_obs, hist_mod, fut_mod = NA, mod_out = FALSE, range
         v2<-a2[i,j,]
         v1 <- v1[order(v1)]
         v2 <- v2[order(v2)]
-        if (n > 1000) {
+        if (n > samplenum) {
           v1<-c(v1[1],v1[s],v1[length(v1)]) # tags on min and max value
           v2<-c(v2[1],v2[s],v2[length(v2)]) # tags on min and max value
         }
@@ -254,7 +254,7 @@ precipcorrect <- function(hist_obs, hist_mod, fut_mod=NA, mod_out = FALSE, range
 #' @param fut_mod a stacked SpatRast of modelled precipitation data for
 #' for e.g. a future period to which corrections are applied. reprojected and
 #' resampled to match data held in `mod_out` if necessary.
-#' @param a list containing two wrapped SpatRasters derived using [precipcorrect()]
+#' @param biasmods list containing two wrapped SpatRasters derived using [precipcorrect()]
 #' representing the amount by which to adjust rainfall totals and rainfall days,
 #' which is used as a basis for adjusting individual rainfall events. `
 #' @return a SpatRaster matching `fut_mod` with climate data bias corrected.
@@ -292,11 +292,11 @@ precipcorrect_apply<-function(fut_mod, biasmods) {
   rrain[s]<-0.1
   rrain<-(rrain/max(rrain))*10
   # Adjust rainfall
-  fut_mod<-mask(fut_mod,hist_obs)
+  fut_mod<-mask(fut_mod,mu_tot)
   a<-as.array(fut_mod)
   mm<-matrix(as.vector(a),nrow=dim(a)[1]*dim(a)[2],ncol=dim(a)[3])
-  rtot<-.rast(rtot,hist_obs)
-  tfrac<-.rast(tfrac,hist_obs)
+  rtot<-.rast(rtot,mu_tot)
+  tfrac<-.rast(tfrac,mu_tot)
   rtot<-as.vector(t(rtot))
   rfrac<-as.vector(t(tfrac))
   mm<-rainadjustm(mm,rrain,rfrac,rtot)
@@ -305,6 +305,249 @@ precipcorrect_apply<-function(fut_mod, biasmods) {
   out<-.rast(a2,fut_mod)
   return(out)
 }
+
+#' @title Converts era5 hourly data to daily to enable bias correction to be applied to ukcp data
+#' @param filein - filename (including path ) of era5 nc file with required variables
+#' @param pathout - directory in which to save data
+#' @param landsea - a landsea raster object of land fractions that must match the extent (or less) and crs of the era5 data
+#'  era5 data will be cropped to lsm extent
+#' @param elev - a spatRaster of surface elevations to correct surface pressure to sea level pressure
+#' @param output - character of value tifs, singlenc or none - determines type of files (if any) written
+#' @param vars - variables for which daily values calculated
+#' @return list of daily spatRasters of each variable requested. Also write .tiff or .nc files if requested
+#' The function saves individual terra SpatRaster objects to disk (one for each variable)
+#' @keywords internal
+#' @examples
+#'  \dontrun{
+#' vars<-c('psl','hurs','u10','v10','swrad','difrad','lwrad')
+#' daily<-.era5todaily(filein=file.path(dir_era5,f),tempdir(),landsea=lsm,output='none',vars)
+#' }
+era5todaily<-function(filein,pathout,landsea, elev, output=c('tifs','singlenc','none'),
+                       vars=c('tasmax','tasmin','sp','psl','hurs','huss','u10','v10','swrad','difrad','lwrad','skyem','pr')) {
+  landsea[landsea==0]<-NA # used to mask and crop
+  suppressWarnings(dir.create(pathout))
+
+  # Find out what vars in era5 data and get rast template
+  nc<-nc_open(filein)
+  era5vars<-names(nc$var)[which(names(nc$var) %in% c("number","expver")==FALSE)]
+  validvar<-era5vars[length(era5vars)]
+  r<-rast(filein,subds=validvar)
+  te<-crop(r[[1]],landsea) # use as template
+  if("expver" %in% names(nc$var)) tme<-as.POSIXlt(nc$var$expver$dim[[1]]$vals,tz='GMT',origin="1970-01-01") else tme<-time(r)
+  nc_close(nc)
+
+  daily_tme<-as.POSIXlt(seq(trunc(tme[1],"days"),trunc(tme[length(tme)],"days"),by=3600*24))
+  daily_list<-list()
+  vnames<-c()
+  lngnms<-c()
+  uts<-c()
+
+  # temperature - also required for other spec humidity
+  if('tasmax' %in% vars || 'tasmin' %in% vars){
+    if('t2m'%in% era5vars ==FALSE) stop('Temperature required in era5 data file!!!')
+    a<-.nctoarray(filein,"t2m",landsea)
+    a<-.applymask(a,landsea)
+    tmx<-.hourtoday(a,max)
+    tmn<-.hourtoday(a,min)
+    dtr<-tmx-tmn
+    # apply coastal correction
+    dtr<-.coastalcorrect(dtr,landsea)
+    tmean<-(tmx+tmn)/2
+    tmx<-(tmean+0.5*dtr)-273.15
+    tmn<-(tmean-0.5*dtr)-273.15
+    # Save tmx and tmn
+    vnames<-c(vnames,'tasmax','tasmin')
+    lngnms<-c(lngnms,'Maximum temperature','Minimum temperature')
+    uts<-c(uts,'degC','degC')
+    if(output=='tifs') .saverast(tmx,te,pathout,"tasmax") else daily_list[["tasmax"]]<-.rast(tmx,te)
+    if(output=='tifs') .saverast(tmn,te,pathout,"tasmin") else daily_list[["tasmin"]]<-.rast(tmn,te)
+  }
+
+  # Output surface pressure
+  if('sp' %in% vars){
+    if('sp'%in% era5vars ==FALSE) stop('Surface pressure required in era5 data file!!!')
+    a2<-.nctoarray(filein,"sp",landsea)/1000
+    a2<-.applymask(a2,landsea)
+    sp<-.hourtoday(a2)
+    vnames<-c(vnames,'sp')
+    lngnms<-c(lngnms,'Surface pressure')
+    uts<-c(uts,'kPa')
+    if(output=='tifs') .saverast(sp,te,pathout,"sp") else daily_list[["sp"]]<-.rast(sp,te)
+  }
+
+  # Output sea level pressure
+  if('psl' %in% vars){
+    if('msl' %in% era5vars){ # sea level pressure in inputs variables
+      a3<-.nctoarray(filein,"msl",landsea)/1000
+      a3<-.applymask(a3,landsea)
+      psl<-.hourtoday(a3)
+    }
+    if('msl' %in% era5vars ==FALSE){ #  no sea level pressure in inputs calculate from surface pressure
+      if('sp'%in% era5vars ==FALSE) stop('Surface pressure required in era5 data file!!!')
+      a2<-.nctoarray(filein,"sp",landsea)/1000
+      a2<-.applymask(a2,landsea)
+
+      dtm<-as.matrix(elev,wide=TRUE)
+      psl<-.is(a2)/(((293-0.0065*.rta(dtm,dim(a2)[3]))/293)^5.26)
+      psl<-.hourtoday(psl)
+    }
+    vnames<-c(vnames,'psl')
+    lngnms<-c(lngnms,'Sea surface pressure')
+    uts<-c(uts,'kPa')
+    if(output=='tifs') .saverast(psl,te,pathout,"psl") else daily_list[["psl"]]<-.rast(psl,te)
+  }
+
+  # Humidity - specific or relative from dewpoint temp and temperature
+  if('huss' %in% vars || 'hurs' %in% vars){
+    if('d2m'%in% era5vars ==FALSE) stop('Dewpoint temperature required in era5 data file!!!')
+    if(!exists("a")){
+      if('t2m'%in% era5vars ==FALSE) stop('Temperature required in era5 data file!!!')
+      a<-.nctoarray(filein,"t2m",landsea)
+      a<-.applymask(a,landsea)
+    }
+
+    a3<-.nctoarray(filein,"d2m",landsea)
+    a3<-.applymask(a3,landsea)
+    ea<-.satvap(a3-273.15)
+    es<-.satvap(a-273.15)
+    rh<-(ea/es)*100
+
+    # Relative
+    if('hurs' %in% vars){
+      hurs<-.hourtoday(rh)
+      vnames<-c(vnames,'hurs')
+      lngnms<-c(lngnms,'Relative humidity')
+      uts<-c(uts,'%')
+      if(output=='tifs') .saverast(hurs,te,pathout,"hurs") else daily_list[["hurs"]]<-.rast(hurs,te)
+    }
+
+    # Specific humidity requires temp and surface pressure to convert from relative
+    if('huss' %in% vars){
+      if(!exists("a2")){
+        if('sp'%in% era5vars ==FALSE) stop('Surface pressure required in era5 data file!!!')
+        a2<-.nctoarray(filein,"sp",landsea)/1000
+        a2<-.applymask(a2,landsea)
+      }
+      a3<-suppressWarnings(converthumidity(rh, intype = "relative", outtype = "specific",
+                                           tc = a-273.15, pk = a2))
+      huss<-.hourtoday(a3)
+      vnames<-c(vnames,'huss')
+      lngnms<-c(lngnms,'Specific humidity')
+      uts<-c(uts,'1')
+      if(output=='tifs') .saverast(huss,te,pathout,"huss") else daily_list[["huss"]]<-.rast(huss,te)
+    }
+  }
+
+  # Wind u10 NOT converted to 2m height
+  if('u10' %in% vars){
+    if('u10'%in% era5vars ==FALSE) stop('Wind u10 required in era5 data file!!!')
+    a2<-.nctoarray(filein,"u10",landsea)
+    a2<-.applymask(a2,landsea)
+    uas<-.hourtoday(a2)
+    vnames<-c(vnames,'u10')
+    lngnms<-c(lngnms,'10 metre U wind component')
+    uts<-c(uts,'m/s')
+    if(output=='tifs') .saverast(uas,te,pathout,"uas") else daily_list[["u10"]]<-.rast(uas,te)
+  }
+  # Wind v10 NOT converted to 2m height
+  if('v10' %in% vars){
+    if('v10'%in% era5vars ==FALSE) stop('Wind v10 required in era5 data file!!!')
+    a2<-.nctoarray(filein,"v10",landsea)
+    a2<-.applymask(a2,landsea)
+    vas<-.hourtoday(a2)
+    vnames<-c(vnames,'vas')
+    lngnms<-c(lngnms,'10 metre V wind component')
+    uts<-c(uts,'m/s')
+    if(output=='tifs') .saverast(vas,te,pathout,"vas") else daily_list[["v10"]]<-.rast(vas,te)
+  }
+
+  # swdown - total downward shortwave from total or mean radiation
+  if('swrad' %in% vars){
+    if(any(c('ssrd' ,'msdwswrf') %in% era5files[1:8])) stop('Total or mean flux SW downward required in era5 data file!!!')
+    if('ssrd' %in% era5vars) a2<-.nctoarray(filein,"ssrd",landsea) else .nctoarray(filein,"msdwswrf",landsea)
+    a2<-.applymask(a2,landsea)
+    if('ssrd' %in% era5vars) rss<-.hourtoday(a2)/3600 else rss<-.hourtoday(a2) # convert to Wm2 if required
+    vnames<-c(vnames,'swrad')
+    lngnms<-c(lngnms,'Total downward shortwave radiation')
+    uts<-c(uts,'watt/m^2')
+    if(output=='tifs') .saverast(rss,te,pathout,"swrad") else daily_list[["swrad"]]<-.rast(rss,te)
+  }
+  # Downward diffuse radiation from ssrd and fdir in Jm-2 or from mean fluxes
+  if('difrad' %in% vars){
+    if((all(c('ssrd','fdir') %in% era5vars) || all(c('msdwswrf','msdrswrf') %in% era5vars))==FALSE) stop('Total and direct SW radiation (as flux or total) required in era5 data file!!!')
+    if(all(c('ssrd','fdir') %in% era5vars)) a1<-.nctoarray(filein,"ssrd",landsea) else a1<-.nctoarray(filein,"msdwswrf",landsea)
+    if(all(c('ssrd','fdir') %in% era5vars)) a2<-.nctoarray(filein,"fdir",landsea) else a1<-.nctoarray(filein,"msdrswrf",landsea)
+    a3<-a1-a2
+    a3<-.applymask(a3,landsea)
+    if(all(c('ssrd','fdir') %in% era5vars)) difsw<-.hourtoday(a3)/3600 else difsw<-.hourtoday(a3)
+    vnames<-c(vnames,'difrad')
+    lngnms<-c(lngnms,'Downward diffuse radiation')
+    uts<-c(uts,'watt/m^2')
+    if(output=='tifs') .saverast(difsw,te,pathout,"difrad") else daily_list[["difrad"]]<-.rast(difsw,te)
+  }
+
+  # Downward LW radiation from msdwlwrf in Wm-2
+  if('lwrad' %in% vars){
+    if('msdwlwrf' %in% era5vars ==FALSE) stop('Mean downward LW flux required in era5 data file!!!')
+    a2<-.nctoarray(filein,"msdwlwrf",landsea)
+    a2<-.applymask(a2,landsea)
+    lwrad<-.hourtoday(a2)
+    vnames<-c(vnames,'lwrad')
+    lngnms<-c(lngnms,'Total downward longwave radiation')
+    uts<-c(uts,'watt/m^2')
+    if(output=='tifs') .saverast(lwrad,te,pathout,"lwrad") else daily_list[["lwrad"]]<-.rast(lwrad,te)
+  }
+
+  # skyem
+  if('skyem' %in% vars){
+    if(all(c('msdwlwrf','msnlwrf') %in% era5vars)==FALSE) stop('Mean downward and net LW fluxes required in era5 data file!!!')
+    lwdn<-.nctoarray(filein,"msdwlwrf",landsea)
+    lwme<-.nctoarray(filein,"msnlwrf",landsea)
+    lwup<-(-lwme+lwdn)
+    skyem<-lwdn/lwup
+    skyem<-.applymask(skyem,landsea)
+    skyem[skyem>1]<-1
+    skyem<-.hourtoday(skyem)
+    vnames<-c(vnames,'skyem')
+    lngnms<-c(lngnms,'Sky emmisivity')
+    uts<-c(uts,'watt/m^2')
+    if(output=='tifs') .saverast(skyem,te,pathout,"skyem") else daily_list[["skyem"]]<-.rast(skyem,te)
+  }
+
+  # pr
+  if('pr' %in% vars){
+    if('tp' %in% era5vars ==FALSE) stop('Total precipitation required in era5 data file!!!')
+    a<-.nctoarray(filein,"tp",landsea)
+    a[is.na(a)]<-0
+    pr<-.hourtoday(a,sum)*1000
+    pr<-.applymask(pr,landsea)
+    vnames<-c(vnames,'pr')
+    lngnms<-c(lngnms,'Precipitation')
+    uts<-c(uts,'mm/day')
+    if(output=='tifs') .saverast(pr,te,pathout,"pr") else daily_list[["pr"]]<-.rast(pr,te)
+  }
+
+  # Add metadata to list
+  for(n in 1:length(daily_list)){
+    time(daily_list[[n]])<-daily_tme
+    units(daily_list[[n]])<-uts[n]
+    longnames(daily_list[[n]])<-lngnms[n]
+  }
+
+  # Write nc of all variables if requested
+  if(output=='singlenc'){
+    dat<-terra::sds(daily_list)
+    names(dat)<-vnames
+    longnames(dat)<-lngnms
+    units(dat)<-uts
+    filename<-paste0(tools::file_path_sans_ext(basename(filein)),"_daily.nc")
+    writeCDF(dat,file.path(pathout,filename),overwrite=TRUE,prec='double',compression=9)
+  }
+  return(daily_list)
+}
+
+
+
 
 # ================================================================= #
 # ~~~~~~~~~~~~~ Code dump from here - probably not all needed ~~~~~~~~~ #

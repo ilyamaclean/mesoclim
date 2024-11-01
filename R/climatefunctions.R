@@ -360,7 +360,7 @@ difprop <- function(rad, julian, localtime, lat, long, hourly = FALSE,
 #' @param intype - one of relative, absolute, specific or vapour pressure
 #' @param outtype - one of relative, absolute, specific or vapour pressure
 #' @param tc - temperature
-#' @param pk - surface pressure
+#' @param pk - surface pressure in kPa
 #' @return returns humidity
 #' (Percentage for relative,Kg / Kg for specific, kg / m3 for absolute and kPa for vapour pressure)
 #' @export
@@ -380,8 +380,9 @@ converthumidity <- function (h, intype = "relative", outtype = "vapour pressure"
       "absolute" & outtype != "vapour pressure") {
     stop("No valid output humidity type specified")
   }
-  e0 <- 0.6108 * exp(17.27 * tc/(tc + 237.3))
+  e0 <- 0.6108 * exp((17.27 * tc)/(tc + 237.3))
   ws <- (18.02 / 28.97) * (e0 / pk)
+  # ws <- (18.02 / 28.97) *pK
   if (intype == "vapour pressure") {
     hr <- (h/e0) * 100
   }
