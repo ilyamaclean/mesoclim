@@ -1,7 +1,7 @@
 Package: mesoclim
 Type: Package
 Title: Climate downscaling and bias correction with R
-Version: 0.1.0
+Version: 0.1.1
 Authors@R: c(
     person("Ilya", "Maclean", email = "i.m.d.maclean@exeter.ac.uk", role = "cre"),
     person("Alexandra", "Gardner", email = "a.gardner2@exeter.ac.uk", role = "aut"),
