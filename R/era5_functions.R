@@ -63,9 +63,14 @@ era5toclimarray <- function(ncfile, dtmc, lsm, aoi=NA, dtr_cor_fac = 1.285, toAr
   if(!"expver" %in% era5vars) tme<-as.POSIXlt(time(rast(ncfile,"t2m")), tz = "UTC")
   nc_close(nc)
 
+
   t2m <- rast(ncfile, subds = "t2m")
   d2m <- rast(ncfile, subds = "d2m")
-  sp <- rast(ncfile, subds = "sp")
+  if('msl' %in% era5vars) psl <- rast(ncfile, subds = "msl") else if('sp' %in% era5vars){
+    sp <- rast(ncfile, subds = "sp")
+    psl<-sp / (((293-0.0065*dtmc)/293)^5.26) # convert to sea level pressure
+  } else stop("Missing necessary pressure variables!!!")
+
   u10 <- rast(ncfile, subds = "u10")
   v10 <- rast(ncfile, subds = "v10")
   tp <- rast(ncfile, subds = "tp")
@@ -87,7 +92,7 @@ era5toclimarray <- function(ncfile, dtmc, lsm, aoi=NA, dtr_cor_fac = 1.285, toAr
   # Reproject and crop all variables to aoi
   t2m <- terra::project(t2m, aoi)
   d2m<- terra::project(d2m, aoi)
-  sp <- terra::project(sp, aoi)
+  psl <- terra::project(psl, aoi)
   u10 <- terra::project(u10, aoi)
   v10 <- terra::project(v10, aoi)
   tp <- terra::project(tp, aoi)
@@ -110,7 +115,7 @@ era5toclimarray <- function(ncfile, dtmc, lsm, aoi=NA, dtr_cor_fac = 1.285, toAr
   ea <- .rast(.satvap(as.array(d2m)-273.15), tc)
   temp <- as.array(tc)
   relhum <- (as.array(ea)/.satvap(temp)) * 100
-  pres <- as.array(sp)/1000
+  pres <- as.array(psl)/1000 ## Sea level Pressure!!!!
   swrad <- as.array(ssrd)
   difrad <- swrad - as.array(fdir)
   lwrad <- as.array(msdwlwrf)
