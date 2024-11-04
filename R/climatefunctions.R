@@ -59,29 +59,35 @@ basindelin<-function(dtm, boundary = 0) {
 #' @rdname flowacc
 #' @keywords spatial
 #' @examples
-#' fa <- flowacc(terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')))
-#' terra::plot(fa, main = 'Accumulated flow')
-flowacc <- function (dtm, basins = NA) {
-  dm<-.is(dtm)
-  fd<-.flowdir(dm)
-  fa<-fd*0+1
-  if (class(basins) != "logical") ba<-.is(basins)
-  o<-order(dm,decreasing=T,na.last=NA)
-  for (i in 1:length(o)) {
-    x<-arrayInd(o[i],dim(dm))[1]
-    y<-arrayInd(o[i],dim(dm))[2]
-    f<-fd[x,y]
-    x2<-x+(f-1)%%3-1
-    y2<-y+(f-1)%/%3-1
-    # If basin file provided only add flow accumulation of from same basin
-    if (class(basins) != "logical" & x2>0 & y2>0 & x2<=dim(dm)[1] & y2<=dim(dm)[2]) {
-      b1<-ba[x,y]
-      b2<-ba[x2,y2]
-      if(!is.na(b1) && !is.na(b2)){ # Check if both b1 and b2 valid basins
-        if(b1==b2 & x2>0 & x2<dim(dm)[1] & y2>0 & y2<dim(dm)[2]) fa[x2,y2]<-fa[x,y]+1 }
-    } else if (x2>0 & x2<dim(dm)[1] & y2>0 & y2<dim(dm)[2]) fa[x2,y2]<-fa[x,y]+1
+#' r<-rast(matrix(c(25,24,21,24,25,15,14,11,14,15,5,4,1,4,5,15,14,11,14,15,25,24,21,24,25),nrow=5, ncol=5))
+#' plot(log(flowacc(r)))
+flowacc<-function (dtm, basins = NA) {
+  dm <- .is(dtm)
+  fd <- .flowdir(dm)
+  fa <- fd * 0 + 1
+  if (class(basins) != "logical")
+    ba <- .is(basins)
+  o <- order(dm, decreasing = T, na.last = NA)
+  for (i in 1:(length(o)-1)) {
+    x<-arrayInd(o[i],dim(dm))[2]
+    y<-arrayInd(o[i],dim(dm))[1]
+    f<-fd[y,x]
+    y2<-y+(f-1)%%3-1
+    x2<-x+(f-1)%/%3-1
+    if (class(basins) != "logical" & x2 > 0 & y2 > 0 & x2 <=
+        dim(dm)[2] & y2 <= dim(dm)[1]) {
+      b1 <- ba[y, x]
+      b2 <- ba[y2, x2]
+      if (!is.na(b1) && !is.na(b2)) {
+        if (b1 == b2 & x2 > 0 & x2 < dim(dm)[2] & y2 >
+            0 & y2 < dim(dm)[1])
+          fa[y2,x2]<-fa[y2,x2]+fa[y,x]
+      }
+    }
+    else if (x2 > 0 & x2 < dim(dm)[2] & y2 > 0 & y2 < dim(dm)[1])
+      fa[y2,x2]<-fa[y2,x2]+fa[y,x]
   }
-  fa<-.rast(fa,dtm)
+  fa <- .rast(fa, dtm)
   return(fa)
 }
 
