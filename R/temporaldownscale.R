@@ -47,8 +47,8 @@
 #' # ========================================================================= #
 #' dtmc <- climdata$dtm
 #' # Derive tmx and tmn from hourly and convert to spatraster
-#' tmn <- .rast(.hourtodayCpp(tc, "min"),dtmc)
-#' tmx <- .rast(.hourtodayCpp(tc, "max"),dtmc)
+#' tmn <- .rast(hourtodayCpp(tc, "min"),dtmc)
+#' tmx <- .rast(hourtodayCpp(tc, "max"),dtmc)
 #' # Use interpolation function
 #' tp <- hourlytemp(tmn, tmx, tme)
 #' # Plot results to compare
@@ -108,8 +108,8 @@ blendtemp_hadukera5<-function(tasmin,tasmax,era5t2m) {
   # met office dtr
   dtr<-tasmax-tasmin
   # era5 dtr and min
-  era5min<-.hourtodayCpp(.is(era5t2m),"min")
-  era5max<-.hourtodayCpp(.is(era5t2m),"max")
+  era5min<-hourtodayCpp(.is(era5t2m),"min")
+  era5max<-hourtodayCpp(.is(era5t2m),"max")
   era5dtr<-era5max-era5min
   era5minh<-.ehr(era5min)
   era5dtrh<-.ehr(era5dtr)

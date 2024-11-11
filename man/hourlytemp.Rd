@@ -62,8 +62,8 @@ plot(tcp ~ tmeh, type="l", ylim = c(8, 18), col = "red", xlab = "", ylab = "")
 # ========================================================================= #
 dtmc <- climdata$dtm
 # Derive tmx and tmn from hourly and convert to spatraster
-tmn <- .rast(.hourtodayCpp(tc, "min"),dtmc)
-tmx <- .rast(.hourtodayCpp(tc, "max"),dtmc)
+tmn <- .rast(hourtodayCpp(tc, "min"),dtmc)
+tmx <- .rast(hourtodayCpp(tc, "max"),dtmc)
 # Use interpolation function
 tp <- hourlytemp(tmn, tmx, tme)
 # Plot results to compare
