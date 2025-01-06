@@ -664,7 +664,7 @@ spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, 
   message('Downscaling LW radiation with terrain shading...')
   lwf<-.rast(lwrad,dtmc)
   lwf<-.resample(lwf,dtmf, msk=TRUE)
-  #if (terrainshade) {
+  if (terrainshade) {
   svf<-.rta(.skyview(dtmf),dim(lwf)[3])
   lwf<-.rast(.is(lwf)*svf,dtmf)
   #}
