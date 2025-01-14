@@ -667,7 +667,7 @@ spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, 
   if (terrainshade) {
   svf<-.rta(.skyview(dtmf),dim(lwf)[3])
   lwf<-.rast(.is(lwf)*svf,dtmf)
-  #}
+  }
 
   message('Downscaling precipitation...')
   precf<-precipdownscale(prec,dtmf,dtmc,precipmethod,fast,noraincut,patchsim,nsim)
@@ -700,4 +700,5 @@ spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, 
   }
   if (terrainshade) out$difrad<-difrad
   return(out)
-}
+ }
+

@@ -496,7 +496,8 @@
 #' wspeed numeric value(s) of measured wind speed (\ifelse{html}{\out{m s<sup>-1</sup> }}{\eqn{ m s^{-1}}}) at height `zi` (m).
 #' @param zi a numeric value idicating the height (m) above the ground of `wspeed` input
 #' @param zo a numeric value indicating the height (m) above ground level of output speeds
-#' Assumes a logarithmic height profile and imposes a minimum zo of 0.2
+#' Assumes a logarithmic height profile and imposes a minimum zo of 0.2.
+#' Equivalent of using a roughness length (z0) of ~0.2 where v = vref ln(z/z0)/ln(zref/z0) (https://www.rensmart.com/Information/WindSheer)
 #' @keywords internal
 .windhgt<-function (wspeed, zi, zo) {
   if (zo < 0.2 & zo > (5.42/67.8)){
