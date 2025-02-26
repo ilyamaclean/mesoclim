@@ -399,14 +399,17 @@ converthumidity <- function (h, intype = "relative", outtype = "vapour pressure"
     ea <- (tk * h) / 2.16679
     hr <- (ea/e0) * 100
   }
-  if (intype == "relative")
-    hr <- h
+  if (intype == "relative")  hr <- h
+
   if (max(hr, na.rm = T) > 100)
     warning(paste("Some relative humidity values > 100%",
                   max(hr, na.rm = T)))
   if (outtype == "specific") h <- (hr / 100) * ws
   if (outtype == "relative") h <- hr
-  if (outtype == "absolute") h <- 2.16679 * (ea/tk)
+  if (outtype == "absolute"){
+    ea<-e0*(hr/100)
+    h <- 2.16679 * (ea/tk)
+  }
   if (outtype == "vapour pressure") h <- e0 * (hr / 100)
   return(h)
 }
