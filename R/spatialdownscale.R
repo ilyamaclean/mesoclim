@@ -60,8 +60,8 @@ tempdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, u2 = NA,
     tcad<-.tempcad(climdata,dtmf,basins,thgto) # output temp height defines basin merge
     tcf<-tcf+tcad
   }
-  # Coastal effects - checks if non NA values in sstdata
-  if (coastal & any(!is.na(values(sstdata)))) {
+  # Coastal effects - checks if non NA values in sst
+  if (coastal & any(!is.na(values(sst)))) {
     # fill any spatial cells without data and interpolate to climdata timeseries
     if (any(global(sst,anyNA))) sstinterp<-.spatinterp(sst) else sstinterp<-sst
     sstinterp<-.tmeinterp(sstinterp,NA,tme)
