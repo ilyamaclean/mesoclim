@@ -256,8 +256,8 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)
       swf<-.rast(swf,dtmf)
       drf<-.rast(drf,dtmf)
     }
-    swf<-wrap(swf)
-    drf<-wrap(drf)
+    #swf<-wrap(swf)
+    #drf<-wrap(drf)
     out<-list(swf=swf,drf=drf)
   } else {
     out<-swradf

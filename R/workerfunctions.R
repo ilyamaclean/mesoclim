@@ -132,6 +132,42 @@
   terra::time(ro)<-terra::time(r1)
   return(ro)
 }
+
+#' Interpolates sea to coastal sea surface temperature
+#' Resamples sst data to same extent, resolution and projection as aoi
+#' Interpolates from mean of adjacent sea cells
+#' @param sst.r -  sea surface temperature data
+#' @param aoi.r -  dtm of area of interest where sea = NA
+#'
+#' @return sst spatrasters of same projection, res and extent as aoi with matching coastline
+#' @export
+#'
+#' @examples
+#' sst.r<-rast(ukcp18sst[[1]])
+#' aoi.r<-
+.sea_to_coast<-function(sst.r,aoi.r, ext_cells=8){
+  # Extend area to make sure some sea cells included for coastal areas
+  aoibuf.r<-terra::extend(aoi.r,c(ext_cells,ext_cells),fill=1)
+  plot(aoibuf.r)
+  # Check same projection and res and crop to extended aoi
+  if(crs(sst.r)!=crs(aoi.r)) sst.r<-project(sst.r,aoibuf.r)
+  newsst.r<-resample(sst.r,aoibuf.r)
+  # Interpolate coastal sea cells
+  target<-sum(c(crop(newsst.r[[1]],aoi.r),aoi.r),na.rm=T)
+  n<-1
+  while(anyNA(values(target)) & n<=5){
+    plot(target,main=n)
+    newsst.r<-focal(newsst.r, w=9, fun=mean, na.policy="only", na.rm=T)
+
+    target<-sum(c(crop(newsst.r[[1]],aoi.r),aoi.r),na.rm=T)
+    n<-n+1
+    if(n>5) warning("CHECK interpolation of coastal cells in create_ukcpsst_data function!!!")
+  }
+  newsst.r<-mask(crop(newsst.r,aoi.r),aoi.r,inverse=TRUE)
+  return(newsst.r)
+}
+
+
 # ============================================================================ #
 # Replacements of SSTinterpolate
 # spatial_interA is a direct copy of SSTinterpolate code

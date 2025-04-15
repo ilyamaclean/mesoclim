@@ -194,20 +194,30 @@ checkinputs <- function(input_list, tstep = c("hour","day")){
 #' @description
 #' Reads a climate dataset as output by for example `ukcp18toclimdata()` and written by `write_climdata()`
 #' Unwraps any PackedSpatRasters to Spatrasters
-#' @param filepath
+#' @param filepath - either a pre-loaded list or filepath to a list of prepared climate data as written by `write_climdata()`
 #'
 #' @return R list of climate data
 #' @export
 #' @keywords preprocess data
 #' @examples
 #' climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
+#' climdata<-read_climdata(ukcpinput)
 read_climdata<-function(filepath){
-  if(file.exists(filepath)!=TRUE) stop('Filepath provided does NOT exist!!') else{
-    climdata<-readRDS(filepath)
+  if(class(filepath)=="list") climdata<-lapply(filepath,function(x) if(class(x)[1]=='PackedSpatRaster') terra::unwrap(x) else x)
+  if(class(filepath)=="character"){
+    if(file.exists(filepath)!=TRUE) stop('Filepath provided does NOT exist!!')
+    typ<-substr(filepath,(nchar(filepath)-3),nchar(filepath))
+    if (typ==".rda"){
+      load(filepath)
+      filename<-rev(unlist(strsplit(filepath,'/')))[1]
+      varname<-substr(filename,1,nchar(filename)-4)
+      climdata<-mget(varname)[[1]]
+    }  else climdata<-readRDS(filepath)
     climdata<-lapply(climdata,function(x) if(class(x)[1]=='PackedSpatRaster') terra::unwrap(x) else x)
   }
   return(climdata)
 }
+
 
 #' @title Write climate data
 #' @description
@@ -224,10 +234,11 @@ read_climdata<-function(filepath){
 #' write_climdata(climdata,file.path(dir_temp,'filename.rds'))
 write_climdata<-function(climdata,filepath,overwrite=FALSE){
   if(file.exists(filepath)==TRUE & overwrite==FALSE) stop('Existing file of that name - requires setting overwrite to TRUE !!')
-  else{
-    climdata<-lapply(climdata,function(x) if(class(x)[1]=='SpatRaster') terra::wrap(x) else x)
-    saveRDS(climdata,filepath)
-  }
+  typ<-substr(filepath,(nchar(filepath)-3),nchar(filepath))
+  if(!typ %in% c(".rda",".rds",".Rds")) stop('File typ not recognized !!')
+
+  climdata<-lapply(climdata,function(x) if(class(x)[1]=='SpatRaster') terra::wrap(x) else x)
+  if(typ==".rda") save(climdata,file=filepath) else saveRDS(climdata,filepath)
   return()
 }
 

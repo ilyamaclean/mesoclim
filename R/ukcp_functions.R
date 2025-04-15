@@ -3,16 +3,17 @@
 # --------------------------------- PRE PROCESSING FUNCTIONS ---------------------------------
 # ------------------------------------ ------------------------------------ ------------------
 
-#' @title Create UKCP sea surface temperature rast stack from ncdf files
-#'
+#' @title Create UKCP sea surface temperature rast stack from ncdf files.
+#' Resamples and reprojects sea surface data to aoi as well as interpolating any missing coastal values.
+#' Interpolation method = mean of all neighbouring cells.
 #' @param dir_data directory holding SST .nc files downloaded from ceda
 #' @param startdate start date as POSIXlt
 #' @param enddate end date as POSIXlt
 #' @param aoi SpatRaster, SpatVector or sf object defining area of interest to crop data. NA no cropping occurs
 #' @param members model members to be included
-#' @param v = SST sea surface temperature
+#' @param v = SST sea surface temperature variable name
 #'
-#' @return Spatraster timeseris of sea surface temperatures
+#' @return Spatraster timeseris of sea surface temperatures resampled to aoi projection and resolution
 #' @export
 #' @import terra
 #' @import lubridate
@@ -33,12 +34,14 @@ create_ukcpsst_data<-function(
     startdate,
     enddate,
     aoi=NA,
-    member=c('01','02','03','04','05','06','07','08','09','10','11','12','13','14','15') ,
-    v='SST' ){
+    member=c('01','02','03','04','05','06','07','08','09','10','11','12','13','14','15'),
+    v='SST' # name of temp variable in nc files
+  ){
   # Check parameters
   member<-match.arg(member)
   if(!dir.exists(dir_data))(stop(paste("Directory",dir_data,"does not exist!!!")))
   if(class(startdate)[1]!="POSIXlt" | class(enddate)[1]!="POSIXlt") stop("Date parameters NOT POSIXlt class!!")
+
 
   # Derive months of data required - will output month before and after start and end dates for interpolation
   start<-startdate %m-% months(1)
@@ -58,17 +61,18 @@ create_ukcpsst_data<-function(
   if (length(not_present)>0) stop(paste("Input .nc files required are NOT present: ",ncfiles[not_present]," ") )
 
   # Get extent of aoi and project to same as ukcp data (lat lon)
-  if(!class(aoi)=='logical'){
-    if(!class(aoi)[1] %in% c("SpatRaster","SpatVector","sf")) stop("Parameter aoi NOT of suitable spatial class ")
-    if(class(aoi)[1]=="sf") aoi<-vect(aoi)
-    target_crs<-terra::crs(rast(ncfiles[1]))
-    aoi_e<-ext( project(aoi,target_crs) )
-  }
+  #if(!class(aoi)=='logical'){
+  #  if(!class(aoi)[1] %in% c("SpatRaster","SpatVector","sf")) stop("Parameter aoi NOT of suitable spatial class ")
+  #  if(class(aoi)[1]=="sf") aoi<-vect(aoi)
+  #  target_crs<-terra::crs(rast(ncfiles[1]))
+  #  aoi_e<-ext( project(aoi,target_crs) )
+  #}
   # Get spatrast stack
   var_r<-terra::rast()
   for(f in ncfiles){
     r<- rast(f, subds = v, drivers="NETCDF")
-    if(!class(aoi)[1]=='logical') r<-crop(r,aoi_e)
+    r<-.sea_to_coast(sst.r=r,aoi.r=dtmc)
+    #if(!class(aoi)[1]=='logical') r<-crop(r,aoi_e)
     units(r)<-'degC'
     # Join if multiple decades of data
     terra::add(var_r)<-r
