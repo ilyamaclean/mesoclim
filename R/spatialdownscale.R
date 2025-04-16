@@ -124,9 +124,9 @@ presdownscale<-function(pk, dtmf, dtmc, sealevel = TRUE) {
 #' for terrain shading. If TRUE, total downward shortwave radiation is partioned into its
 #' direct and diffuse components, the latter adjusted by sky view and the former set
 #' to zero if the sun is below the horizon, which is computed explicitly.
-#' @return if `terrainshade = FALSE` a multi-layer SpatRast of shortwave radiation
+#' @return if `terrainshade = FALSE` a multi-layer SpatRast of total shortwave radiation
 #' (W/m^2) matching the resolution of dtmf. If if `terrainshade = TRUE` a list of wrapped multi-layer
-#' SpatRasts of (1) shortwave radiation (W/m^2) and (2) the diffuse fraction (range 0-1).
+#' SpatRasts of (1) total direct and difuse shortwave radiation (W/m^2) and (2) diffuse-only radiation  (W/m^2).
 #' @details radiation is downscaled by computing average fraction of clear-sky radiation
 #' and then adjusting this variable to account for elevation using an emprical
 #' adjustment calibrated against 0.05 degree data for the UK. If
@@ -256,10 +256,11 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)
       swf<-.rast(swf,dtmf)
       drf<-.rast(drf,dtmf)
     }
-    #swf<-wrap(swf)
-    #drf<-wrap(drf)
+    # Outputs
+    terra::time(swf)<-tme
+    terra::time(drf)<-tme
     out<-list(swf=swf,drf=drf)
-  } else {
+  } else { # If no terrain shading
     out<-swradf
   }
   return(out)
@@ -653,13 +654,14 @@ spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, 
     nsim<-round((dtr/sze)*dim(swrad)[3])+1
     if (nsim > dim(swrad)[3]) nsim<-dim(swrad)[3]
   } else nsim<-dim(swrad)[3]
+
   # Sw radiation
   swf<-swdownscale(swrad,tme,dtmf,dtmc,patchsim,nsim,terrainshade)
+  totswrad<-swf$swf
   if (terrainshade) {
-    difrad<-rast(swf$drf)
-    swf<-rast(swf$swf)
-    difrad<-difrad*swf
-  }  else difr = NA
+    difrad<-swf$drf
+    #difrad<-difrad*swf
+  }  else difrad = NA
 
   message('Downscaling LW radiation with terrain shading...')
   lwf<-.rast(lwrad,dtmc)
@@ -682,7 +684,7 @@ spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, 
   message('Formatting output...')
   terra::time(rhf)<-climdata$tme
   terra::time(pkf)<-climdata$tme
-  terra::time(swf)<-climdata$tme
+  terra::time(totswrad)<-climdata$tme
   terra::time(lwf)<-climdata$tme
   terra::time(uzf)<-climdata$tme
   terra::time(wdf)<-climdata$tme
@@ -690,15 +692,18 @@ spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, 
 
   out<-list(dtm=dtmf,tme=climdata$tme,windheight_m=whgto,tempheight_m=thgto)
   if (hourly) {
-    climout<-list(temp=tcf,relhum=rhf,pres=pkf,swrad=swf,lwrad=lwf,windspeed=uzf,winddir=wdf,prec=precf)
+    climout<-list(temp=tcf,relhum=rhf,pres=pkf,swrad=totswrad,lwrad=lwf,windspeed=uzf,winddir=wdf,prec=precf)
     if(toArrays) climout<-lapply(climout,as.array)
     out<-c(out,climout)
   } else {
-    climout<-list( tmin=tminf,tmax=tmaxf,relhum=rhf,pres=pkf,swrad=swf,lwrad=lwf,windspeed=uzf,winddir=wdf,prec=precf)
+    climout<-list( tmin=tminf,tmax=tmaxf,relhum=rhf,pres=pkf,swrad=totswrad,lwrad=lwf,windspeed=uzf,winddir=wdf,prec=precf)
     if(toArrays) climout<-lapply(climout,as.array)
     out<-c(out,climout)
   }
-  if (terrainshade) out$difrad<-difrad
+  if (terrainshade){
+    terra::time(difrad)<-climdata$tme
+    out$difrad<-difrad
+  }
   return(out)
  }
 
