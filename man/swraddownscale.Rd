@@ -37,9 +37,9 @@ direct and diffuse components, the latter adjusted by sky view and the former se
 to zero if the sun is below the horizon, which is computed explicitly.}
 }
 \value{
-if \code{terrainshade = FALSE} a multi-layer SpatRast of shortwave radiation
+if \code{terrainshade = FALSE} a multi-layer SpatRast of total shortwave radiation
 (W/m^2) matching the resolution of dtmf. If if \code{terrainshade = TRUE} a list of wrapped multi-layer
-SpatRasts of (1) shortwave radiation (W/m^2) and (2) the diffuse fraction (range 0-1).
+SpatRasts of (1) total direct and difuse shortwave radiation (W/m^2) and (2) diffuse-only radiation  (W/m^2).
 }
 \description{
 Downscales an array of shortwave radiation data with option to
