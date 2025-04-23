@@ -10,7 +10,8 @@
 \item{zi}{a numeric value idicating the height (m) above the ground of \code{wspeed} input}
 
 \item{zo}{a numeric value indicating the height (m) above ground level of output speeds
-Assumes a logarithmic height profile and imposes a minimum zo of 0.2}
+Assumes a logarithmic height profile and imposes a minimum zo of 0.2.
+Equivalent of using a roughness length (z0) of ~0.2 where v = vref ln(z/z0)/ln(zref/z0) (https://www.rensmart.com/Information/WindSheer)}
 }
 \description{
 cf microclima::windheight
