@@ -261,7 +261,7 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)
     terra::time(drf)<-tme
     out<-list(swf=swf,drf=drf)
   } else { # If no terrain shading
-    out<-swradf
+    out<-list(swf=swradf,drf=NA)
   }
   return(out)
 }

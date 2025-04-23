@@ -324,7 +324,7 @@ swrad_dailytohourly <- function(radsw, tme, clearsky = NA, r = r, adjust = TRUE)
 #' @param adjust  - optional logical which if TRUE ensures that, after interpolation, returned
 #'          hourly values, when averaged to daily, match the input
 #'
-#' @return an array of hourly sky-emissivity values values (0-1)
+#' @return an array of hourly sky-emissivity values  (0-1)
 #' @export
 #' @details NB - more consistent to code this as downward longwave, but will essentially
 #' do the calaculations in the function below, but with temperature as an additional
