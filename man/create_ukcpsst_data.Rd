@@ -2,7 +2,9 @@
 % Please edit documentation in R/ukcp_functions.R
 \name{create_ukcpsst_data}
 \alias{create_ukcpsst_data}
-\title{Create UKCP sea surface temperature rast stack from ncdf files}
+\title{Create UKCP sea surface temperature rast stack from ncdf files.
+Resamples and reprojects sea surface data to aoi as well as interpolating any missing coastal values.
+Interpolation method = mean of all neighbouring cells.}
 \usage{
 create_ukcpsst_data(
   dir_data,
@@ -23,15 +25,17 @@ create_ukcpsst_data(
 
 \item{aoi}{SpatRaster, SpatVector or sf object defining area of interest to crop data. NA no cropping occurs}
 
-\item{v}{= SST sea surface temperature}
+\item{v}{= SST sea surface temperature variable name}
 
 \item{members}{model members to be included}
 }
 \value{
-Spatraster timeseris of sea surface temperatures
+Spatraster timeseris of sea surface temperatures resampled to aoi projection and resolution
 }
 \description{
-Create UKCP sea surface temperature rast stack from ncdf files
+Create UKCP sea surface temperature rast stack from ncdf files.
+Resamples and reprojects sea surface data to aoi as well as interpolating any missing coastal values.
+Interpolation method = mean of all neighbouring cells.
 }
 \examples{
  \dontrun{
