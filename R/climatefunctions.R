@@ -492,3 +492,42 @@ lapserate <- function(tc, ea, pk) {
   lr
 }
 
+#' Convert sea to atmospheric pressure
+#'
+#' @param psl - numeric or spatraster sea level pressure
+#' @param dtm - numeric or spatraster elevation
+#'
+#' @return numeric or spatraster of sea level pressures matching dtm
+#' @export
+#'
+#' @examples
+#'
+sea_to_atmos_pressure<-function(psl,dtm){
+  if(inherits(psl,"SpatRaster")) toArrays<-FALSE else toArrays<-TRUE
+  psl<-.is(psl)
+  dtm<-.is(dtm)
+  dtm<-ifelse(is.na(dtm),0,dtm)
+  pres<-psl * (((293-0.0065*.mta(dtm,dim(psl)[3]))/293)^5.26)
+  if(!toArrays) pres<-.rast(pres,psl)
+  return(pres)
+}
+
+#' Convert atmospheric to sea level pressure
+#'
+#' @param pres - vector or 3Darray or spatraster of atmospheric pressure - if array expects format[x,y,time]
+#' @param dtm - vector or matrix or spatraster of elevations - if matrix or spatraster expected to match pres
+#'
+#' @return numeric or spatraster of atmospheric pressures matching dtm
+#' @export
+#'
+#' @examples
+#' atmos_to_sea_pressure(ukcpinput$pres,ukcpinput$dtm)
+atmos_to_sea_pressure<-function(pres,dtm){
+  if(inherits(pres,"SpatRaster")) toArrays<-FALSE else toArrays<-TRUE
+  pres<-.is(pres)
+  dtm<-.is(dtm)
+  dtm<-ifelse(is.na(dtm),0,dtm)
+  psl<-pres / (((293-0.0065*.mta(dtm,dim(pres)[3]))/293)^5.26)
+  if(!toArrays) psl<-.rast(psl,pres)
+  return(psl)
+}
