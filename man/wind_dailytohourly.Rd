@@ -16,7 +16,7 @@ wind_dailytohourly(ws, wd, tme, adjust = TRUE)
 }}
 
 \item{tme}{\itemize{
-\item POSIXlt object of dates corresponding to radsw
+\item POSIXlt object of dates corresponding to ws and wd
 }}
 
 \item{adjust}{\itemize{

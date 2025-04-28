@@ -4,7 +4,14 @@
 \alias{swrad_dailytohourly}
 \title{Daily to hourly shortwave radiation}
 \usage{
-swrad_dailytohourly(radsw, tme, clearsky = NA, r = r, adjust = TRUE)
+swrad_dailytohourly(
+  radsw,
+  tme,
+  clearsky = NA,
+  r = r,
+  adjust = TRUE,
+  toArray = TRUE
+)
 }
 \arguments{
 \item{radsw}{\itemize{
@@ -51,6 +58,6 @@ mostly by bias correction anyway
 }
 \examples{
 climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
-swh<-swrad_dailytohourly(climdata$swrad,climdata$tme,r=climdata$dtm)
+swradhr<-swrad_dailytohourly_v2(radsw=daily100m$swrad, tme=as.POSIXlt(terra::time(unwrap(daily100m$swrad))), clearsky = NA, r = daily100m$dtm, adjust = TRUE, toArray=FALSE)
 }
 \keyword{temporal}
