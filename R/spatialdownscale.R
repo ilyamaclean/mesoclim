@@ -227,7 +227,7 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)
       ze<-array(solzenmCpp(jdh,lth,as.vector(lats),as.vector(lons)),dim=c(dim(dtmf)[1:2],dim(csrfh)[3]))
       azi<-.solazi(lth, mean(lats,na.rm=TRUE),mean(lons,na.rm=TRUE),jdh)
     }
-    # Calculate horozon angle in 24 directions
+    # Calculate horizon angle in 24 directions
     hor<-array(NA,dim=c(dim(dtmf)[1:2],24))
     for (i in 1:24) hor[,,i]<-.horizon(dtmf,(i-1)*15)
     i<-round(azi/15)+1; i[i==25]<-1
@@ -663,7 +663,7 @@ spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, 
     #difrad<-difrad*swf
   }  else difrad = NA
 
-  message('Downscaling LW radiation with terrain shading...')
+  message('Downscaling LW radiation with terrain shading...') # MAKE FUNCTION OF THIS??
   lwf<-.rast(lwrad,dtmc)
   lwf<-.resample(lwf,dtmf, msk=TRUE)
   if (terrainshade) {

@@ -42,10 +42,6 @@
 #' @keywords internal
 #' @noRd
 .rast <- function(m,tem) {
-  #if(class(m)[1]!='matrix'){
-  #  warning("Converting values provided to .rast to matrix!")
-  #  m<-matrix(m,ncol=ncol(tem),nrow=nrow(tem))
-  #}
   r<-rast(m)
   ext(r)<-ext(tem)
   crs(r)<-crs(tem)
@@ -94,7 +90,8 @@
   lns <- array(lns, dim = dim(r)[1:2])
   lns
 }
-#' @title get lats and lons from raster
+#' @title get lats and lons for each cell in a spatraster reprojecting to epsg 4326 if required
+#' @returns named list of a 2D matrix of lats and lons
 #' @noRd
 .latslonsfromr <- function(r) {
   lats<-.latsfromr(r)
@@ -108,6 +105,7 @@
   lats<-array(ll$lat,dim=dim(lats))
   return(list(lats=lats,lons=lons))
 }
+
 #' @title version of terra resample that equates to NA.RM = TRUE
 #' @param r1 - is resampled to same geometry as r2
 #' @param r2 - target geometry
@@ -569,7 +567,7 @@
   r<-dtm
   dtm[is.na(dtm)]<-0
   ha <- array(0, dim(dtm)[1:2])
-  for (s in 1:steps) {
+  for (s in 1:steps) { # uses horizon angle in calc but places equal importance on each sector of sky
     ha<-ha+atan(.horizon(dtm,s*360/steps))
   }
   ha<-ha/steps
@@ -1323,6 +1321,7 @@
   writeRaster(r,filename=fo,overwrite=TRUE)
 }
 #' @title Get latitude and longitude of centre of r
+#' @returns dataframe of 1 row and 2 columns (lat,long)
 #' @noRd
 .latlongfromrast<-function (r) {
   e <- ext(r)
@@ -1374,21 +1373,28 @@
 #' @param r - a terra::SpatRaster object
 #' @return a 3D array of expected daily clear sky radiation values (W/m**2)
 #' @noRd
+#' # To work for r when not already lat/lon projection
 .clearskyraddaily <- function(tme, r) {
+  #1440 = minutes in day
+  # dmean - sums for each day
   dmean<-function(x) {
     x<-matrix(x, ncol = 1440, byrow=T)
     apply(x, 1, mean, na.rm=T)
   }
-  e <- ext(r)
-  lats <- seq(e$ymax - res(r)[2] / 2, e$ymin + res(r)[2] / 2, length.out = dim(r)[1])
+  # Get lat for each cell in r
+  lats<-.latslonsfromr(r)$lats # reprojects to 4326
+  #e <- ext(r)
+  #lats <- seq(e$ymax - res(r)[2] / 2, e$ymin + res(r)[2] / 2, length.out = dim(r)[1]) # ASSUMES crs in lat lon??
   jd <- rep(juldayvCpp(tme$year + 1900, tme$mon + 1, tme$mday),  each = 1440)
   lt <- rep(c(0:1439)/60,length(tme))
+
   # Create matrices of times and latitudes
-  n1 <- length(lats)
-  n2 <- length(jd)
-  lats <- matrix(rep(lats, n2), ncol = n2)
+  n1 <- length(lats) # num of cells/cols
+  n2 <- length(jd) # num of minutes
+  lats <- matrix(rep(as.vector(lats), n2), ncol = n2)
   jd<-matrix(rep(jd, each = n1), ncol = n2)
   lt<-matrix(rep(lt, each = n1), ncol = n2)
+
   # Calculate clear sky radiation and convert to daily
   csr <- clearskyrad(lt, lats, long=0, jd)
   csd <- apply(csr, 1, dmean)
@@ -1396,7 +1402,6 @@
   csda <- aperm(csda, c(2,3,1))
   csda
 }
-
 # ============================================================================ #
 # ~~~~~~~~~~~~~ Temporal downscale worker functions here ~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #

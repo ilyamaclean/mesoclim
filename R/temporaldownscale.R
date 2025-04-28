@@ -57,9 +57,11 @@
 #' plot(tc[[4]]-tp[[4]],main='Difference (tc-tp) for coldest tc hour')
 #' plot(tc[[665]]-tp[[665]],main='Difference (tc-tp) for hottest tc hour')
 #' }
-hourlytemp <- function(tmn, tmx, tme = NA, lat = NA, long = NA, srte = 0.09) {
+temp_dailytohourly <- function(tmn, tmx, tme = NA, lat = NA, long = NA, srte = 0.09) {
   if (inherits(tmn, "SpatRaster")) {
-    tme<-as.POSIXlt(terra::time(tmn))
+    if(is.na(tme)) tme<-as.POSIXlt(terra::time(tmn))
+    tem<-tmn[[1]]
+    toArrays<-FALSE
   }
   if (inherits(tme, "POSIXlt")) {
     year<-tme$year+1900
@@ -75,15 +77,17 @@ hourlytemp <- function(tmn, tmx, tme = NA, lat = NA, long = NA, srte = 0.09) {
     ll<-.latslonsfromr(tmn)
     lats<-as.vector(t(ll$lats))
     lons<-as.vector(t(ll$lons))
-    r<-tmn[[1]]
     d<-dim(tmn)
     tmn<-matrix(.is(tmn),ncol=d[3])
     tmx<-matrix(.is(tmx),ncol=d[3])
     th<-array(hourlytempm(tmn,tmx,year,mon,day,lats,lons,srte),dim=c(d[1:2],d[3]*24))
-    th<-.rast(th,r)
     newtme<-as.POSIXlt(unlist(lapply(tme,FUN=function(x) x+(60*60*c(0:23)) )))
-    terra::time(th)<-seconds(newtme) # for some reason must be stored as seconds for date-times!!
-  } else stop("tmn and tmx must be vectors or SpatRasts")
+  } else stop("tmn and tmx must be vectors or SpatRasts!!")
+
+  if(!toArrays){
+    th<-.rast(th,tem)
+    terra::time(th)<-newtme # for some reason must be stored as seconds for date-times!!
+  }
   return(th)
 }
 #' @title Blends Met Office and ERA5 data to produce hourly 1km resolution temperature data
@@ -158,6 +162,21 @@ blendtemp_hadukera5<-function(tasmin,tasmax,era5t2m) {
 #' plot_q_layers(mesoclim:::.rast(humh,dtmc))
 #' }
 hum_dailytohourly <- function(relhum, tasmin, tasmax, temph, psl, presh, tme, relmin = 2, adjust = TRUE) {
+  # Determine outputs from inputs
+  if (inherits(relhum, "PackedSpatRaster")) pres<-unwrap(relhum)
+  if(inherits(relhum, "SpatRaster")){
+    toArrays<-FALSE
+    tem<-relhum[[1]]
+  } else toArrays<-TRUE
+
+  # Converts all inputs into arrays
+  relhum<-.is(relhum)
+  tasmin<-.is(tasmin)
+  tasmax<-.is(tasmax)
+  temph<-.is(temph)
+  psl<-.is(psl)
+  presh<-.is(presh)
+
   # Convert to specific humidity
   tc<-(tasmin+tasmax)/2
   hs<-converthumidity(relhum,intype="relative",outtype="specific",tc=tc,pk=psl)
@@ -166,6 +185,7 @@ hum_dailytohourly <- function(relhum, tasmin, tasmax, temph, psl, presh, tme, re
   tmeh <- as.POSIXlt(seq(tme[1],tme[length(tme)]+23*3600, by = 3600))
   sel<-which(tmeh$year==tme$year[2])
   hr<-hr[,,sel]
+  tmeh<-tmeh[sel]
   relh<-suppressWarnings(converthumidity(hr,intype="specific",outtype="relative",tc=temph,pk=presh))
 
   # make consistent with daily
@@ -182,6 +202,10 @@ hum_dailytohourly <- function(relhum, tasmin, tasmax, temph, psl, presh, tme, re
   }
   relh[relh>100]<-100
   relh[relh<relmin]<-relmin
+  if(!toArrays){
+    relh<-.rast(relh,tem)
+    terra::time(relh)<-tmeh # for some reason must be stored as seconds for date-times!!
+  }
   return(relh)
 }
 # ============================================================================ #
@@ -209,6 +233,14 @@ hum_dailytohourly <- function(relhum, tasmin, tasmax, temph, psl, presh, tme, re
 #' presh<-pres_dailytohourly(climdata$pres,climdata$tme)
 #' plot_q_layers(terra::rast(presh,crs=terra::crs(climdata$dtm),extent=terra::ext(climdata$dtm))
 pres_dailytohourly <- function(pres, tme, adjust = TRUE) {
+  # Determine outputs from inputs
+  if (inherits(pres, "PackedSpatRaster")) pres<-unwrap(pres)
+  if(inherits(pres, "SpatRaster")){
+    toArrays<-FALSE
+    tem<-pres[[1]]
+    pres<-.is(pres)
+  } else toArrays<-TRUE
+
   mn<-min(pres,na.rm=T)-1
   mx<-max(pres,na.rm=T)+1
   presh <- .daytohour(pres)
@@ -226,6 +258,10 @@ pres_dailytohourly <- function(pres, tme, adjust = TRUE) {
   yr<-tme$year[2]
   sel<-which(tmeh$year==yr)
   presh<-presh[,,sel]
+  if(!toArrays){
+    presh<-.rast(presh,tem)
+    time(presh)<-tmeh
+  }
   return(presh)
 }
 
@@ -260,8 +296,9 @@ pres_dailytohourly <- function(pres, tme, adjust = TRUE) {
 #' @keywords temporal
 #' @examples
 #' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
-#' swh<-swrad_dailytohourly(climdata$swrad,climdata$tme,r=climdata$dtm)
-swrad_dailytohourly <- function(radsw, tme, clearsky = NA, r = r, adjust = TRUE) {
+#' swradhr<-swrad_dailytohourly_v2(radsw=daily100m$swrad, tme=as.POSIXlt(terra::time(unwrap(daily100m$swrad))), clearsky = NA, r = daily100m$dtm, adjust = TRUE, toArray=FALSE)
+swrad_dailytohourly <- function(radsw, tme, clearsky = NA, r = r, adjust = TRUE, toArray=TRUE) {
+  if (inherits(radsw, "PackedSpatRaster")) radsw<-unwrap(radsw)
   # Check geo info in either radsw or as r; convert radsw to array
   if(class(radsw)[1]=='SpatRaster') r<-radsw[[1]] else{
     if(class(r)[1]!='SpatRaster') stop('Lacking geo information. Need radsw or r to be class SpatRaster!')
@@ -274,26 +311,29 @@ swrad_dailytohourly <- function(radsw, tme, clearsky = NA, r = r, adjust = TRUE)
   radf <- radsw/clearsky
   radf[radf > 1] <- 1
   radf[radf < 0] <- 0
+
   # Interpolate clear sky fraction to hourly
   radfh <- .daytohour(radf)
   radfh[radfh > 1] <- 1
   radfh[radfh < 0] <- 0
+
   # Calculate hourly clear sky radiation
-  lat <- .latsfromr(r)
-  lon <- .lonsfromr(r)
+  lat<-.latslonsfromr(r)$lats # reprojects to 4326
+  lon<-.latslonsfromr(r)$lons # reprojects to 4326
+
   tmeh <- as.POSIXlt(seq(tme[1],tme[length(tme)]+23*3600, by = 3600))
-  #jd <- julday(tmeh$year + 1900, tmeh$mon + 1, tmeh$mday)
   jd<-juldayvCpp(tmeh$year+1900, tmeh$mon+1, tmeh$mday)
   lt <- tmeh$hour
-  lats <- .mta(lat, length(lt))
-  lons <- .mta(lon, length(lt))
-  jd <- .vta(jd, lat)
-  lt <- .vta(lt, lat)
-  #csh<-clearskyrad(lt, lats, lons, jd)
+  lons<-as.vector(t(lon))
+  lats<-as.vector(t(lat))
   csh<-clearskyradmCpp(jd,lt,lats, lons)
   csh[is.na(csh)] <- 0
+  # make spatraster
+  csh.r<-rep(r,length(lt))
+  values(csh.r)<-csh
+
   # Calculate hourly radiation
-  radh <- csh * radfh
+  radh <- .is(csh.r) * radfh
   # Make consistent with daily
   if (adjust) {
     radd <- .hourtoday(radh)
@@ -311,46 +351,82 @@ swrad_dailytohourly <- function(radsw, tme, clearsky = NA, r = r, adjust = TRUE)
   yr<-tme$year[2]
   sel<-which(tmeh$year==yr)
   radh<-radh[,,sel]
+  if(!toArray){ # convert to spatraster
+    radh<-.rast(radh,r)
+    time(radh) <- seq.POSIXt(tme[1],  by = "hour", length.out=length(tme)*24)
+  }
   return(radh)
 }
 # ============================================================================ #
 # ~~~~~~~~~~~~ Downward longwave radiation downscale ~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
 #' @title Daily to hourly downward longwave radiation
-#' @description Derives an array of hourly effective sky-emissivity values.
+#' @description Derives an array or spatraster of hourly effective downward longwave radiation values.
 #'
-#' @param skyem - an array of daily mean sky-emissivity values values (0-1)
+#' @param lw - an array of daily mean sky-emissivity values values (0-1)
+#' @param dtm - digital elevation spatraster
+#' @param hrtemps - hourly temperature data for corresponding period as lw
+#' @param hrrh - hourly relative humidity data for corresponding period as lw
+#' @param hrpres - hourly atmospheric pressure data for corresponding period as lw
 #' @param tme - POSIXlt object of dates corresponding to radsw
 #' @param adjust  - optional logical which if TRUE ensures that, after interpolation, returned
 #'          hourly values, when averaged to daily, match the input
 #'
-#' @return an array of hourly sky-emissivity values  (0-1)
+#' @return an array of hourly downward long wave radiation
 #' @export
-#' @details NB - more consistent to code this as downward longwave, but will essentially
-#' do the calaculations in the function below, but with temperature as an additional
+#' @details
 #'  Effective sky emissvity can be used to calaculate downward longwave radiation (Lwd).
 #'  The formula is Lwd = skyem * Lwu where Lwu is upward longwave radiation given
 #'  by Lwu=0.97*5.67*10**-8*(tc+273.15). Here tc is average surface temperature (deg C))
 #'  but an adequate approximation is derived if subtited by air temperature.
+#' TO DO - Option of providing cloud cover data to correct sky emissivity values??
 #' @keywords temporal
 #' @examples
-#' lwrad<-skyem_dailytohourly(array(rep(c(0.2,0.2,0.2,0.8,0.8,0.8),2),c(3,3,2)),as.POSIXlt(seq(1,(48*60*60),(24*60*60))))
-skyem_dailytohourly <- function(skyem, tme, adjust = TRUE) {
-  skyemh <- .daytohour(skyem)
+#' lwhr<- lw_dailytohourly(lw=daily100m$lwrad, dtm=daily100m$dtm, hrtemps=hrtemps, hrrh=hrrh, hrpres=hrpres, tme=daily100m$tme,  adjust = FALSE)
+lw_dailytohourly <- function(lw=daily100m$lwrad, dtm=daily100m$dtm, hrtemps=hrtemps, hrrh=hrrh, hrpres=hrpres, tme,  adjust = FALSE) {
+  if (inherits(lw, "PackedSpatRaster")) lw<-unwrap(pres)
+  if(inherits(lw, "SpatRaster")){
+    toArrays<-FALSE
+    tem<-lw[[1]]
+  } else toArrays<-TRUE
+
+  # Calculate LW up
+  lwup<-.lwup(.is(hrtemps)) #= .lwup function 0.97*5.67*10**-8*(tc+273.15)# where tc = average surface temperature approximated by tair (hrly or daily)
+
+  # Calculate sky emissivity
+  ea<-converthumidity(.is(hrrh),intype = "relative", outtype = "vapour pressure", tc = .is(hrtemps), pk = .is(hrpres))
+  tdp<-.dewpoint(ea,.is(hrtemps))
+  #skyem = 5.31 x 10^-13 * T_air^2 # swindon
+  skyem<- 0.787 + 0.764 * log((tdp+273.15) / 273.15) # Clear sky em from clark and allen - Tdp= dewpoint temperature
+
+  # Adjust skyem for cloud cover N if supplied?
+  # skyem <- skyem * (1 + (0.0224*N) - (0.0035*N^2) + (0.00028*N^3))
+
+  # Calculate LW down from skyem and LW up
+  lwdhr <- skyem * lwup
+
+  ## ADJUST removes special dimension eg to temperature etc??
+  # plot(.rast(lwdhr,daily100m$lwrad[[1]])[[1:12]] )
+  #lwhr <- .daytohour(.is(lw))
   if (adjust) {
-    skyemd <- .hourtoday(skyemh)
-    mult <- skyem / skyemd
+    lwdd <- .hourtoday(lwdhr)
+    mult <- .is(lw) / lwdd
     mult[is.na(mult)] <- 1
     mult <- .daytohour(mult, Spline = FALSE)
-    skyemh <- skyemh * mult
+    lwdhr <- lwdhr * mult
   }
-  skyem[skyem>1] <- 1
-  skyem[skyem < 0.2] <- 0.2
+
   tmeh <- as.POSIXlt(seq(tme[1],tme[length(tme)]+23*3600, by = 3600))
   yr<-tme$year[2]
   sel<-which(tmeh$year==yr)
-  skyemh<-skyemh[,,sel]
-  return(skyemh)
+  lwdhr<-lwdhr[,,sel]
+
+  if(!toArrays){
+    lwdhr<-.rast(lwdhr,tem)
+    time(lwdhr) <- tmeh
+
+  }
+  return(lwdhr)
 }
 # ============================================================================ #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Wind speed downscale ~~~~~~~~~~~~~~~~~~~~~~~~~ #
@@ -361,7 +437,7 @@ skyem_dailytohourly <- function(skyem, tme, adjust = TRUE) {
 #'
 #' @param ws - an array of daily mean wind speed values (m/s)
 #' @param wd - an array of daily mean wind direction values (deg from N)
-#' @param tme - POSIXlt object of dates corresponding to radsw
+#' @param tme - POSIXlt object of dates corresponding to ws and wd
 #' @param adjust - optional logical which if TRUE ensures that, after interpolation, returned
 #'          hourly values, when averaged to daily, match the input
 #'
@@ -382,6 +458,13 @@ skyem_dailytohourly <- function(skyem, tme, adjust = TRUE) {
 #' summary(climdata$windspeed); summary(wh$wsh)
 #' summary(climdata$winddir); summary(wh$wdh)
 wind_dailytohourly <- function(ws, wd, tme, adjust = TRUE) {
+  if(inherits(ws,"SpatRaster")){
+    toArrays<-FALSE
+    tem<-ws[[1]]
+  } else toArrays<-TRUE
+
+  ws<-.is(ws)
+  wd<-.is(wd)
   u<- -ws*sin(wd*pi/180)
   v<- -ws*cos(wd*pi/180)
   uh <- .daytohour(u)
@@ -400,6 +483,12 @@ wind_dailytohourly <- function(ws, wd, tme, adjust = TRUE) {
   sel<-which(tmeh$year==yr)
   wsh<-wsh[,,sel]
   wdh<-wdh[,,sel]
+  if(!toArrays){
+    wsh<-.rast(wsh,tem)
+    wdh<-.rast(wdh,tem)
+    time(wsh)<-tmeh
+    time(wdh)<-tmeh
+  }
   return(list(wsh=wsh,wdh=wdh))
 }
 # ============================================================================ #
