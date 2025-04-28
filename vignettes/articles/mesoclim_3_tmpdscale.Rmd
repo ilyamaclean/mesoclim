@@ -1,0 +1,182 @@
+---
+html_document:
+  toc: true
+  toc_float:
+    collapsed: false
+    smooth_scroll: false
+  toc_depth: 2
+title: "3. Temporal downscaling"
+---
+
+```{r, echo=FALSE,include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+
+```{r setup, echo=FALSE, include=FALSE}
+library(lubridate)
+library(terra)
+#library(mesoclim)
+library(devtools)
+load_all()
+```
+
+
+## Introduction
+
+We use the daily spatially downscaled outputs produced by the `Spatial Downscaling` article. Alternatively the functions could as easily be applied to coarse resolution climate variables prior to any spatial downscaling.
+
+Order of temporal downscaling is important due to dependencies between the climate variables - for example the downscaling of daily humidity and longwave radiation to hourly requires the prior downscaling of temperature data.
+
+```{r input-data}
+# Get spatially downscaled data
+ daily100m<-read_climdata(mesoclim::daily100m)
+```
+
+Some useful functions for plotting hourly timeseries and spatial variation at times corrresponding to min/mode/max derived from spatial means at hourly inervals.
+
+```{r plot-functions}
+plot_r_quantiles<-function(r,p=c(0.01,0.5,1),maintxt){
+  lyrstat<-global(r,mean,na.rm=TRUE)
+  qtls<-quantile(lyrstat[,1],prob=p)
+  sel<-c()
+  for(q in qtls) sel<-c(sel,which.min(abs(lyrstat[,1] - q)))
+  out_r<-r[[sel]]
+  names(out_r)<-paste(maintxt,terra::time(r[[sel]]))
+  plot(out_r,main=names(out_r),font.main=1, cex.main=1, nc=length(p))
+}
+
+# Plot hourly timeseries for contrasting days: spatial mean,min,max
+plot_timeseries<-function(hrvar,vartext="Variable"){
+  hr_mean<-unlist(global(hrvar, "mean", na.rm=TRUE))
+  hr_max<-unlist(global(hrvar, "max", na.rm=TRUE))
+  hr_min<-unlist(global(hrvar, "min", na.rm=TRUE))
+  
+  plot_df<-as.data.frame(cbind(tstep=as.numeric(time(hrvar)),mean=hr_mean,max=hr_max,min=hr_min))
+  plot_df<-plot_df[order(plot_df$tstep),]
+  matplot(as_datetime(plot_df$tstep), plot_df[,2:4], type = "l", lty = 1,
+          col = c("black", "red", "blue"), xlab = "Date", ylab = vartext, font.main = 1,
+          tck = 0.02, cex.main=1, cex.axis=0.7, main = paste("Hourly",vartext), cex.main=1)
+  legend("topright", legend = c("Spatial Mean", "Spatial Max", "Spatial Min"), cex=0.5,
+         col = c("black", "red", "blue"),
+         lty = 1)
+}
+```
+
+
+## Daily to hourly temperature downscaling
+
+Daytime temperatures are assumed to follow a sine curve with a peak a short while after solar noon. After dusk, the temperatures are assumed to decay exponentially reaching a minimum at dawn. The day in which tmx and tmn fall is assumed to match UTC days. The parameter `stre` controls the speed of decay of night time temperatures with time. A value of zero ensures values drop to minimum at dawn the following day, but trial and error indicates in most circumstances temperatures decay faster than this. The default value of 0.09 is an optimal value derived using ERA5 data for western Europe, but performs reasonably well globally
+
+```{r temp_tmedscale}
+# Generate hourly timeseries
+hrtemps<-temp_dailytohourly(daily100m$tmin, daily100m$tmax, srte = 0.09) 
+
+# Plot hourly timeseries for contrasting days: spatial mean,min,max
+plot_timeseries(hrtemps,vartext="Temperature")
+
+# Plot rasters corresponding to 0.01, 0.5 and max quantiles (calculated fro spatial averages)
+plot_r_quantiles(hrtemps,p=c(0.01,0.5,1),maintxt="Temperature")
+
+```
+
+## Atmospheric pressure downscaling
+
+Surface level pressures in kPa downscaled to hourly intervals. TheFunctions provided for converting between atmospheric and sea level pressure.
+
+```{r pres-downscale}
+hrpres<-pres_dailytohourly(pres=daily100m$pres, tme=daily100m$tme, adjust = TRUE)
+
+# Convert to sea level
+hrpsl<-atmos_to_sea_pressure(hrpres,daily100m$dtm)
+
+# Plots
+plot_timeseries(hrpres,vartext="Atmospheric Pressure")
+plot_r_quantiles(hrpres,p=c(0.01,0.5,1),maintxt="Atmospheric Pressure")
+```
+
+## Humidity downscaling
+
+Owing to the strong dependence of relative humidity on diurnal temperature patterns, prior to interpolation, relative humidity is first converted to specific humidity using tasmin, tasmax and psl. After interpolation, the data are back-converted to relative humidity, using temph and presh.
+
+Function should spline interpolate vapour pressure and use temperature cycle
+
+```{r humidity-downscale}
+psl<-atmos_to_sea_pressure(daily100m$pres,daily100m$dtm)
+hrrh<-hum_dailytohourly(relhum=daily100m$relhum, tasmin=daily100m$tmin, tasmax=daily100m$tmax, temph=hrtemps, psl=psl, presh=hrpres, tme=daily100m$tme, relmin = 2, adjust = TRUE)
+
+# Plots
+plot_timeseries(hrrh,vartext="Relative humidity")
+plot_r_quantiles(hrrh,p=c(0.01,0.5,1),maintxt="Relative humidity")
+
+```
+
+
+## Shortwave radiation downscaling
+
+Converting from daily to hourly downward shortwave radiation values is the most resource demanding of climate variables to downscale. 
+
+Requires calculating the hourly and daily clearsky fraction (0:1) of radiation from which hourly clear sky radiation is calculated.
+
+**Note:** The function assumes input radiation is downward flux, not net radiation (as provided in UKCP).
+To get from net to downward flux we need to recognise that rswnet = (1-alb)*radsw, so radsw = rswnet/(1-alb), where alb is white sky albedo - as is carried out in the spatial downsclaing functions. However, white-sky albedo changes as a function of solar angle in a manner dependent on ground reflectance, leaf area, leaf inclination angles and leaf transmittance and the ratio of diffuse and direct radiation. The existing pre-processing of LW radiation data and temporal downscaling functions do NOT account for this hourly variation in albedo.Discrepancies probably quite minor expect in areas with very low cover and can be largely captured by bias correction functions.
+
+```{r swdaytohr}
+swradhr<-swrad_dailytohourly(radsw=daily100m$swrad, tme=as.POSIXlt(terra::time(daily100m$swrad)), clearsky = NA, r = daily100m$dtm, adjust = TRUE, toArray=FALSE) 
+
+plot_timeseries(swradhr,vartext="SW radiation")
+plot_r_quantiles(swradhr,p=c(0.01,0.5,1),maintxt="SW radiation")
+```
+
+
+## Downward longwave radiation downscaling
+
+Currently this function recalculates LW down without use of LW inputs rather deriving from estimates of LW up from surface temperature and sky emissivity (??!!) by:
+
+(i) Calculate LW up using air temperature as approximation of surface temperature ie LWup =0.97*5.67*10**-8*(tc+273.15)
+
+(ii) Calculates sky emissivity using dewpoint temperature (calculated from Tair, pressure and relative humidity) where skyem = 0.787 + 0.764 * log((tdp+273.15) / 273.15) - from Clark & Allan ref.
+
+(iii) Calculates LW down as  Lwd = skyem * LWup 
+
+Note: output will reflect any spatial downscaling to lw but also temperature, humidity and atmospheric pressure inputs. If adjust = TRUE then spatial variation introduced by these other variables is largely removed.
+
+Another option is to downscale from LWnet by simply removing temperture dependent LWup using hourly temps??
+
+```{r lw-downscale}
+lwdhr<-lw_dailytohourly(lw=daily100m$lwrad, dtm=daily100m$dtm, hrtemps=hrtemps, hrrh=hrrh, hrpres=hrpres, tme=daily100m$tme, adjust = FALSE) 
+
+plot_timeseries(lwdhr,vartext="LW downward radiation")
+plot_r_quantiles(lwdhr,p=c(0.01,0.5,1),maintxt="LW downward radiation")
+
+```
+
+## Wind speed downscaling
+
+For interpolation, u and v wind vectors are derived form wind speed andd direction and these are interpolated to hourly, with backward calculations then performed to derive wind speed and direction.
+
+* Need to spline interpolate u and v wind vectors. We could simulate inter-hourly variability. Follows a Weiball distribution so quite easy I suspect.
+
+```{r wind-downscale}
+hrwind<-wind_dailytohourly(daily100m$windspeed, daily100m$winddir, daily100m$tme, adjust = TRUE)
+
+plot_timeseries(hrwind$wsh,vartext="Windspeed")
+plot_r_quantiles(hrwind$wsh,maintxt="Hourly windspeed")
+#plot_r_quantiles(hrwind$wdh,maintxt="Hourly direction")
+```
+
+## Precipitation downscaling
+
+The function is based on the Bartlett-Lewis Rectangular Pulse model described by Rodriguez-Iturbe (1987 & 1988). The model has six parameters (see [findBLpar()]) and is characterized as a particular form of clustering process in which each cluster of rainfall events (hereafter storms) consists of one or more rainfall cells being generated in the start of the process. The parameters of `BLpar` governs the frequency of storms, the start and end of rainfall events associated with each storms, the intensity of rainfall associated with storms variation in the duration of storms, and can be used to generate data for any time-interval. Since these vary seasonally, or by month, it is wise to generate sb-daily data seperately for each month using different parameter estimates.
+
+Singificant element sof the coding have been borrowed from from the HyetosMinute package, and the library must be loaded and attached, i.e. `library(HyetosMinute)' as the function calls C++ code included with the package. The package is not available on CRAN and must be obtained or installed directly from here: http://www.itia.ntua.gr/en/softinfo/3/.
+
+```{r precip-downscale}
+
+# subdailyrain(rain=daily100m$prec, BLest, dailyvals = 24, dlim = 0.2, maxiter = 1000, splitthreshold = 0.2, trace = TRUE)
+
+
+```
