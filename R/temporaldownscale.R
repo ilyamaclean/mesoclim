@@ -36,7 +36,7 @@
 #' tmx <- apply(tcm, 1, max)
 #' tme <- as.POSIXlt(c(0:30) * 3600 * 24, origin = "2018-05-01", tz = "UTC")
 #' # Use interpolation function
-#' tcp <- hourlytemp(tmn, tmx, tme, 50, -5)
+#' tcp <- temp_dailytohourly(tmn, tmx, tme, 50, -5)
 #' tmeh <- as.POSIXct(climdata$tme)
 #' # Plot results to compare
 #' plot(tch ~ tmeh, type="l", ylim = c(8, 18), xlab = "Date", ylab = "Temperature")
@@ -50,7 +50,7 @@
 #' tmn <- .rast(hourtodayCpp(tc, "min"),dtmc)
 #' tmx <- .rast(hourtodayCpp(tc, "max"),dtmc)
 #' # Use interpolation function
-#' tp <- hourlytemp(tmn, tmx, tme)
+#' tp <- temp_dailytohourly(tmn, tmx, tme)
 #' # Plot results to compare
 #' tc <- .rast(tc,dtmc)
 #' par(mfrow=c(2,1))
@@ -62,7 +62,7 @@ temp_dailytohourly <- function(tmn, tmx, tme = NA, lat = NA, long = NA, srte = 0
     if(is.na(tme)) tme<-as.POSIXlt(terra::time(tmn))
     tem<-tmn[[1]]
     toArrays<-FALSE
-  }
+  } else toArrays<-TRUE
   if (inherits(tme, "POSIXlt")) {
     year<-tme$year+1900
     mon<-tme$mon+1
@@ -133,7 +133,7 @@ blendtemp_hadukera5<-function(tasmin,tasmax,era5t2m) {
 #' @param tasmin - an array of daily minimum temperature values (deg C)
 #' @param tasmax  - an array of daily maximum temperature values (deg C)
 #' @param temph  - an array of hourly temperature values (deg C)
-#' @param psl - an array of daily surface-level pressure values(kPa)
+#' @param psl - an array of daily sea-level pressure values(kPa)
 #' @param presh - an aray of hourly surface-level pressure values (kPa)
 #' @param tme - POSIXlt object of dates corresponding to radsw
 #' @param relmin  - minimum possible relative humidity value
@@ -177,29 +177,25 @@ hum_dailytohourly <- function(relhum, tasmin, tasmax, temph, psl, presh, tme, re
   psl<-.is(psl)
   presh<-.is(presh)
 
-  # Convert to specific humidity
+  # Convert to specific humidity downscale to hourly then convert back to relative hum
   tc<-(tasmin+tasmax)/2
   hs<-converthumidity(relhum,intype="relative",outtype="specific",tc=tc,pk=psl)
   hr<- .daytohour(hs)
-  # select days in year only
-  tmeh <- as.POSIXlt(seq(tme[1],tme[length(tme)]+23*3600, by = 3600))
-  sel<-which(tmeh$year==tme$year[2])
-  hr<-hr[,,sel]
-  tmeh<-tmeh[sel]
   relh<-suppressWarnings(converthumidity(hr,intype="specific",outtype="relative",tc=temph,pk=presh))
 
-  # make consistent with daily
+  # Make consistent with daily
   if (adjust) {
-    if (length(unique(tme$year)) > 1) {
-      sel2<-c(2:(length(tme)-1))
-    } else sel2<-c(1:length(tme))
-
+    #if (length(unique(tme$year)) > 1) {
+    #  sel2<-c(2:(length(tme)-1))
+    #} else sel2<-c(1:length(tme))
+    #sel2<-c(1:length(tme))
     reld <- .hourtoday(relh)
-    mult <- relhum[,,sel2] / reld
+    mult<-relhum / reld
     mult[is.na(mult)] <- 1
     mult <- .daytohour(mult, Spline = FALSE)
     relh <- relh * mult
   }
+
   relh[relh>100]<-100
   relh[relh<relmin]<-relmin
   if(!toArrays){
@@ -240,6 +236,8 @@ pres_dailytohourly <- function(pres, tme, adjust = TRUE) {
     tem<-pres[[1]]
     pres<-.is(pres)
   } else toArrays<-TRUE
+  # if vector convert to 3d array
+  if(inherits(pres,"numeric")) pres<-.vta(pres,matrix(nrow=1,ncol=1))
 
   mn<-min(pres,na.rm=T)-1
   mx<-max(pres,na.rm=T)+1

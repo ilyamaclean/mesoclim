@@ -45,9 +45,8 @@ The projection, resolution and extent of the downscaled area is defined by provi
 
 ```{r downscaled-dtm,  results="hide"}
 # Get fine and medium res DTMs from package
-dir_dtm<-system.file('extdata/dtms',package='mesoclim')
-dtmm<-rast(file.path(dir_dtm,'dtmm.tif'))
-dtmf<-rast(file.path(dir_dtm,'dtmf.tif'))
+dtmf<-rast(system.file("extdata/dtms/dtmf.tif",package="mesoclim"))
+dtmm<-rast(system.file("extdata/dtms/dtmm.tif",package="mesoclim"))
 
 # Show local downscale area within wider dtmm
 aoi<-vect(ext(dtmf))

@@ -32,7 +32,7 @@ biascorrect <- function(hist_obs, hist_mod, fut_mod = NA, mod_out = FALSE, range
   if (mod_out == FALSE & inherits(fut_mod, "logical")) fut_mod<-hist_mod
   # reproject and crop if necessary
   if (crs(hist_mod) != crs(hist_obs)) hist_mod<-project(hist_mod,hist_obs)
-  if (mod_out == FALSE) if (crs(fut_mod) != crs(hist_obs)) fut_mod<-project(fut_mod,hist_obs)
+  if (!inherits(fut_mod, "logical") & crs(fut_mod) != crs(hist_obs)) fut_mod<-project(fut_mod,hist_obs)
   hist_mod<-resample(hist_mod,hist_obs)
   if (mod_out == FALSE) fut_mod<-resample(fut_mod,hist_obs)
   # Convert to arrays

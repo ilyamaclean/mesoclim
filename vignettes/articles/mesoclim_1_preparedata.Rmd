@@ -19,6 +19,7 @@ library(mesoclim)
 # 2 Preprocessing coarse resolution climate data
 
 ## Defining area of interest
+
 Unless we are wanting to analyse the whole area covered by downloaded climate data, it is best to define a broad area of interest to restrict data size and processing times. The area of interest is used to crop a coarse DTM of the same projection and resolution as the climate data to provide a template for data processing. 
 
 ```{r inputs }
@@ -55,7 +56,7 @@ domain<-'uk'
 member<-'01'
 rcp<-'rcp85'
 startdate<-as.POSIXlt('2018/05/01')
-enddate<-as.POSIXlt('2018/05/30')
+enddate<-as.POSIXlt('2018/05/31')
 
 # Processes using already downloaded ukcp18rcm files in dir_data
 t0<-now()

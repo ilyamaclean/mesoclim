@@ -1220,14 +1220,15 @@
   a
 }
 #' @title Apply equivelent for arrays with NAs. Outperforms apply by an order of magnitude
-#' @param a - a 3D array (typically with NAs for sea)
+#' @param a - expects a 3D array (typically with NAs for sea) but will convert 1D array or vector assuming a timeseries
 #' @param fun - a function to apply
 #' @returns a 3D array of e.g. daily values form hourly
 #' @noRd
 .applynotna<-function(a,fun) {
+  if(inherits(a,'numeric')|length(dim(a))==1) a<-array(a,dim=c(1,1,length(a)))
   m<-matrix(a,ncol=dim(a)[1]*dim(a)[2],byrow=T)
   sel<-which(is.na(m[1,])==F)
-  r<-apply(m[,sel],2,fun)
+  r<-apply(m[,sel,drop=FALSE],2,fun)
   n<-dim(r)[1]
   ao<-array(NA,dim=c(dim(a)[1:2],n))
   sel<-which(is.na(a[,,1:n])==F)
@@ -1251,23 +1252,32 @@
 #' @param fun - a function , typically mean, min, max or sum
 #' @returns a 3D array of daily data - e.g. daily mean, max or min temperature or total rainfall
 #' @noRd
-.hourtoday<-function(a,fun=mean) {
+.hourtoday<-function(a,fun=mean, toVector=FALSE) {
+  if(inherits(a,'numeric')|length(dim(a))==1){
+    a<-array(a,dim=c(1,1,length(a)))
+    toVector<-TRUE
+  }
   .htd<-function(x) {
     y<-matrix(x,ncol=24,byrow=T)
     apply(y,1,fun,na.rm=T)
   }
   d<-.applynotna(a,.htd)
-  d
+  if (toVector) d<-as.vector(d)
+  return(d)
 }
 #' @title Converts an array daily data to hourly using one of two methods.
-#' @param name description a - an array of daily data
+#' @param name description a - an array or vector of daily data - assumes timeseries if only one dimension
 #' @param Spline - optional logical indicating which method to use (see details)
 #' @return Returns an array of hourly data such that dim(ah)[3] == 24 * dim(h)[3]
 #' @details:
 #'  If Sprine = TRUE data are spline interpolated using zoo::na.approx.
 #'  If Spline = FALSE each hour is given the same value as the daily data
 #' @noRd
-.daytohour<-function(a, Spline = TRUE) {
+.daytohour<-function(a, Spline = TRUE, toVector=FALSE) {
+  if(inherits(a,'numeric')|length(dim(a))==1){
+    a<-array(a,dim=c(1,1,length(a)))
+    toVector<-TRUE
+  }
   if (Spline) {
     sel<-c(1:dim(a)[3])*24-12
     ah<-array(NA,dim=c(dim(a)[1:2],dim(a)[3]*24))
@@ -1293,6 +1303,7 @@
     ah<-array(ah,dim=c(dim(a)[1:2],dim(a)[3]*24))
     ah
   }
+  if (toVector) ah<-as.vector(ah)
   return(ah)
 }
 #' @title Applies coastal correction to e.g. era5 diurnal temperature ranges

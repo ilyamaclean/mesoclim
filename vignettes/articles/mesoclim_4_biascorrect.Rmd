@@ -14,78 +14,82 @@ knitr::opts_chunk$set(
 devtools::load_all(quiet=TRUE)
 ```
 
-## Introduction
+# Introduction
 
 Compares modeled historic data with observational data for the same period to either directly correct modelled data or provide bias-correction models for correction of modelled data.
 
 Requires comparable raster stacks of observed and modeled data.
+
+# Bias correction of temperature and precipitation
+
 
 ## Observational data
 
 For observed data we make use of the HadUK 1km gridded data for the Lizard during the year 2018.
 
 ```{r get-obsdata}
-dir_haduk<-system.file('extdata/haduk',package='mesoclim')
 
-tminfiles<- list.files(dir_haduk, pattern='tasmin')
-tmaxfiles<- list.files(dir_haduk, pattern='tasmax')
-rainfiles<- list.files(dir_haduk, pattern='rainfall')
-
-tminhuk<-rast(file.path(dir_haduk,tminfiles))
-tmaxhuk<-rast(file.path(dir_haduk,tmaxfiles))
-prechuk<-rast(file.path(dir_haduk,rainfiles))
-
-# Crop to area of interest
-dir_datasets<-system.file('data',package='mesoclim')
-load(file.path(dir_datasets,'dtmf.rda'))
-dtmf<-unwrap(dtmf)
-
-e<-ext(project(dtmf,crs(tminhuk)))
-tminhuk<-crop(tminhuk,e)
-tmaxhuk<-crop(tmaxhuk,e)
-prechuk<-crop(prechuk,e)
-
+tmin1km<-rast(system.file("extdata/haduk/tasmin1km.tif",package="mesoclim"))
+tmax1km<-rast(system.file("extdata/haduk/tasmax1km.tif",package="mesoclim"))
+rain1km<-rast(system.file("extdata/haduk/rainfall1km.tif",package="mesoclim"))
 ```
 
 ## Historic modelled data
-Use model outputs for the same historical period as the observational data.
+
+Create model outputs for the same historical period as the observational data. In this case we directly downscale to the same resolution and extent as the observed data (1km). Alternatively, if downscaled to a finer resolution outputs could be aggregated to observed data resolution
+
 ```{r input-data}
-# Get spatially downscaled data
- mesolizd<-read_climdata(file.path(system.file('extdata/dscaledata',package='mesoclim'),'mesolizd.rds'))
+# Must unpack spatrasters etc saved in .rda data object
+ukcpinput<-read_climdata(mesoclim::ukcpinput)
+ukcp18sst<-rast(mesoclim::ukcp18sst)
+
+# Get spatially downscaled data to 1km
+dtmf<-rast(system.file("extdata/dtms/dtmf.tif",package="mesoclim")) %>% aggregate(20,na.rm=TRUE) %>% mask(tmin1km[[1]])
+
+dtmm<-rast(system.file("extdata/dtms/dtmm.tif",package="mesoclim")) %>% aggregate(5,na.rm=TRUE)
+
+plot(dtmm); plot(dtmf,add=T)
+
+modeldata1km<-spatialdownscale(climdata=ukcpinput, sst=ukcp18sst, dtmf, dtmm, basins = NA,  wca=NA, cad=TRUE,
+                     coastal = TRUE, thgto =2, whgto=2, rhmin = 20, pksealevel = TRUE, patchsim = FALSE, 
+                     terrainshade = TRUE, precipmethod = "Elev", fast = TRUE, noraincut = 0.01, toArrays=FALSE)
+
 ```
-
-Model data could be directly downscaled to resolution of observed data (in this case 1km) but here we aggregate already downscaled data.
-
-```{r get-moddata}
-tmin<-.resample(unwrap(mesolizd$tmin),tminhuk[[1]])
-tmax<-.resample(unwrap(mesolizd$tmax),tminhuk[[1]])
-prec<-.resample(unwrap(mesolizd$prec),tminhuk[[1]])
-
-```
-
 
 ## Calculate bias correction models for each variable
 
+Calculate bias correction models for each climate variable. MORE
+
 ### Min daily temperature
+
 ```{r bias-tmincorrect}
-tmn_bmods<-biascorrect(tminhuk, tmin, tmin,mod_out = TRUE, rangelims = NA)
+tmn_bmods<-biascorrect(hist_obs=tmin1km, hist_mod=modeldata1km$tmin, fut_mod = NA,mod_out = TRUE, rangelims = NA)
 print(tmn_bmods$models)
-mn_stats<-c(app(tminhuk/tmin,mean),app(tminhuk/tmin,sd),app(tminhuk/tmin,max))
-cf_mins<- c(app(tminhuk,min),app(tmin,min)) 
-names(cf_mins)<-c('Yr tmn HadUK Observed','Yr tmn UKCP18 downsscaled')
+
+cf_mins<- c(app(tmin1km,min),app(modeldata1km$tmin,min)) 
+names(cf_mins)<-c('Observed min(Tmin) of time period','Model min(Tmin) of time period')
 plot(cf_mins)
+
+dif<-tmin1km-modeldata1km$tmin
+mn_stats<-c(app(dif,mean),app(dif,sd),app(dif,max),app(dif,min))
+names(mn_stats)<-c("Mean obs-model","sd obs-model","Max obs-model","Min obs-model")
+plot(mn_stats)
+
 ```
 
 ### Max daily temperature
 
 ```{r bias-tmaxcorrect}
-tmx_bmods<-biascorrect(tmaxhuk, tmin, tmin,mod_out = TRUE, rangelims = NA)
+tmx_bmods<-biascorrect(hist_obs=tmax1km, hist_mod=modeldata1km$tmax, fut_mod = NA, mod_out = TRUE, rangelims = NA, samplenum=1000)
 print(tmx_bmods$models)
-cf_maxs<- c(app(tmaxhuk,max),app(tmax,max)) 
-names(cf_maxs)<-c('Yr tmx HadUK Observed','Yr tmx UKCP18 downsscaled')
+cf_maxs<- c(app(tmax1km,max),app(modeldata1km$tmax,max)) 
+
+names(cf_maxs)<-c('Observed Tmax of time period','Model Tmax of time period')
 plot(cf_maxs)
 
-mx_stats<-c(app(abs(tmaxhuk/tmax),mean),app(abs(tmaxhuk/tmax),sd),app(abs(tmaxhuk/tmax),max))
+dif<-tmax1km-modeldata1km$tmax
+mx_stats<-c(app(dif,mean),app(dif,sd),app(dif,max),app(dif,min))
+names(mx_stats)<-c("Mean obs-model","sd obs-model","Max obs-model","Min obs-model")
 plot(mx_stats)
 ```
 
@@ -96,4 +100,194 @@ prec_bmods<-precipcorrect(prechuk, prec, prec, mod_out = TRUE, rangelim = NA)
 
 plot(unwrap(prec_bmods$mu_tot),main='Total rainfall')
 plot(unwrap(prec_bmods$mu_frac ),main='Proportion of rainy days')
+```
+
+
+
+# Bias correction of all variables
+
+
+## Bias correct inputs and parameters
+
+```{r bias_params}
+# Files
+era5landsea
+
+
+# Directories
+dir_era5
+dir_era5daily
+
+dir_ukcp
+dir_ukcpera5
+
+
+
+
+```
+
+
+## Prepare ERA5 observational data
+
+
+### Any correction of temp?
+
+
+### Convert to daily
+Writes .tifs of daily values of each ERA5 variable.
+.era5todaily(filein,pathout,landsea) 
+Any other processing of variables required??
+```{r}
+
+.era5todaily(filein,pathout,landsea, startdate,enddate)
+
+```
+
+
+## Prepare UKCP18 climate data
+Future climate input files cropped and processed. 
+
+Does it require to a standard list of variables at this stage??
+
+
+```{r prepare_climdata}
+ukcptoera5<-function(dir_ukcp,era5landsea,startdate,enddate,
+                collection=c('land-gcm','land-rcm'),
+                domain=c('uk','eur','global'),
+                member=c('01','02','03','04','05','06','07','08','09','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','25','26','27','28'),
+                ukcp_vars=c('clt','hurs','pr','psl','rls','rss','tasmax','tasmin','uas','vas') ){
+                  
+  # Parameter check
+  collection<-match.arg(collection)
+  domain<-match.arg(domain)
+  ukcp_vars<-match.arg(ukcp_vars,several.ok=TRUE)
+  ukcp_units<-match.arg(ukcp_units,several.ok=TRUE)
+  output_units<-match.arg(output_units,several.ok=TRUE)
+  if(class(startdate)[1]!="POSIXlt" | class(enddate)[1]!="POSIXlt") stop("Date parameters NOT POSIXlt class!!")
+  
+  # Set sea cells to NA
+  era5landsea[era5landsea==0]<-NA
+  
+  # Check member in chosen collection
+  member<-match.arg(member)
+  if(collection =='land-rcm' &
+     !member %in% c('01','02','03','04','05','06','07','08','09','10','11','12','13','14','15')) stop(paste("Model member",member,"NOT available in land-rcm collection - ignoring!!"))
+
+  # Check dir_ukcp exists
+  if(!dir.exists(dir_ukcp)) stop(paste("Directory does NOT exist:",dir_ukcp))
+
+  # Identify which decades are required
+  decades<-.find_ukcp_decade(collection,startdate,enddate)
+
+  # Get ukcp files names and check all exist in dir_ukcp before loading
+  if(collection=='land-gcm') collres<-'60km' else collres<-'12km'
+  ncfiles<-do.call(paste0, c(expand.grid(ukcp_vars,'_rcp85_',collection,'_',domain,'_',collres,'_',member,'_day_', decades,".nc")))
+  ncfiles<-file.path(dir_ukcp,ncfiles)
+  not_present<-which(!file.exists(ncfiles))
+  if (length(not_present)>0) stop(paste("File NOT present in ukcp directory: ",ncfiles[not_present]," ") )
+
+  # For each UKCP variable crop and res
+  # Reproject and resample to landsea
+  # apply landsea mask
+  for (n in 1:length(ukcp_vars)){
+    v<-ukcp_vars[n]
+    var_r<-terra::rast()
+    
+    for (d in decades){
+      filename<-paste0(v,'_rcp85_',collection,'_',domain,'_',collres,'_',member,'_day_', d,".nc")
+      message(paste("Loading",filename))
+      ncfile<-file.path(dir_ukcp, filename)
+      
+      # Load and resample data to ERA5 landsea
+      r <- terra::rast(ncfile, subds=v)
+      r<-.resample(r,landsea)
+      # Mask sea 
+      r<-terra::crop(r,dtmc)
+      r<-terra::mask(r,era5landsea)
+      
+      # Convert to real calendar dates and fill missing dates
+      ukcp_dates<-.get_ukcp18_dates(ncfile)
+      real_dates<-.correct_ukcp_dates(ukcp_dates)
+      r<-.fill_calendar_data(r, real_dates)
+    }
+    
+    # Join if multiple decades of data and write tif
+    terra::add(var_r)<-r
+    writeRaster(var_r,file.path(pathout,filename))
+    }
+} # end function
+
+```
+
+
+
+## Checking data inputs 
+The resulting data structures of pre-processing can be checked to ensure there are no missing or unexpected values that may indicate a difference in the expected SI units or incomplete input datasets. This is particularly advisable if the inputs for spatial downscaling are not derived from one of the provided functions.
+
+The `checkinputs` function also provides basic statistics and sample plots of climate variables.
+
+```{r check_inputs}
+ftr_ukcpdata<-checkinputs(ftr_ukcpdata, tstep = "day")
+```
+
+
+# Bias correct ukcp18 climate data using ERA5 data
+
+```{r ukcp_biascorrect}
+# Future - takes about 20mins using shared folder inputs
+t0<-now()
+
+model_list<-list()
+ukcp_vars<-c('tmin','tmax','relhum','pres','swrad','lwrad','windspeed','winddir','prec')
+era5_vars
+for (v in ukcp_vars)
+bcmodel<-biascorrect(era5_obs, ukcp_mod, fut_mod = NA, mod_out = TRUE, rangelims = NA)
+  
+
+#biascorrectukcpall<-function(pathtoera,pathtoukcp18,pathtoukcpdecade,pathout,decade,modelrun) {
+
+
+bc_time<-now()-t0
+```
+
+Time taken for downscaling function = `r round(bc_time,2)`  minutes.
+
+### Display downscaled outputs
+
+Min, max and mean values in tabular form for all times and locations:
+
+```{r output_table}
+climvars<-c('tmin','tmax','relhum','pres','swrad','lwrad','windspeed','winddir','prec')
+
+smry_fun<-function(x) summary(as.vector(as.array(x)))
+rslt<-sapply(ftr_mesoclim[climvars],smry_fun)
+stats_df<-as.data.frame(t(round(rslt,3)))[,c('Min.','Mean','Max.')]
+print(stats_df)
+```
+
+Or as raster plots for days corresponding to spatial quantiles (ie days where spatial means are data min, median and max values of timeseries). Example plots of max and min daily temperatures, precipitation and dirunal temperature range:
+
+```{r map-outputs}
+for(var in c('tmax','tmin','prec')){
+  r<-ftr_mesoclim[[var]]
+  names(r)<-rep(var,nlyr(r))
+  plot_q_layers(r,vtext=var)
+}
+
+# Show spatial range in daily temperatures
+diurnaltmp<-ftr_mesoclim$tmax-ftr_mesoclim$tmin
+plot_q_layers(diurnaltmp,vtext='diurnalT')
+```
+
+Or as plots of timeseries of spatial statistics (min, max and mean), for example by day of year (averaged over all years):
+
+```{r tseries_output}
+par(mar=c(1,1,1,1),cex.main=0.8, mgp=c(3,0.1,0))
+layout(matrix(c(1,2,3,4,1,5,6,7,1,8,9,10),ncol=3),heights=c(1,3,3,3))
+plot.new()
+text(0.5,0.5,"Spatial mean (green), max (red) and min (blue) by day of year",cex=1,font=1)
+for(v in climvars){
+  r<-unwrap(ftr_mesoclim[[v]])
+  plot_timestats_r(r,v,idx='doy',lgd=FALSE)
+}
 ```

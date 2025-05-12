@@ -510,8 +510,10 @@ sea_to_atmos_pressure<-function(psl,dtm){
   psl<-.is(psl)
   dtm<-.is(dtm)
   dtm<-ifelse(is.na(dtm),0,dtm)
-  pres<-psl * (((293-0.0065*.mta(dtm,dim(psl)[3]))/293)^5.26)
+  if(inherits(psl,"numeric")) arraylength<-length(psl) else arraylength<-dim(psl)[3]
+  pres<-psl * (((293-0.0065*.mta(dtm,arraylength))/293)^5.26)
   if(!toArrays) pres<-.rast(pres,tem)
+  if(inherits(psl,"numeric")) pres<-as.vector(pres)
   return(pres)
 }
 
@@ -533,7 +535,9 @@ atmos_to_sea_pressure<-function(pres,dtm){
   pres<-.is(pres)
   dtm<-.is(dtm)
   dtm<-ifelse(is.na(dtm),0,dtm)
-  psl<-pres / (((293-0.0065*.mta(dtm,dim(pres)[3]))/293)^5.26)
+  if(inherits(pres,"numeric")) arraylength<-length(pres) else arraylength<-dim(pres)[3]
+  psl<-pres / (((293-0.0065*.mta(dtm,arraylength))/293)^5.26)
   if(!toArrays) psl<-.rast(psl,tem)
+  if(inherits(pres,"numeric")) psl<-as.vector(psl)
   return(psl)
 }
