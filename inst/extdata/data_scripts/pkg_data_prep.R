@@ -26,9 +26,16 @@ ukcpinput$dtm<-wrap(ukcpinput$dtm)
 usethis::use_data(ukcpinput,overwrite=TRUE)
 #write_climdata(ukcpinput,"data/ukcpinput.rda",overwrite=TRUE)
 
-#### dtm
-dit_terrain50<-"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data/Terrain50"
-dtmuk<-rast(file.path(dit_terrain50,"uk_dtm.tif"))
+
+#### Sea Surface temperature data - to match ukcpinput$dtm
+dir_sst<-"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data/SST"
+sst<-create_ukcpsst_data(dir_sst,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),dtmc=ukcpinput$dtm, member="01")
+plot(c(sst,ukcpinput$dtm))
+
+
+#### Create 50m fine scale dtm
+dir_terrain50<-"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data/Terrain50"
+dtmuk<-rast(file.path(dir_terrain50,"uk_dtm.tif"))
 e<-ext(160000, 181000, 11000, 30000)
 dtm<-crop(dtmuk,e)
 lsmask<-vect("/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data/Boundaries/CTRY_DEC_2023_UK_BGC.shp") %>% project(dtm)
@@ -36,6 +43,18 @@ dtm<-mask(dtm,lsmask)
 dtm<-project(dtm,"EPSG:27700")
 plot(dtm)
 writeRaster(dtm,system.file("extdata/dtms/dtmf.tif",package='mesoclim'),overwrite=TRUE)
+
+#### Create corresponding medium dtm - coarser scale and wider extent than dtmf
+dir_terrain50<-"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data/Terrain50"
+dtmuk<-rast(file.path(dir_terrain50,"uk_dtm.tif"))
+lsmask<-vect("/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data/Boundaries/CTRY_DEC_2023_UK_BGC.shp") %>% project("EPSG:27700")
+e<-ext(160000-40000, 181000+40000, 11000-40000, 30000+40000)
+dtm<-crop(dtmuk,e)
+dtm<-project(dtm,"EPSG:27700")
+dtm<-mask(dtm,lsmask)
+dtmm<-mask(terra::aggregate(dtm,20,  na.rm=TRUE), lsmask)
+plot(dtmm)
+writeRaster(dtmm,system.file("extdata/dtms/dtmm.tif",package='mesoclim'),overwrite=TRUE)
 
 #### Crop mesoclimate outputs to smaller area
 daily100m<-lapply(mesoclimate,function(x) if(class(x)[1]=="SpatRaster") wrap(crop(x,e)) else x)

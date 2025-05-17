@@ -227,7 +227,7 @@ Coarse, medium and fine resolution DTMs are used to determine effects of upwind 
 _ADD:_ Guidance on selection of the extent of dtmm - how far should dtms extend from the downscaling area to adequately capture coastal effects??
 
 ```{r coastal}
-# Interpolate - filling NAs and ensuring timesteps match climate inputs - MOVE THIS TO DATA PREP FUNCTION FOR SST??
+# Interpolate - filling NAs and ensuring timesteps match climate inputs - NOT REQUIRED AND FORGETS ABOUT LAND CELLS=NA!!!!
 if (any(global(ukcp18sst,anyNA))) sstinterp<-.spatinterp(ukcp18sst) else sstinterp<-ukcp18sst
 sstinterp<-.tmeinterp(sstinterp,NA,ukcpinput$tme)
 # Resample to dtmf

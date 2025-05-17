@@ -34,11 +34,13 @@ Imports:
     zoo
 RoxygenNote: 7.3.2
 Roxygen: list(markdown = TRUE) 
-Suggests: knitr,
+Suggests: 
+    knitr,
     rmarkdown,
-	  testthat
+    testthat (>= 3.0.0)
 VignetteBuilder: knitr
 URL: https://github.com/ilyamaclean/mesoclim
 BugReports: http://github.com/mesoclim/issues
 Depends: 
     R (>= 2.10)
+Config/testthat/edition: 3
