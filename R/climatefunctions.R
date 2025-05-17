@@ -193,7 +193,7 @@ coastalexposure <- function(landsea, e, wdir) {
   s<-c(0,(8:1000)/8)^2*reso
   s<-s[s<=maxdist]
   if (e2 != e) {
-    lss<-crop(slr,e,snap='out')
+    lss<-crop(slr,e)
   } else lss<-slr
   lsm<-.is(lss)
   es<-ext(slr)

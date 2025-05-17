@@ -20,20 +20,15 @@
 #' @keywords preprocess ukcp18
 #' @examples
 #'  \dontrun{
-#'  cedausr<-"your_user_name"
-#'  cedapwd <- "your_password"
-#'  startdate<-as.POSIXlt('2017/12/31')
-#'  enddate<-as.POSIXlt('2018/12/31')
-#'  member<-c('01')
-#'  dir_out<-tempdir()
-#'  download_ukcpsst(dir_out,startdate,enddate,member, cedausr,cedapwd)
-#'  sst<-create_ukcpsst_data(dir_out,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),member=member)
+#'  dir_sst<-system.file("extdata/sst", package = "mesoclim")
+#'  sst<-create_ukcpsst_data(dir_sst,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),dtmc=ukcpinput$dtm, member="01")
+#'  plot(c(sst,ukcpinput$dtm))
 #'  }
 create_ukcpsst_data<-function(
     dir_data,
     startdate,
     enddate,
-    aoi=NA,
+    dtmc=NA,
     member=c('01','02','03','04','05','06','07','08','09','10','11','12','13','14','15'),
     v='SST' # name of temp variable in nc files
   ){
@@ -446,14 +441,11 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
   not_present<-which(!file.exists(ncfiles))
   if (length(not_present)>0) stop(paste("File NOT present in ukcp directory: ",ncfiles[not_present]," ") )
 
-  # Get res, crs from sample nc raster as can vary between collections and domains - lat/lon or uk OS
+  # If dtm provided of different crs or resolution resample to that of UKCP data
   sample_ukcp18<-terra::rast(ncfiles[1], subds=strsplit(basename(ncfiles[1]),'_')[[1]][1])[[1]]
-  ukcp_crs<-terra::crs(sample_ukcp18)
-  ukcp_res<-terra::res(sample_ukcp18)
-  ukcp_e<-terra::ext(sample_ukcp18)
-
-  # Create coarse-resolution dtm to use as template for resampling - weighted !!!
-  dtmc<-terra::crop(.resample(dtm,sample_ukcp18),dtm)
+  if(!compareGeom(dtm,sample_ukcp18, crs=TRUE, ext=FALSE,rowcol=FALSE, res=TRUE, stopOnError=FALSE)){
+    dtmc<-terra::crop(.resample(dtm,sample_ukcp18),dtm)
+  } else dtmc<-dtm
   units(dtmc)<-'m'
   names(dtmc)<-'Elevation'
 
@@ -533,6 +525,5 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
   # Convert climate data to arrays if required
   if(toArrays) clim_list<-lapply(clim_list,as.array)
 
-  output_list<-c(output_list,clim_list)
-  return(output_list)
+  return(c(output_list,clim_list))
 }

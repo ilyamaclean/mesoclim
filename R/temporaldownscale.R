@@ -72,6 +72,8 @@ temp_dailytohourly <- function(tmn, tmx, tme = NA, lat = NA, long = NA, srte = 0
     if (inherits(lat, "logical")) stop("lat must be provided unless tmn and tmx are SpatRasts")
     if (inherits(long, "logical")) stop("long must be provided unless tmn and tmx are SpatRasts")
     if (length(tme) != length(tmn)) stop("length of tme must be the same as length of tmn")
+    # Requires tmx to differ from tmn
+    if(any(tmn==tmx)) tmx[which(tmn==tmx)]<-tmn[which(tmn==tmx)]+0.01
     th<-hourlytempv(tmn,tmx,year,mon,day,lat,long,srte)
   } else if (inherits(tmn, "SpatRaster")) {
     ll<-.latslonsfromr(tmn)
@@ -199,6 +201,7 @@ hum_dailytohourly <- function(relhum, tasmin, tasmax, temph, psl, presh, tme, re
   relh[relh>100]<-100
   relh[relh<relmin]<-relmin
   if(!toArrays){
+    tmeh <- as.POSIXlt(seq(tme[1],tme[length(tme)]+23*3600, by = 3600))
     relh<-.rast(relh,tem)
     terra::time(relh)<-tmeh # for some reason must be stored as seconds for date-times!!
   }

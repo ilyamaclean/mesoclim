@@ -3,7 +3,7 @@
 # studio won't then expect oxygen2 when documenting package
 # ** These are functions that are definately used, checked and working
 
-#' @title Check if input is a SpatRaster or PackedSpatRaster and convert to matrix or array
+#' @title Check if input is a SpatRaster or PackedSpatRaster and convert to matrix (if single layer) or array (multiple layers)
 #' @param r - possible raster
 #' @keywords internal
 #' @noRd
@@ -21,6 +21,9 @@
 #' @title Convert matrix or rast to array
 #' @param r - matrix or raster
 #' @param n - third dim
+#' @details
+#' Converts to array of given dimensions n - replicating 2D matrix or single layer rast n times.
+#' ALWAYS converts to array (not matrix) even if n=1
 #' @keywords internal
 #' @noRd
 .rta <- function(r,n) {
@@ -28,7 +31,8 @@
   a<-array(rep(m,n),dim=c(dim(r)[1:2],n))
   a
 }
-#' @title Convert vector to array
+
+#' @title Convert vector to array defined by spatraster or matrix
 #' @keywords internal
 #' @noRd
 .vta <- function(v,r) {
@@ -37,17 +41,21 @@
   a<-array(va,dim=c(dim(m),length(v)))
   a
 }
+
 #' @title Create SpatRaster object using a template
 #' @import terra
+#' @details expects m as 2D matrix/array or 3D array
 #' @keywords internal
 #' @noRd
 .rast <- function(m,tem) {
+  # Throw warning if dim of m do not match dim of tem
+  if(any(dim(m)[1:2]!=dim(tem)[1:2])) warning("In .rast dimensions of matrix/array do not match dimensions of rast template!!!")
   r<-rast(m)
   ext(r)<-ext(tem)
   crs(r)<-crs(tem)
   r
 }
-#' @title expand daily array to hourly array
+#' @title expand 3D daily array to hourly array where 3rd dim = days
 #' @keywords internal
 #' @noRd
 .ehr<-function(a) {
@@ -61,14 +69,14 @@
   ah<-array(ah,dim=c(dim(a)[1:2],dim(a)[3]*24))
   ah
 }
-#' @title Calculate moving average
+#' @title Calculate moving average - WHAT DOES THIS CALCULATE?
 #' @noRd
 .mav <- function(x, n = 5) {
   y <- stats::filter(x, rep(1 / n, n), circular = TRUE, sides = 1)
   y
 }
-#' @title Produces a matrix of latitudes form a terra::SpatRaster object
-#' Inputs:
+
+#' @title Produces a matrix of latitudes/y coordinates form a terra::SpatRaster object
 #' @param r - a terra::SpatRaster object
 #' @returns a matrix of latidues
 #'@noRd
@@ -78,8 +86,7 @@
   lts <- array(lts, dim = dim(r)[1:2])
   lts
 }
-#' @title Produces a matrix of longitudes form a terra::SpatRaster object
-#' Inputs:
+#' @title Produces a matrix of longitudes/x coordinatew form a terra::SpatRaster object
 #' @param r - a terra::SpatRaster object
 #' @returns a matrix of latidues
 #'@noRd
@@ -90,7 +97,9 @@
   lns <- array(lns, dim = dim(r)[1:2])
   lns
 }
-#' @title get lats and lons for each cell in a spatraster reprojecting to epsg 4326 if required
+#' @title Gets lats and lons for each cell in a spatraster
+#' @details Extract x/y coordinates in native rast crs before reprojecting coordinates to EPSG 4326
+#' This ensure that the dimensions macth those of the input rast - would not be case if first projected then extracted.
 #' @returns named list of a 2D matrix of lats and lons
 #' @noRd
 .latslonsfromr <- function(r) {
@@ -111,7 +120,6 @@
 #' @param r2 - target geometry
 #' @param msk=TRUE if output to be masked out where r2 cells = NA
 #' @param method for resample and project can be set
-#' @keywords internal
 .resample <- function(r1,r2, msk=FALSE, method='bilinear'){
   if (terra::crs(r1) != terra::crs(r2)) r1<-terra::project(r1, terra::crs(r2), method)
   af<-terra::res(r2)[1] /terra::res(r1)[1]
@@ -130,7 +138,7 @@
   return(ro)
 }
 
-#' Interpolates sea to coastal sea surface temperature
+#' Interpolates sea surface temperature data to coastal regions
 #' Resamples sst data to same extent, resolution and projection as aoi
 #' Interpolates from mean of adjacent sea cells
 #' @param sst.r -  sea surface temperature data
@@ -140,15 +148,14 @@
 #' @export
 #'
 #' @examples
-#' sst.r<-rast(ukcp18sst[[1]])
-#' aoi.r<-
+#' sst.r<-rast(system.file("extdata/sst/NWSClim_NWSPPE_r001i1p00000_2018_gridT.nc",pkg="mesoclim"),"SST")[[1]]
+#' aoi.r<-rast(system.file("extdata/dtms/dtmm.tif",pkg="mesoclim"))
+#' plot(.sea_to_coast(sst.r,aoi.r))
 .sea_to_coast<-function(sst.r,aoi.r, ext_cells=8){
-  # Extend area to make sure some sea cells included for coastal areas
+  # Extend area to make sure sea surface temperature data matches coastal areas
   aoibuf.r<-terra::extend(aoi.r,c(ext_cells,ext_cells),fill=1)
-  plot(aoibuf.r)
-  # Check same projection and res and crop to extended aoi
-  if(crs(sst.r)!=crs(aoi.r)) sst.r<-project(sst.r,aoibuf.r)
-  newsst.r<-resample(sst.r,aoibuf.r)
+  # Re-project/sample sst to extended aoi
+  newsst.r<-project(sst.r,aoibuf.r)
   # Interpolate coastal sea cells
   target<-sum(c(crop(newsst.r[[1]],aoi.r),aoi.r),na.rm=T)
   n<-1
@@ -1090,22 +1097,24 @@
 #' @param u2 - downscaled windspeed at 2m height
 #' @param wdir - wind direction (coarse resolution) - same value for all of dtmf extent will be used
 #' @param dtmf - fine dtm spatraster
-#' @param dtmm - medium dtm spatraster
+#' @param dtmw - fine-scale dtm covering wider area than dtmf
 #' @param dtmc - coarse dtm spatraster
 #'
 #' @return Spatraster of temperature that includes coastal effect
 #' @export
 #' @keywords internal
-.tempcoastal<-function(tc, sstf, u2, wdir, dtmf, dtmm, dtmc) {
-  # produce land sea mask
-  if (crs(dtmm) != crs(dtmf)) dtmm<-project(dtmm,crs(dtmf))
-  if (crs(dtmc) != crs(dtmf)) dtmc<-project(dtmc,crs(dtmf))
-  if (crs(sstf) != crs(dtmf)) sstf<-project(sstf,crs(dtmf))
-  landsea<-.resample(ifel(is.na(dtmm),0,dtmm),dtmf)
-  landsea<-mask(landsea,dtmf)
+.tempcoastal<-function(tc, sst, u2, wdir, dtmf, dtmw, dtmc) {
+  # Spatial and temporal interpolation of sst and resmapled to match dtmf resolution - IMPROVE THIS !!
+  if (any(global(sst,anyNA))) sst<-.spatinterp(sst)
+  sst<-.tmeinterp(sst,NA,climdata$tme)
+  # Resample to dtmf resolution
+  sstf<-project(sst,dtmf)
+
+  # Calculate coastal exposure for each wind direction
+  landsea<-ifel(is.na(dtmw),NA,1)
   lsr<-array(NA,dim=c(dim(dtmf)[1:2],8))
   for (i in 0:7) {
-    r<-coastalexposure(landsea, ext(dtmf), i%%8*45)
+    r<-coastalexposure(landsea, e=ext(dtmf), i%%8*45) # seems to return a raster 1 row and col too big!
     r<-.correctcoastal(r)
     lsr[,,i+1]<-.is(r)
   }
@@ -1119,7 +1128,7 @@
     wdr<-.rast(wdir,dtmc)
     ew<-ext(wdr)
     xy<-data.frame(x=(ew$xmin+ew$xmax)/2,y=(ew$ymin+ew$ymax)/2)
-    wdir<-as.numeric(xx<-extract(wdr,xy))[-1]
+    wdir<-as.numeric(extract(wdr,xy))[-1]
     if (is.na(wdir[1])) wdir<-apply(.is(wdr),3,median,na.rm=TRUE)
     # Calculate array land-sea ratios for every hour
     i<-round(wdir/45)%%8
@@ -1141,13 +1150,14 @@
     lswgt<- -0.1095761+p2*(llsr+3.401197)-0.1553487*llsm
     swgt<-.rast(1/(1+exp(-lswgt)),tc)
     tcp<-swgt*sstf+(1-swgt)*tc
-    # calculate aggregation factor
+    # calculate aggregation factor - DOESN'T WORK VERY WELL - perhaps focal smoothing would be better???
     af<-res(dtmc)[1]/res(dtmf)[1]
     tcc<-resample(aggregate(tcp,af,na.rm=TRUE),tcp)
     tcp<-tc+(tcp-tcc)
   } else tcp<-tc
   return(tcp)
 }
+
 # ** Following is a bit of a code dump. We won't need it all:
 # NB:
 #  ** (1) For several of these functions we'll need to add the appropriate imports

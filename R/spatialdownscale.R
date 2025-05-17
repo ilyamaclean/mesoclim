@@ -60,7 +60,7 @@ tempdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, u2 = NA,
     tcad<-.tempcad(climdata,dtmf,basins,thgto) # output temp height defines basin merge
     tcf<-tcf+tcad
   }
-  # Coastal effects - checks if non NA values in sst
+  # Coastal effects - checks if non NA values in sst AND resamples to res/extent of dtmf
   if (coastal & any(!is.na(values(sst)))) {
     # fill any spatial cells without data and interpolate to climdata timeseries
     if (any(global(sst,anyNA))) sstinterp<-.spatinterp(sst) else sstinterp<-sst
@@ -304,6 +304,11 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)
 #' wsf <- winddownscale(ukcpinput$windspeed, ukcpinput$winddir, dtmf, dtmm, ukcpinput$dtm, zi=ukcpinput$windheight_m)
 #' plot_q_layers(wsf)
 winddownscale <- function(wspeed, wdir, dtmf, dtmm, dtmc, wca=NA, zi=10, zo = 2) {
+  # CALCULATE COARSES SCALE DTMM IF OF SAME RESOLUTION AS DTMF - simplifies coast line!
+  if(any(res(dtmm)!=res(dtmf))){
+    dtmm_res<-round(exp( ( log(terra::res(dtmc)[1]) + log(terra::res(dtmf)[1]) ) / 2 ))
+    dtmm<-terra::aggregate(dtmm,dtmm_res / res(dtmf),  na.rm=TRUE)
+  }
   # If not supplied, calculate terrain adjustment coefs for 8 directions at wind height zo
   if(class(wca)[1]=='logical') wca2<-calculate_windcoeffs(dtmc,dtmm,dtmf,zo) else wca2<-wca
   # Calculate wind direction of centre of study area
@@ -630,6 +635,15 @@ spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, 
   } else {
     tminf<-tempdownscale(climdata,sst,dtmf,dtmm,basins,uzf,cad,coastal,'tmin',thgto,whgto)
     tmaxf<-tempdownscale(climdata,sst,dtmf,dtmm,basins,uzf,cad,coastal,'tmax',thgto,whgto)
+    # Check tax>tmin (coastal effects can switch) - NEEDS FASTER METHOD!!!
+    diurnal<-(tmaxf-tminf<0)
+    if(unique(all(diurnal))==0){
+      temp_tmin<-ifel(diurnal,tmaxf,tminf)
+      tmaxf<-ifel(diurnal,tminf,tmaxf)
+      tminf<-temp_tmin
+      remove(temp_tmin)
+      remove(diurnal)
+    }
   }
 
   message('Downscaling relative humidity')
