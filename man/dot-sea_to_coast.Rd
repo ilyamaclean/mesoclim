@@ -2,7 +2,7 @@
 % Please edit documentation in R/workerfunctions.R
 \name{.sea_to_coast}
 \alias{.sea_to_coast}
-\title{Interpolates sea to coastal sea surface temperature
+\title{Interpolates sea surface temperature data to coastal regions
 Resamples sst data to same extent, resolution and projection as aoi
 Interpolates from mean of adjacent sea cells}
 \usage{
@@ -21,11 +21,12 @@ Interpolates from mean of adjacent sea cells}
 sst spatrasters of same projection, res and extent as aoi with matching coastline
 }
 \description{
-Interpolates sea to coastal sea surface temperature
+Interpolates sea surface temperature data to coastal regions
 Resamples sst data to same extent, resolution and projection as aoi
 Interpolates from mean of adjacent sea cells
 }
 \examples{
-sst.r<-rast(ukcp18sst[[1]])
-aoi.r<-
+sst.r<-rast(system.file("extdata/sst/NWSClim_NWSPPE_r001i1p00000_2018_gridT.nc",pkg="mesoclim"),"SST")[[1]]
+aoi.r<-rast(system.file("extdata/dtms/dtmm.tif",pkg="mesoclim"))
+plot(.sea_to_coast(sst.r,aoi.r))
 }

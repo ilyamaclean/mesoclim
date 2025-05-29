@@ -37,6 +37,7 @@ Here we load package data saved as .rda files using the ??? functions
 # Must unpack spatrasters etc saved in .rda data object
 ukcpinput<-read_climdata(mesoclim::ukcpinput)
 ukcp18sst<-rast(mesoclim::ukcp18sst)
+ukcpinput$dtm<-unwrap(ukcpinput$dtm)
 ```
 
 ## Defining the area of interest
@@ -47,7 +48,7 @@ The projection, resolution and extent of the downscaled area is defined by provi
 # Get fine and medium res DTMs from package
 dtmf<-rast(system.file("extdata/dtms/dtmf.tif",package="mesoclim"))
 dtmm<-rast(system.file("extdata/dtms/dtmm.tif",package="mesoclim"))
-
+dtmc<-ukcpinput$dtm
 # Show local downscale area within wider dtmm
 aoi<-vect(ext(dtmf))
 plot.new()
@@ -65,9 +66,10 @@ Wrapper function allows downscaling in a single function call, with parameters d
 # Downscale one year of future climate data
 
 t0<-now()
-mesoclimate<-spatialdownscale(climdata=ukcpinput, sst=ukcp18sst, dtmf, dtmm, basins = NA,  wca=NA, cad=TRUE,
-                     coastal = TRUE, thgto =2, whgto=2, rhmin = 20, pksealevel = TRUE, patchsim = TRUE, 
-                     terrainshade = TRUE, precipmethod = "Elev", fast = TRUE, noraincut = 0.01, toArrays=FALSE)
+wca<-calculate_windcoeffs(ukcpinput$dtm,dtmm,dtmf,zo=2)
+basins<-basindelin(dtmf, boundary = 2)
+  
+mesoclimate<-spatialdownscale(climdata=ukcpinput, sst=ukcp18sst, dtmf, dtmm, basins = basins,  wca=wca, cad=TRUE,coastal = TRUE, thgto =2, whgto=2, rhmin = 20, pksealevel = FALSE, patchsim = TRUE,  terrainshade = TRUE, precipmethod = "Elev", fast = TRUE, noraincut = 0.01, toArrays=FALSE) # CHECK pksealevel
 print(now()-t0)
 names(mesoclimate)
 

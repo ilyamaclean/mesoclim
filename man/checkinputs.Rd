@@ -4,7 +4,7 @@
 \alias{checkinputs}
 \title{Check and summarise coarse resolution climate data inputs}
 \usage{
-checkinputs(input_list, tstep = c("hour", "day"))
+checkinputs(input_list, tstep = c("hour", "day"), plots = TRUE)
 }
 \arguments{
 \item{input_list}{list of climate and associated variables as output by functions like 'ukcp18toclimarray'}

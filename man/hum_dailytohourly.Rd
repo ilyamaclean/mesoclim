@@ -34,7 +34,7 @@ hum_dailytohourly(
 }}
 
 \item{psl}{\itemize{
-\item an array of daily surface-level pressure values(kPa)
+\item an array of daily sea-level pressure values(kPa)
 }}
 
 \item{presh}{\itemize{

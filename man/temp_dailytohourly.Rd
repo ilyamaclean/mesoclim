@@ -51,7 +51,7 @@ tmn <- apply(tcm, 1, min)
 tmx <- apply(tcm, 1, max)
 tme <- as.POSIXlt(c(0:30) * 3600 * 24, origin = "2018-05-01", tz = "UTC")
 # Use interpolation function
-tcp <- hourlytemp(tmn, tmx, tme, 50, -5)
+tcp <- temp_dailytohourly(tmn, tmx, tme, 50, -5)
 tmeh <- as.POSIXct(climdata$tme)
 # Plot results to compare
 plot(tch ~ tmeh, type="l", ylim = c(8, 18), xlab = "Date", ylab = "Temperature")
@@ -65,7 +65,7 @@ dtmc <- climdata$dtm
 tmn <- .rast(hourtodayCpp(tc, "min"),dtmc)
 tmx <- .rast(hourtodayCpp(tc, "max"),dtmc)
 # Use interpolation function
-tp <- hourlytemp(tmn, tmx, tme)
+tp <- temp_dailytohourly(tmn, tmx, tme)
 # Plot results to compare
 tc <- .rast(tc,dtmc)
 par(mfrow=c(2,1))

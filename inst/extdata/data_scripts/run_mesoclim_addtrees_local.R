@@ -1,10 +1,10 @@
 ############## Code executable on LOCAL machine with downloaded inputs #######################
 # Set up libraries files and directories for mac
-setup_file<-"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Rprojects/mesoclimAddTrees/inst/extdata/setup_mesoclim_mac.R"
+setup_file<-"inst/extdata/data_scripts/setup_mesoclim_mac.R"
 source(setup_file)
 
 ############## RUN PARAMETERS ####################### #######################
-parcels_file<-file.path(dir_in,'killerton','land_parcels.shp')
+parcels_file<-file.path('/Users/jonathanmosedale/Downloads/land_parcels.shp 9/land_parcels.shp')
 dir_out<-file.path(dir_root,'mesoclim_outputs')
 member<-"01"
 startyear<-"2022"
@@ -59,6 +59,7 @@ dtmf<-terra::mask(terra::crop(terra::crop(dtmuk,aoi),dtmuk),coast_v)
 
 # Generate medium area and resoilution dtm (for coatal/wind effects)
 dtmm<-get_dtmm(dtmf,dtmc,dtmuk)
+# dtmw<-crop(dtmuk,dtmc)
 
 # Plot dtmf and overlay parcels
 if(outputs){
@@ -111,12 +112,12 @@ years<-unique(c(year(startdate):year(enddate)))
 #yr<-years
 for (yr in years){
   sdatetime<-as.POSIXlt(paste0(yr,'/01/01'))
-  edatetime<-as.POSIXlt(paste0(yr,'/12/31'))
+  edatetime<-as.POSIXlt(paste0(yr,'/01/31'))
 
   # If cad = TRUE can take long time to calculate cold air drainage across large areas !!!
   t0<-now()
-  mesoclimate<-spatialdownscale(subset_climdata(climdata,sdatetime,edatetime), subset_climdata(sstdata,sdatetime,edatetime),
-                                dtmf, dtmm, basins = basins, wca=wca, cad = TRUE,
+  mesoclimate<-spatialdownscale(climdata=subset_climdata(climdata,sdatetime,edatetime), sst=subset_climdata(sstdata,sdatetime,edatetime),
+                                dtmf=dtmf, dtmm=dtmw, basins = basins, wca=wca, cad = TRUE,
                                 coastal = TRUE, thgto =2, whgto=2,
                                 rhmin = 20, pksealevel = TRUE, patchsim = FALSE,
                                 terrainshade = TRUE, precipmethod = "Elev", fast = TRUE, noraincut = 0.01)
@@ -133,7 +134,7 @@ for (yr in years){
       plot_q_layers(r,vtext=var)
     }
   }
-  write_climdata(mesoclimate,file.path(dir_out,'mesoclimate_1yr_focal.Rds'))
+  #write_climdata(mesoclimate,file.path(dir_out,'mesoclimate_1yr_focal.Rds'))
 
   ###### Calculate and write parcel outputs with each yearly iteration
 

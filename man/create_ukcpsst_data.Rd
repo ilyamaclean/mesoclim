@@ -10,7 +10,7 @@ create_ukcpsst_data(
   dir_data,
   startdate,
   enddate,
-  aoi = NA,
+  dtmc = NA,
   member = c("01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12",
     "13", "14", "15"),
   v = "SST"
@@ -23,9 +23,9 @@ create_ukcpsst_data(
 
 \item{enddate}{end date as POSIXlt}
 
-\item{aoi}{SpatRaster, SpatVector or sf object defining area of interest to crop data. NA no cropping occurs}
-
 \item{v}{= SST sea surface temperature variable name}
+
+\item{aoi}{SpatRaster, SpatVector or sf object defining area of interest to crop data. NA no cropping occurs}
 
 \item{members}{model members to be included}
 }
@@ -39,14 +39,9 @@ Interpolation method = mean of all neighbouring cells.
 }
 \examples{
  \dontrun{
- cedausr<-"your_user_name"
- cedapwd <- "your_password"
- startdate<-as.POSIXlt('2017/12/31')
- enddate<-as.POSIXlt('2018/12/31')
- member<-c('01')
- dir_out<-tempdir()
- download_ukcpsst(dir_out,startdate,enddate,member, cedausr,cedapwd)
- sst<-create_ukcpsst_data(dir_out,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),member=member)
+ dir_sst<-system.file("extdata/sst", package = "mesoclim")
+ sst<-create_ukcpsst_data(dir_sst,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),dtmc=ukcpinput$dtm, member="01")
+ plot(c(sst,ukcpinput$dtm))
  }
 }
 \keyword{preprocess}

@@ -22,4 +22,3 @@
 \description{
 version of terra resample that equates to NA.RM = TRUE
 }
-\keyword{internal}

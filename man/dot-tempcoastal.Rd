@@ -4,15 +4,11 @@
 \alias{.tempcoastal}
 \title{Coastal temperature effects}
 \usage{
-.tempcoastal(tc, sstf, u2, wdir, dtmf, dtmm, dtmc)
+.tempcoastal(tc, sst, u2, wdir, dtmf, dtmw, dtmc)
 }
 \arguments{
 \item{tc}{\itemize{
 \item downscaled temperature at same res as dtmf
-}}
-
-\item{sstf}{\itemize{
-\item downscaled sea surface temperature to dtmf resolution and extent - no NA and timeseries matches tc
 }}
 
 \item{u2}{\itemize{
@@ -27,12 +23,16 @@
 \item fine dtm spatraster
 }}
 
-\item{dtmm}{\itemize{
-\item medium dtm spatraster
+\item{dtmw}{\itemize{
+\item fine-scale dtm covering wider area than dtmf
 }}
 
 \item{dtmc}{\itemize{
 \item coarse dtm spatraster
+}}
+
+\item{sstf}{\itemize{
+\item downscaled sea surface temperature to dtmf resolution and extent - no NA and timeseries matches tc
 }}
 }
 \value{
