@@ -49,7 +49,11 @@
 #' @noRd
 .rast <- function(m,tem) {
   # Throw warning if dim of m do not match dim of tem
-  if(any(dim(m)[1:2]!=dim(tem)[1:2])) warning("In .rast dimensions of matrix/array do not match dimensions of rast template!!!")
+  if(any(dim(m)[1:2]!=dim(tem)[1:2])){
+    warning("In .rast dimensions of matrix/array do not match dimensions of rast template!!!")
+    print(dim(m))
+    print(dim(tem))
+  }
   r<-rast(m)
   ext(r)<-ext(tem)
   crs(r)<-crs(tem)
@@ -69,7 +73,7 @@
   ah<-array(ah,dim=c(dim(a)[1:2],dim(a)[3]*24))
   ah
 }
-#' @title Calculate moving average - WHAT DOES THIS CALCULATE?
+#' @title Calculate moving average
 #' @noRd
 .mav <- function(x, n = 5) {
   y <- stats::filter(x, rep(1 / n, n), circular = TRUE, sides = 1)
@@ -120,6 +124,7 @@
 #' @param r2 - target geometry
 #' @param msk=TRUE if output to be masked out where r2 cells = NA
 #' @param method for resample and project can be set
+#' @export
 .resample <- function(r1,r2, msk=FALSE, method='bilinear'){
   if (terra::crs(r1) != terra::crs(r2)) r1<-terra::project(r1, terra::crs(r2), method)
   af<-terra::res(r2)[1] /terra::res(r1)[1]
@@ -956,6 +961,73 @@
 # ============================================================================ #
 # ~~~~~~~~~~~~~~ Spatial downscale worker functions here ~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
+
+# ============================================================================ #
+# ~~~~~~~~~~~~ Temperature downscale ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+# ============================================================================ #
+
+# ~~~~~~~~~~~~ Temperature altitude downscale ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+#' @title Downscales temperature for elevation effects
+#' @keywords internal
+.tempelev <- function(tc, lrf, lrc, dtmf, dtmc = NA) {
+  if (class(dtmc)[1] == "logical")  dtmc<-.resample(dtmf,tc)
+  if (class(tc)[1] == "array") tc<-.rast(tc,dtmc)
+
+  # Convert NA to elevation of 0 in dtmc
+  dtmc<-ifel(is.na(dtmc),0,dtmc)
+
+  # Lapse rate multipliers x elev
+  #lrc<-as.array(lrc)*.rta(dtmc,n)
+  #lrf<-as.array(lrf)*.rta(dtmf,n)
+  lrc<-lrc*dtmc
+  lrf<-lrf*dtmf
+
+  # Sea-level temperature from coarse resolution lapse rate
+  #stc<-.rast(.is(tc)+lrc,dtmc)
+  stc<-tc+lrc
+  if (crs(dtmc) != crs(dtmf)) stc<-project(stc,crs(dtmf))
+  stc<-.resample(stc,dtmf)
+
+  # Actual temperature from resampled sea temps and fine resolution lapse rate
+  #tcf<-suppressWarnings(stc-.rast(lrf,dtmf))
+  tcf<-suppressWarnings(stc-lrf)
+  return(tcf)
+}
+
+# ~~~~~~~~~~~~ Temperature Cold Air Drainage downscale ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+#' Calculate cold air drainage lapse rate multiplier
+#'
+#' @param dtmf - fine scale dtm spatraster
+#' @param basins - fine scale map of basins - if NA will calculate from the dtmf
+#' @param refhgt - Height of temperature measruements above ground
+#'
+#' @return spatRaster of lapse rate multiplier mu
+#' @details calculates the lapse rate multiplier by the difference
+#'  in elevation between each point and the highest in the
+#' basin.
+#' @keywords internal
+#'
+#' @examples
+.cad_multiplier<-function(dtmf, basins = NA, refhgt = 2){
+  # Calculate elevation difference between basin height point and pixel
+  if (class(basins) == "logical") basins<-basindelin(dtmf,refhgt)
+  b<-.is(basins)
+  d<-.is(dtmf)
+  u<-unique(as.vector(b))
+  u<-u[is.na(u)==FALSE]
+  bmx<-b*0
+  for (i in 1:length(u)) {
+    s<-which(b==u[i])
+    mx<-max(d[s],na.rm=TRUE)
+    bmx[s]<-mx
+  }
+  edif<-bmx-.is(dtmf)
+  edif<-.rast(edif,dtmf)
+
+  # Calculate lapse-rate multiplication factor (basin elev difference)
+  mu<-edif*.cadpotential(dtmf,basins,refhgt)
+  return(mu)
+}
 #' @title Calculate cold-air drainage potential (spatial)
 #' @noRd
 .cadpotential <- function(dtm, basins = NA, refhgt = 2) {
@@ -974,6 +1046,114 @@
   cadfr[cadfr>1]<-1
   return(cadfr)
 }
+#' Calculate whether conditions allow for cold air drainage
+#'
+#' @param tc - temperature in deg celsius
+#' @param u2 - windspeed in m/s
+#' @param swad - SW downward radiation
+#' @param lwrad - LW downward radiation
+#' @param dtmc - coarse resolution dtm matching climate variable inputs
+#' @param dtmf - fine scale dtm for outputs
+#' @param refhgt - of temp above ground (m)
+#'
+#' @return a binary spatRaster matching dtmf where 1= suitable, 0 = not suitable for cold air drainage
+#' @details temperature, wind  and radiation data used to determine
+#' whether cold air drainage conditions are likely to occur and returns a binary
+#' vector of the same length as `em` and `wind` indicating whether conditions
+#' occur (1) or not (0). For daily measurements it may be appropriate to apply only to daily min
+#' and  to set swrad to 0 assuming this minimum occurs during the night.
+#' @keywords internal
+#'
+#' @examples
+.cad_conditions<-function(tc,u2,swrad,lwrad,dtmc,dtmf,refhgt = 2){
+  # determine whether cold-air drainage conditions exist
+  d<-0.65*0.12
+  zm<-0.1*0.12
+  uf<-(0.4*u2)/log((refhgt-d)/zm)
+  H<-(swrad+lwrad-(5.67*10^-8*0.97*(tc+273.15)^4))*0.5
+  st<- -(0.4*9.81*(refhgt-d)*H)/(1241*(tc+273.15)*uf^3)
+  st<-.rast(st,dtmc)
+  if (crs(st) != crs(dtmf)) st<-project(st,crs(dtmf))
+  st<-.resample(st,dtmf)
+  st<-ifel(st>1,1,st)
+  st<-ifel(st<1,0,st)
+  return(st)
+}
+
+#' Calculate cold air drainage correction
+#'
+#' @param lrf spatraster of lapse rates
+#' @param mu spatraster of lapse rate multiplier output by`.cad_multiplier`.
+#' @param st spatraster of suitability for cold air drainage as output by `.cad_conditions`
+#'
+#' @return spatraster of cold air drainage correction in deg C
+#' @keywords internal
+#'
+#' @examples
+.apply_cad<-function(lrf,mu,st){
+  cad<-lrf*-mu
+  ce<-cad*st
+  return(ce)
+}
+
+#' @title DEFUNCT Downscale temperature with cold air drainage effects
+#' @export
+#' @keywords internal
+.tempcad<-function(climdata, tempvar, lrf, dtmf, basins = NA, refhgt = 2) {
+  # Calculate elevation difference between basin height point and pixel
+  if (class(basins) == "logical") basins<-basindelin(dtmf,refhgt)
+  b<-.is(basins)
+  d<-.is(dtmf)
+  u<-unique(as.vector(b))
+  u<-u[is.na(u)==FALSE]
+  bmx<-b*0
+  for (i in 1:length(u)) {
+    s<-which(b==u[i])
+    mx<-max(d[s],na.rm=TRUE)
+    bmx[s]<-mx
+  }
+  edif<-bmx-.is(dtmf)
+  edif<-.rast(edif,dtmf)
+
+  # Calculate lapse-rate multiplication factor (basin elev difference)
+  mu<-edif*.cadpotential(dtmf,basins,refhgt)
+
+  # extract climate variables
+  relhum<-climdata$relhum
+  pk<-climdata$pres
+  tc<-climdata[[tempvar]]
+  dtmc<-rast(climdata$dtm)
+  # Calculate lapse rate
+  ea<-.satvap(tc)*(relhum/100)
+  lr<-lapserate(tc, ea, pk)
+  lr<-.rast(lr,dtmc)
+  if (crs(lr) != crs(dtmf)) lr<-project(lr,crs(dtmf))
+  lrf<-.resample(lr,dtmf)
+  n<-dim(lrf)[3]
+  cad<-.is(lrf)*-.rta(mu,n)
+
+  # determine whether cold-air drainage conditions exist
+  d<-0.65*0.12
+  zm<-0.1*0.12
+  # Extract additional climate variables
+  u2<-climdata$windspeed
+  swrad<-climdata$swrad
+  lwrad<-climdata$lwrad
+  uf<-(0.4*u2)/log((refhgt-d)/zm)
+  H<-(swrad+lwrad-(5.67*10^-8*0.97*(tc+273.15)^4))*0.5
+  st<- -(0.4*9.81*(refhgt-d)*H)/(1241*(tc+273.15)*uf^3)
+  st<-.rast(st,dtmc)
+  if (crs(st) != crs(dtmf)) st<-project(st,crs(dtmf))
+  st<-.resample(st,dtmf)
+  st<-.is(st)
+  st[st>1]<-1
+  st[st<1]<-0
+  ce<-.rast(cad*st,dtmf)
+  return(ce)
+}
+
+# ~~~~~~~~~~~~ Temperature Coastal Effect downscale ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+
 #' @title  applying correction factor to coastal effects to account for data resolution
 #' @noRd
 .correctcoastal<-function(r) {
@@ -996,131 +1176,37 @@
   rp<-.rast(pm,r)
   return(rp)
 }
-
-# Component temperature effect spatial downscale functions
-# ============================================================================ #
-# ~~~~~~~~~~~~ Temperature downscale ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-# ============================================================================ #
-#' @title Downscales temperature for elevation effects
-#' @keywords internal
-.tempelev <- function(tc, dtmf, dtmc = NA, rh = NA, pk = NA) {
-  if (class(dtmc)[1] == "logical")  dtmc<-.resample(dtmf,tc)
-  if (class(tc)[1] == "array") tc<-.rast(tc,dtmc)
-
-  # Convert NA to elevation of 0 in dtm's
-  dtmc<-ifel(is.na(dtmc),0,dtmc)
-
-  # Calculate lapse raster
-  n<-dim(tc)[3]
-  if (class(rh) == "logical") {
-    lrc<-.rta(0.005*.is(dtmc),n)
-    lrf<-.rta(0.005*.is(dtmf),n)
-  } else {
-    ea<-.satvap(.is(tc))*(.is(rh)/100)
-    lrc<-lapserate(.is(tc), ea, .is(pk))
-    lrc<-.rast(lrc,dtmc)
-    if (crs(lrc) != crs(dtmf)) {
-      lrcp<-project(lrc,crs(dtmf))
-      lrf<-.resample(lrcp,dtmf)
-    } else lrf<-.resample(lrc,dtmf)
-    lrc<-as.array(lrc)*.rta(dtmc,n)
-    lrf<-as.array(lrf)*.rta(dtmf,n)
-  }
-  # Sea-level temperature
-  stc<-.rast(.is(tc)+lrc,dtmc)
-  if (crs(dtmc) != crs(dtmf)) stc<-project(stc,crs(dtmf))
-  stc<-.resample(stc,dtmf)
-  # Actual temperature
-  tcf<-suppressWarnings(stc-.rast(lrf,dtmf))
-  return(tcf)
-}
-#' @title Downscale temperature with cold air drainage effects
-#' @export
-#' @keywords internal
-.tempcad<-function(climdata, dtmf, basins = NA, refhgt = 2) {
-  # Calculate elevation difference between basin height point and pixel
-  if (class(basins) == "logical") basins<-basindelin(dtmf,refhgt)
-  b<-.is(basins)
-  d<-.is(dtmf)
-  u<-unique(as.vector(b))
-  u<-u[is.na(u)==FALSE]
-  bmx<-b*0
-  for (i in 1:length(u)) {
-    s<-which(b==u[i])
-    mx<-max(d[s],na.rm=TRUE)
-    bmx[s]<-mx
-  }
-  edif<-bmx-.is(dtmf)
-  edif<-.rast(edif,dtmf)
-  # Calculate lapse-rate multiplication factor
-  mu<-edif*.cadpotential(dtmf,basins,refhgt)
-  # extract climate variables
-  relhum<-climdata$relhum
-  pk<-climdata$pres
-  tc<-climdata$temp
-  dtmc<-rast(climdata$dtm)
-  # Calculate lapse rate
-  ea<-.satvap(tc)*(relhum/100)
-  lr<-lapserate(tc, ea, pk)
-  lr<-.rast(lr,dtmc)
-  if (crs(lr) != crs(dtmf)) lr<-project(lr,crs(dtmf))
-  lr<-.resample(lr,dtmf)
-  n<-dim(lr)[3]
-  cad<-.is(lr)*-.rta(mu,n)
-  # determine whether cold-air drainage conditions exist
-  d<-0.65*0.12
-  zm<-0.1*0.12
-  # Extract additional climate variables
-  u2<-climdata$windspeed
-  swrad<-climdata$swrad
-  lwrad<-climdata$lwrad
-  uf<-(0.4*u2)/log((refhgt-d)/zm)
-  H<-(swrad+lwrad-(5.67*10^-8*0.97*(tc+273.15)^4))*0.5
-  st<- -(0.4*9.81*(refhgt-d)*H)/(1241*(tc+273.15)*uf^3)
-  st<-.rast(st,dtmc)
-  if (crs(st) != crs(dtmf)) st<-project(st,crs(dtmf))
-  st<-.resample(st,dtmf)
-  st<-.is(st)
-  st[st>1]<-1
-  st[st<1]<-0
-  ce<-.rast(cad*st,dtmf)
-  return(ce)
-}
-
-# downscaled sst without NA and same timesteps as tc and at same res as dtmf
-
-
 #' @title Coastal temperature effects
 #'
 #' @param tc - downscaled temperature at same res as dtmf
 #' @param sstf - downscaled sea surface temperature to dtmf resolution and extent - no NA and timeseries matches tc
-#' @param u2 - downscaled windspeed at 2m height
+#' @param u2 - downscaled windspeed at temprature height
 #' @param wdir - wind direction (coarse resolution) - same value for all of dtmf extent will be used
 #' @param dtmf - fine dtm spatraster
-#' @param dtmw - fine-scale dtm covering wider area than dtmf
-#' @param dtmc - coarse dtm spatraster
+#' @param dtmm - fine-scale dtm covering wider area than dtmf (but same resolution!!)
+#' @param dtmc - coarse dtm spatraster matching resolution and extent of wdir
 #'
 #' @return Spatraster of temperature that includes coastal effect
 #' @export
 #' @keywords internal
-.tempcoastal<-function(tc, sst, u2, wdir, dtmf, dtmw, dtmc) {
+.tempcoastal<-function(tc, sst, u2, wdir, dtmf, dtmm, dtmc,ndir=8) {
   # Spatial and temporal interpolation of sst and resmapled to match dtmf resolution - IMPROVE THIS !!
   if (any(global(sst,anyNA))) sst<-.spatinterp(sst)
   sst<-.tmeinterp(sst,NA,climdata$tme)
-  # Resample to dtmf resolution
   sstf<-project(sst,dtmf)
-
+  # Resample dtmm to dtmf resolution
+  if(any(res(dtmm)!=res(dtmf))) dtmm<-.resample(dtmm,dtmf)
   # Calculate coastal exposure for each wind direction
-  landsea<-ifel(is.na(dtmw),NA,1)
-  lsr<-array(NA,dim=c(dim(dtmf)[1:2],8))
-  for (i in 0:7) {
-    r<-coastalexposure(landsea, e=ext(dtmf), i%%8*45) # seems to return a raster 1 row and col too big!
+  landsea<-ifel(is.na(dtmm),NA,1)
+  lsr<-array(NA,dim=c(dim(dtmf)[1:2],ndir))
+  for (i in 0:(ndir-1)) {
+    r<-coastalexposure(landsea, e=ext(dtmf), i%%ndir*(360/ndir)) # seems to return a raster 1 row and col too big!
     r<-.correctcoastal(r)
     lsr[,,i+1]<-.is(r)
   }
   # smooth
   lsr2<-lsr
-  for (i in 0:7) lsr2[,,i+1]<-0.25*lsr[,,(i-1)%%8+1]+0.5*lsr[,,i%%8+1]+0.25*lsr[,,(i+1)%%8+1]
+  for (i in 0:7) lsr2[,,i+1]<-0.25*lsr[,,(i-1)%%ndir+1]+0.5*lsr[,,i%%ndir+1]+0.25*lsr[,,(i+1)%%ndir+1]
   lsm<-apply(lsr,c(1,2),mean)
   tst<-min(lsm,na.rm=T)
   if (tst < 1) { # only apply coastal effects if there are coastal area
@@ -1131,7 +1217,7 @@
     wdir<-as.numeric(extract(wdr,xy))[-1]
     if (is.na(wdir[1])) wdir<-apply(.is(wdr),3,median,na.rm=TRUE)
     # Calculate array land-sea ratios for every hour
-    i<-round(wdir/45)%%8
+    i<-round(wdir/(360/ndir))%%ndir
     lsr<-lsr2[,,i+1]
     # Calculate sstf weighting upwind
     # derive power scaling coefficient from wind speed
@@ -1257,24 +1343,31 @@
   a<-a*m
   a
 }
-#' @title Converts an array of hourly data to daily
-#' @param a - a 3D array
+#' @title Converts an array, vector or SpatRaster of hourly data to daily
+#' @param a - a 3D array, SpatRaster or vector
 #' @param fun - a function , typically mean, min, max or sum
-#' @returns a 3D array of daily data - e.g. daily mean, max or min temperature or total rainfall
+#' @returns a 3D array, SpatRaster or vector of daily data matching class
 #' @noRd
-.hourtoday<-function(a,fun=mean, toVector=FALSE) {
-  if(inherits(a,'numeric')|length(dim(a))==1){
-    a<-array(a,dim=c(1,1,length(a)))
-    toVector<-TRUE
+.hourtoday<-function(a,fun=mean) {
+    if(inherits(a,"SpatRaster")){
+      tem<-a[[1]]
+      a<-.is(a)
+      toSpatRaster<-TRUE
+    } else toSpatRaster<-FALSE
+    if(inherits(a,'numeric')|length(dim(a))==1){
+      a<-array(a,dim=c(1,1,length(a)))
+      toVector<-TRUE
+    } else toVector<-FALSE
+
+    .htd<-function(x) {
+      y<-matrix(x,ncol=24,byrow=T)
+      apply(y,1,fun,na.rm=T)
+    }
+    d<-.applynotna(a,.htd)
+    if (toVector) d<-as.vector(d)
+    if (toSpatRaster) d<-.rast(d,tem)
+    return(d)
   }
-  .htd<-function(x) {
-    y<-matrix(x,ncol=24,byrow=T)
-    apply(y,1,fun,na.rm=T)
-  }
-  d<-.applynotna(a,.htd)
-  if (toVector) d<-as.vector(d)
-  return(d)
-}
 #' @title Converts an array daily data to hourly using one of two methods.
 #' @param name description a - an array or vector of daily data - assumes timeseries if only one dimension
 #' @param Spline - optional logical indicating which method to use (see details)

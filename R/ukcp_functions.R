@@ -499,8 +499,9 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
   names(clim_list$windspeed)<-terra::time(clim_list$windspeed)
   names(clim_list$winddir)<-terra::time(clim_list$winddir)
 
-  # Calculate derived variables: longwave downward
-  tmean<-(clim_list$tasmax+clim_list$tasmin)/2
+  # Calculate derived variables: longwave downward from tmean (calculated from hourly estimate of temp)
+  tme<-as.POSIXlt(time(clim_list$tmax),tz="UTC")
+  tmean<-.hourtoday(temp_dailytohourly(clim_list$tasmin, clim_list$tasmax, tme),mean) # required for relhum downscaling
   lwup<-terra::app(tmean, fun=.lwup)
   clim_list$lwdown<-clim_list$rls+lwup
 
@@ -518,7 +519,7 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
   ### Create output list
   output_list<-list()
   output_list$dtm<-dtmc
-  output_list$tme<-as.POSIXlt(time(clim_list$tmax),tz="UTC")
+  output_list$tme<-tme
   output_list$windheight_m<-10 # ukcp windspeed at 10 metres height
   output_list$tempheight_m<-1.5 # ukcp air temp at 1.5 metres height
 

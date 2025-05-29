@@ -59,7 +59,7 @@
 #' }
 temp_dailytohourly <- function(tmn, tmx, tme = NA, lat = NA, long = NA, srte = 0.09) {
   if (inherits(tmn, "SpatRaster")) {
-    if(is.na(tme)) tme<-as.POSIXlt(terra::time(tmn))
+    if(class(tme)[1]=="logical") tme<-as.POSIXlt(terra::time(tmn[[1]]))
     tem<-tmn[[1]]
     toArrays<-FALSE
   } else toArrays<-TRUE
@@ -180,7 +180,7 @@ hum_dailytohourly <- function(relhum, tasmin, tasmax, temph, psl, presh, tme, re
   presh<-.is(presh)
 
   # Convert to specific humidity downscale to hourly then convert back to relative hum
-  tc<-(tasmin+tasmax)/2
+  tc<-.hourtoday(temph,mean)
   hs<-converthumidity(relhum,intype="relative",outtype="specific",tc=tc,pk=psl)
   hr<- .daytohour(hs)
   relh<-suppressWarnings(converthumidity(hr,intype="specific",outtype="relative",tc=temph,pk=presh))

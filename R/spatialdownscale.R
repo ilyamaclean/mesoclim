@@ -9,7 +9,7 @@
 #' @param basins optionally, a fine-resolution SpatRast of basins as returned by [basindelin()]
 #' matching the coordinate reference system and extent of `dtmf`. Calculated if
 #' not supplied.
-#' @param u2 optionally, a SpatRast of high resolution wind speeds as returned by [winddownscale()].
+#' @param uzf optionally, a SpatRast of fine resolution wind speeds as returned by [winddownscale()].
 #' Calculated if not supplied.
 #' @param cad optional logical indicating whether to calculate cold-air drainage effects
 #' @param coastal optional logical indicating whether to calculate coastal effects
@@ -41,36 +41,51 @@
 #'  tmf <- tempdownscale(climdata, sst, dtmf, dtmm, NA, NA,TRUE, TRUE,'tmax',2, 2)
 #'  plot_q_layers(tmf)
 #'  }
-tempdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, u2 = NA,
+tempdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, uzf = NA,
                         cad = TRUE, coastal = TRUE, tempvar='temp',thgto=2, whgto=2) {
   if (class(dtmm) == "logical" & coastal) stop("dtmm needed for calculating coastal effects")
   if (class(climdata$dtm)[1] == "PackedSpatRaster") dtmc<-rast(climdata$dtm) else dtmc<-climdata$dtm
+  if(is.logical(sst)) coastal<-FALSE else if(all(!is.na(values(sst[[1]])))) coastal<-FALSE
   rh<-climdata$relhum
   pk<-climdata$pres
   tc<-climdata[[tempvar]]
   thgti<-climdata$tempheight_m
   whgti<-climdata$windheight_m
   tme<-climdata$tme
+  u2<-.windhgt(climdata$windspeed, whgti, thgto) # wind at downscale temperature height above ground (for cad)
+  swrad<-climdata$swrad
+  lwrad<-climdata$lwrad
   dtmc<-climdata$dtm
 
-  # Calculate elevation effects - add input / output heights to elevations
-  tcf<-.tempelev(tc,dtmf+thgto,dtmc+thgti,rh,pk)
-  # Cold air drainage
+  # Calculate lapse rates (coarse and fine scale)
+  lrc<-lapserate(.is(tc), .is(rh), .is(pk))
+  lrc<-.rast(lrc,dtmc)
+  if (crs(lrc) != crs(dtmf)) {
+    lrcp<-project(lrc,crs(dtmf))
+    lrf<-.resample(lrcp,dtmf)
+  } else lrf<-.resample(lrc,dtmf)
+
+  # Calculate elevation effects (assume NA in dtmc =sea = height 0) - add input / output heights to elevations
+  tcf<-.tempelev(tc,lrf,lrc,dtmf+thgto,ifel(is.na(dtmc),0,dtmc+thgti))
+
+  # Cold air drainage - assume if applied to tmin occurs at nighttime when swrad=0 - is it valid to apply to tmax?
   if (cad) {
-    tcad<-.tempcad(climdata,dtmf,basins,thgto) # output temp height defines basin merge
+    mu<-.cad_multiplier(dtmf, basins, refhgt=thgti)
+    st<-.cad_conditions(tc,u2,swrad=0,lwrad,dtmc,dtmf,refhgt=thgti) #swrad=0 as we assume tmin in night
+    tcad<-.apply_cad(lrf,mu,st)
     tcf<-tcf+tcad
   }
   # Coastal effects - checks if non NA values in sst AND resamples to res/extent of dtmf
-  if (coastal & any(!is.na(values(sst)))) {
-    # fill any spatial cells without data and interpolate to climdata timeseries
+  if (coastal) {
+    # Interpolate sst to all landcells and across full timeseries so no NA
     if (any(global(sst,anyNA))) sstinterp<-.spatinterp(sst) else sstinterp<-sst
     sstinterp<-.tmeinterp(sstinterp,NA,tme)
     if (crs(sst) != crs(dtmf)) sstinterp<-project(sstinterp,crs(dtmf))
-    sstf<-.resample(sstinterp,dtmf)
+    sstf<-.resample(sstinterp,dtmf,method="cubic")
     # Calc windspeed at output height if required
-    if(class(u2)[1] == "logical") u2<-winddownscale(climdata$windspeed,climdata$winddir,dtmf,dtmm,dtmc,whgti,whgto)
-    tcf<-.tempcoastal(tcf,sstf,u2,climdata$winddir,dtmf,dtmm,dtmc)
-  }
+    if(class(uzf)[1] == "logical") uzf<-winddownscale(climdata$windspeed,climdata$winddir,dtmf,dtmm,dtmc,whgti,thgto)
+    tcf<-.tempcoastal(tc=tcf,sst=sstf,u2=uzf,wdir=climdata$winddir,dtmf,dtmm,dtmc)
+   }
   terra::time(tcf)<-tme
   return(tcf)
 }
@@ -107,6 +122,44 @@ presdownscale<-function(pk, dtmf, dtmc, sealevel = TRUE) {
   pkf<-.rast(pkf*((293-0.0065*.rta(dtmf,n))/293)^5.26,dtmf)
   return(pkf)
 }
+
+#' @title Downscale longwave radiation
+#' @description Downscales an array of longwave downward radiation data with option to
+#' simulate terrain shading of skyview
+#'
+#' @param lwrad - coarse resolution downward longwave radiation (W/m^2)  as spatraster or array.
+#' @param tc - coarse resolution temperature (deg C) as spatraster or array.
+#' @param tcf - fine resolution spatraster of temperature (deg C) down-scaled to resolution of `dtmf`.
+#' @param tme POSIXlt object of times corresponding to radiation values in
+#' `lwrad`, `tc` and `tcf`.
+#' @param dtmf a fine-resolution SpatRast of elevations.
+#' @param dtmc SpatRast of elevations matching the resolution, extend and coordinate
+#' reference system of `lwrad` and `tc`.
+#' @param terrainshade - boolean TRUE/FALSE
+#'
+#' @return  a multi-layer SpatRast of downward longwave radiation (W/m^2)
+#' matching the resolution of dtmf.
+#' @details radiation is downscaled by computing from temperature the difference in upward
+#' longwave radiation at fine and coarse resolutions. Corrected LW down is then
+#' corrected for terrain shading of skyview if requested.
+#'
+#' @examples
+lwdownscale<-function(lwrad, tc, tcf, tme, dtmf, dtmc, terrainshade = FALSE) {
+  if(class(lwrad)[1]=="array") lwrad<-.rast(lwrad,dtmc)
+  lwf<-.resample(lwrad,dtmf, msk=TRUE)
+  lwupc<-.lwup(tc)
+  if(class(lwupc)[1]=="array") lwupc<-.rast(lwupc,dtmc)
+  lwupc<-.resample(lwupc,dtmf)
+  lwupf<-.lwup(tcf)
+  lwf<-lwf+(lwupc-lwupf)
+  if (terrainshade) {
+    svf<-.rta(.skyview(dtmf),dim(lwf)[3])
+    lwf<-.rast(.is(lwf)*svf,dtmf)
+  }
+  return(lwf)
+}
+
+
 #' @title Downscale shortwave radiation
 #' @description Downscales an array of shortwave radiation data with option to
 #' simulate cloud patchiness and calculate diffuse radiation
@@ -160,18 +213,13 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)
   jd<-juldayvCpp(tme$year+1900, tme$mon+1, tme$mday)
   lt<-tme$hour+tme$min/60+tme$sec/3600
   ll<-.latslonsfromr(dtmc)
-  if (ti < 86400)  {  # Hourly
-    lats<-.rast(ll$lats,dtmc)
-    lons<-.rast(ll$lons,dtmc)
-    lats<-.is(mask(lats,dtmc))
-    lons<-.is(mask(lons,dtmc))
-    csr<-array(clearskyradmCpp(jd,lt,as.vector(lats),as.vector(lons)),dim=dim(swrad))
-  }  else {  # daily
-    lats<-as.vector(ll$lats[,1])
-    csr<-clearskyradmCpp(jd,rep(12,length(jd)),lats,rep(0,length(lats)),hourly=FALSE)
-    # csr<-array(rep(csr,each=dim(swrad)[2]),dim(swrad))
-    csr<-array(apply(csr,2,rep,times=dim(swrad)[2]), dim(swrad))
-  }
+  lats<-.rast(ll$lats,dtmc)
+  lons<-.rast(ll$lons,dtmc)
+  lats<-.is(mask(lats,dtmc))
+  lons<-.is(mask(lons,dtmc))
+  if (ti < 86400) hourly<-TRUE else hourly<-FALSE
+  csr<-array(clearskyradmCpp(jd,lt,as.vector(lats),as.vector(lons),hourly),dim=dim(swrad))
+
   # Calculate clear-sky fraction and elevation adjust it
   csfc<-.is(swrad)/csr
   csfc[is.na(csfc)]<-0.5
@@ -188,18 +236,23 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)
   }
   # Calculate fine-res csf
   ll<-.latslonsfromr(dtmf)
+  lats<-.rast(ll$lats,dtmf)
+  lons<-.rast(ll$lons,dtmf)
+  lats<-.is(mask(lats,dtmf))
+  lons<-.is(mask(lons,dtmf))
   if (ti < 86400)  {  # Hourly
     lats<-.rast(ll$lats,dtmf)
     lons<-.rast(ll$lons,dtmf)
     lats<-.is(mask(lats,dtmf))
     lons<-.is(mask(lons,dtmf))
     csrf<-array(clearskyradmCpp(jd,lt,as.vector(lats),as.vector(lons)),dim=c(dim(dtmf)[1:2],dim(swrad)[3]))
-  }  else {  # daily
+  }  else {  # daily - simplified assumes constant lat across each row (not always case for OSGB)
     lats<-as.vector(ll$lats[,1])
     csrf<-clearskyradmCpp(jd,rep(12,length(jd)),lats,rep(0,length(lats)),hourly=FALSE)
     # csrf<-array(rep(csrf,each=dim(swrad)[2]),dim=c(dim(dtmf)[1:2],dim(swrad)[3]))
     csrf<-array(apply(csrf,2,rep,times=dim(dtmf)[2]),dim=c(dim(dtmf)[1:2],dim(swrad)[3]))
   }
+
   swradf<-.rast(csrf,dtmf)*csf
   if (terrainshade) {
     if (ti < 86400)  {  # Hourly
@@ -304,8 +357,8 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)
 #' wsf <- winddownscale(ukcpinput$windspeed, ukcpinput$winddir, dtmf, dtmm, ukcpinput$dtm, zi=ukcpinput$windheight_m)
 #' plot_q_layers(wsf)
 winddownscale <- function(wspeed, wdir, dtmf, dtmm, dtmc, wca=NA, zi=10, zo = 2) {
-  # CALCULATE COARSES SCALE DTMM IF OF SAME RESOLUTION AS DTMF - simplifies coast line!
-  if(any(res(dtmm)!=res(dtmf))){
+  # Coarsen dtmm resolution if currently same as dtmf - speeds calculations and simplifies coast line!
+  if(all(res(dtmm)==res(dtmf))){
     dtmm_res<-round(exp( ( log(terra::res(dtmc)[1]) + log(terra::res(dtmf)[1]) ) / 2 ))
     dtmm<-terra::aggregate(dtmm,dtmm_res / res(dtmf),  na.rm=TRUE)
   }
@@ -592,13 +645,14 @@ spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, 
   hourly<-TRUE
   if (abs(tint-86400) < 5) hourly=FALSE
 
-  # Extract variables
+  # Extract variables - calculate tmean if daily
   if(class(climdata$dtm)[1]=='PackedSpatRaster') dtmc<-rast(climdata$dtm) else dtmc<-climdata$dtm
   if (hourly) {
     tc<-climdata$temp
   } else {
     tmin<-climdata$tmin
     tmax<-climdata$tmax
+    tmean<-.hourtoday(.is(temp_dailytohourly(.rast(tmin,dtmc), .rast(tmax,dtmc), climdata$tme)),mean) # required for relhum downscaling
   }
   rh<-climdata$relhum
   pk<-climdata$pres
@@ -613,11 +667,6 @@ spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, 
   # ================== Downscale variables ===============================  #
   message('Downscaling wind...')
   uzf<-winddownscale(wspeed,wdir,dtmf,dtmm,dtmc,wca,whgti,whgto)
-  #if (uhgt!=2) {   # NOT REQUIRED - use uzf at requested output height whgto
-  #  u2<-.is(uzf)*4.8699/log(67.8*uhgt-5.42)
-  #  u2<-.rast(u2,dtmf)
-  #} else u2<-uzf
-
   # winddir
   uu<-.rast(wspeed*cos(wdir*pi/180),dtmc)
   vv<-.rast(wspeed*sin(wdir*pi/180),dtmc)
@@ -630,12 +679,13 @@ spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, 
   wdf<-mask(wdf,dtmf)
 
   message('Downscaling temperature...')
+  # for daily data will calculate daily means from tmin/tmax temporally downscaled to hourly temp
   if (hourly) {
     tcf<-tempdownscale(climdata,sst,dtmf,dtmm,basins,uzf,cad,coastal,'temp',thgto,whgto)
   } else {
     tminf<-tempdownscale(climdata,sst,dtmf,dtmm,basins,uzf,cad,coastal,'tmin',thgto,whgto)
-    tmaxf<-tempdownscale(climdata,sst,dtmf,dtmm,basins,uzf,cad,coastal,'tmax',thgto,whgto)
-    # Check tax>tmin (coastal effects can switch) - NEEDS FASTER METHOD!!!
+    tmaxf<-tempdownscale(climdata,sst,dtmf,dtmm,basins,uzf,cad=FALSE,coastal,'tmax',thgto,whgto)
+    # Check tax>tmin (coastal effects can switch)
     diurnal<-(tmaxf-tminf<0)
     if(unique(all(diurnal))==0){
       temp_tmin<-ifel(diurnal,tmaxf,tminf)
@@ -644,17 +694,18 @@ spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, 
       remove(temp_tmin)
       remove(diurnal)
     }
+    tmeanf<-.hourtoday(temp_dailytohourly(tminf, tmaxf, climdata$tme),mean) # used for relhum & LW downscaling
   }
 
   message('Downscaling relative humidity')
   if (hourly) {
     rhf<-relhumdownscale(rh,tc,tcf,dtmc,rhmin)
   } else {
-    rhf<-relhumdownscale(rh,(tmin+tmax)/2,(tminf+tmaxf)/2,dtmc,rhmin)
+    rhf<-relhumdownscale(rh,tmean,tmeanf,dtmc,rhmin)
   }
 
   message('Downscaling pressure...')
-  pkf<-presdownscale(pk,dtmf,dtmc,pksealevel)
+  pkf<-presdownscale(pk,dtmf,dtmc,sealevel=pksealevel)
 
   message('Downscaling SW radiation...')
   if (patchsim) {
@@ -668,8 +719,6 @@ spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, 
     nsim<-round((dtr/sze)*dim(swrad)[3])+1
     if (nsim > dim(swrad)[3]) nsim<-dim(swrad)[3]
   } else nsim<-dim(swrad)[3]
-
-  # Sw radiation
   swf<-swdownscale(swrad,tme,dtmf,dtmc,patchsim,nsim,terrainshade)
   totswrad<-swf$swf
   if (terrainshade) {
@@ -677,13 +726,8 @@ spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, 
     #difrad<-difrad*swf
   }  else difrad = NA
 
-  message('Downscaling LW radiation with terrain shading...') # MAKE FUNCTION OF THIS??
-  lwf<-.rast(lwrad,dtmc)
-  lwf<-.resample(lwf,dtmf, msk=TRUE)
-  if (terrainshade) {
-  svf<-.rta(.skyview(dtmf),dim(lwf)[3])
-  lwf<-.rast(.is(lwf)*svf,dtmf)
-  }
+  message('Downscaling LW radiation...')
+  if(hourly) lwf<-lwdownscale(lwrad, tc, tcf, tme, dtmf, dtmc, terrainshade) else lwf<-lwdownscale(lwrad, tmean, tmeanf, tme, dtmf, dtmc, terrainshade)
 
   message('Downscaling precipitation...')
   precf<-precipdownscale(prec,dtmf,dtmc,precipmethod,fast,noraincut,patchsim,nsim)

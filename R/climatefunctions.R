@@ -157,7 +157,7 @@ windelev <- function(dtmf, dtmm, dtmc, wdir, uz = 2) {
 #' @description The function `coastalexposure` is used to calculate an inverse
 #' distance^2 weighted ratio of land to sea in a specified upwind direction.
 #'
-#' @param landsea A SpatRast with NAs (representing sea) or any non-NA value (representing land).
+#' @param landsea A SpatRast with NAs (representing sea) and any non-NA value (representing land).
 #' The object should have a larger extent than that for which land-sea ratio values are needed,
 #' as the calculation requires land / sea coverage to be assessed upwind outside the target area.
 #' @param e a terra::ext object indicating the region for which land-sea ratios are required.
@@ -473,11 +473,12 @@ daylength <- function(julian, lat) {
   dl[sel] <- 0
   return(dl)
 }
-#' @title Calculate Lapse rates
-#' @param ea = temperature (deg C)
-#' @param ea = vapour pressure (kPa)
-#' @param pk = atmospheric pressure (kPa)
-#' @returns lapes rate
+#' @title Calculate Lapse rates via vapour pressure
+#' @param tc = temperature (deg C) as vector, array or spatraster
+#' @param ea = vapour pressure (kPa) as vector, array or spatraster
+#' @param pk = atmospheric pressure (kPa) as vector, array or spatraster
+#' @returns lapse rates in same format as tc
+#' @details Alternatively a value of 0.005 can be used if lacking pk or relhum data
 #' @export
 #' @keywords climate spatial
 #' @examples
@@ -485,10 +486,19 @@ daylength <- function(julian, lat) {
 #' ea<-converthumidity(climdata$relhum,tc=climdata$temp , pk=climdata$pres)
 #' lr<-lapserate(climdata$temp,ea,climdata$pres)
 #' terra::plot(mesoclim:::.rast(lr,climdata$dtm)[[1]])
-lapserate <- function(tc, ea, pk) {
+lapserate <- function(tc, rh=NA, pk=NA) {
+  if(class(tc)[1]=="Spatraster"){
+    asArrays<-FALSE
+    r<-tc[[1]]
+    tc<-.is(tc)
+    rh<-.is(rh)
+    pk<-.is(pk)
+  } else asArrays<-TRUE
+  ea<-.satvap(tc)*(rh/100)
   rv<-0.622*ea/(pk-ea)
   lr<-9.8076*(1+(2501000*rv)/(287*(tc+273.15)))/
     (1003.5+(0.622*2501000^2*rv)/(287*(tc+273.15)^2))
+  if(!asArrays) lr<-.rast(lr,r)
   lr
 }
 
