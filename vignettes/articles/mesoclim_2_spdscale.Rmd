@@ -62,16 +62,14 @@ plot(aoi,add=TRUE)
 Wrapper function allows downscaling in a single function call, with parameters defining which processes are captured by the downscaling.
 
 ```{r onestep-spdown}
+# Downscale one month of  climate data
 
-# Downscale one year of future climate data
-
-t0<-now()
 wca<-calculate_windcoeffs(ukcpinput$dtm,dtmm,dtmf,zo=2)
 basins<-basindelin(dtmf, boundary = 2)
-  
-mesoclimate<-spatialdownscale(climdata=ukcpinput, sst=ukcp18sst, dtmf, dtmm, basins = basins,  wca=wca, cad=TRUE,coastal = TRUE, thgto =2, whgto=2, rhmin = 20, pksealevel = FALSE, patchsim = TRUE,  terrainshade = TRUE, precipmethod = "Elev", fast = TRUE, noraincut = 0.01, toArrays=FALSE) # CHECK pksealevel
+
+t0<-now()
+mesoclimate<-spatialdownscale(climdata=ukcpinput, sst=ukcp18sst, dtmf, dtmm, basins = basins,  wca=wca, cad=TRUE,coastal = TRUE, thgto =2, whgto=2, rhmin = 20, pksealevel = FALSE, patchsim = FALSE,  terrainshade = TRUE, precipmethod = "Elev", fast = TRUE, noraincut = 0.01, toArrays=FALSE) # CHECK pksealevel
 print(now()-t0)
-names(mesoclimate)
 
 # write_climdata(mesoclimate,file.path(system.file('data',package='mesoclim'),'mesoclimate.rda'),overwrite=TRUE)
 
@@ -252,7 +250,7 @@ plot(c(tmincoast[[13]],tmaxcoast[[13]]))
 
 If only concerned with temperature downscaling, the wrapper function `tempdownscale` allows all relevant processes to be run as a single function. 
 ```{r temp-dscale}
-tmin<-tempdownscale( ukcpinput,
+dailytemps<-tempdaily_downscale( ukcpinput,
                   ukcp18sst,# can be coarse resolution
                   dtmf, # fine scale dem
                   dtmm , # medium re wider are dem
@@ -260,23 +258,12 @@ tmin<-tempdownscale( ukcpinput,
                   u2 = windspeed, # windspeeds downscaled - or will calculate
                   cad = TRUE,
                   coastal = TRUE,
-                  tempvar = 'tmin',
                   whgto = 2, # output wind height above ground
                   thgto = 2 # output temperature height above ground
                   )
-
-tmax<-tempdownscale(ukcpinput,
-                  ukcp18sst,# can be coarse
-                  dtmf, # fine scale dem
-                  dtmm , # medium re wider are dem
-                  basins = basins, # basindelin() output
-                  u2 = windspeed, # windspeeds downscaled
-                  cad = TRUE,
-                  coastal = TRUE,
-                  tempvar = 'tmax',
-                  whgto = 2, # output wind height above ground
-                  thgto = 2 # output temperature height above ground
-                  )
+tmin<-dailytemps$tmin
+tmax<-dailytemps$tmax
+tmean<-dailytemps$tmean
 
 # Dirunal range
 diurnaltmp<-tmax-tmin

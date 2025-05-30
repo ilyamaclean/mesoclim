@@ -2,11 +2,11 @@
 % Please edit documentation in R/workerfunctions.R
 \name{.tempcad}
 \alias{.tempcad}
-\title{Downscale temperature with cold air drainage effects}
+\title{DEFUNCT Downscale temperature with cold air drainage effects}
 \usage{
-.tempcad(climdata, dtmf, basins = NA, refhgt = 2)
+.tempcad(climdata, tempvar, lrf, dtmf, basins = NA, refhgt = 2)
 }
 \description{
-Downscale temperature with cold air drainage effects
+DEFUNCT Downscale temperature with cold air drainage effects
 }
 \keyword{internal}

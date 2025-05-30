@@ -33,7 +33,7 @@ spatialdownscale(
 \item{dtmf}{a high-resolution SpatRast of elevations}
 
 \item{dtmm}{a medium-resolution SpatRast of elevations covering a larger area
-than dtmf (only needed for coastal effects - see details under \code{\link[=tempdownscale]{tempdownscale()}}).}
+than dtmf (only needed for coastal effects - see details under \code{\link[=temphrly_downscale]{temphrly_downscale()}}).}
 
 \item{basins}{optionally, a fine-resolution SpatRast of basins as returned by \code{\link[=basindelin]{basindelin()}}
 matching the coordinate reference system and extent of \code{dtmf}. Calculated if

@@ -4,7 +4,7 @@
 \alias{.tempcoastal}
 \title{Coastal temperature effects}
 \usage{
-.tempcoastal(tc, sst, u2, wdir, dtmf, dtmw, dtmc)
+.tempcoastal(tc, sst, u2, wdir, dtmf, dtmm, dtmc, ndir = 8)
 }
 \arguments{
 \item{tc}{\itemize{
@@ -12,7 +12,7 @@
 }}
 
 \item{u2}{\itemize{
-\item downscaled windspeed at 2m height
+\item downscaled windspeed at temprature height
 }}
 
 \item{wdir}{\itemize{
@@ -23,12 +23,12 @@
 \item fine dtm spatraster
 }}
 
-\item{dtmw}{\itemize{
-\item fine-scale dtm covering wider area than dtmf
+\item{dtmm}{\itemize{
+\item fine-scale dtm covering wider area than dtmf (but same resolution!!)
 }}
 
 \item{dtmc}{\itemize{
-\item coarse dtm spatraster
+\item coarse dtm spatraster matching resolution and extent of wdir
 }}
 
 \item{sstf}{\itemize{

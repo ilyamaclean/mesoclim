@@ -12,7 +12,7 @@ relhumdownscale(rh, tcc, tcf, dtmc, rhmin = 0)
 \item{tcc}{a coarse-resolution array of temperatures (deg C)}
 
 \item{tcf}{a fine-resolution SpatRast of temperatures (deg C) as returned by
-\code{\link[=tempdownscale]{tempdownscale()}}}
+\code{\link[=temphrly_downscale]{temphrly_downscale()}} or \code{\link[=tempdaily_downscale]{tempdaily_downscale()}}}
 
 \item{dtmc}{a coarse-resolution SpatRast of elevations matching
 the resolution, extent and coordinate reference system of \code{rh} and \code{tc}.}
@@ -30,11 +30,11 @@ The function \code{relhumdownscale} is used to spatially downscale relative
 \examples{
 climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
-tcf<-tempdownscale(climdata,sst=NA,dtmf=dtmf,cad=FALSE,coastal=FALSE)
+tcf<-tempdaily_downscale(climdata,sst=NA,dtmf=dtmf,cad=FALSE,coastal=FALSE)$tmean
 rhf<-relhumdownscale(climdata$relhum,climdata$temp,tcf,climdata$dtm)
 plot_q_layers(rhf)
 }
 \seealso{
-\code{\link[=tempdownscale]{tempdownscale()}}
+\code{\link[=temphrly_downscale]{temphrly_downscale()}} and \code{\link[=tempdaily_downscale]{tempdaily_downscale()}}
 }
 \keyword{spatial}

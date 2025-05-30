@@ -36,6 +36,8 @@ sstdata<-create_ukcpsst_data(dir_sst,startdate,enddate,dtmc,member)
 plot(sstdata[[1]])
 
 ## spatial downscaling
+wca<-calculate_windcoeffs(ukcpinput$dtm,dtmm,dtmf,zo=2)
+basins<-basindelin(dtmf, boundary = 2)
 
 # one step
 mesoc<-spatialdownscale(climdata, sstdata, dtmf, dtmm, basins , wca, cad = TRUE,
@@ -49,12 +51,37 @@ whgto=2
 rhmin = 20
 pksealevel = TRUE
 patchsim = FALSE
+coastal<-TRUE
 terrainshade = TRUE
 precipmethod = "Elev"
 fast = TRUE
 noraincut = 0.01
 #Test spatialdownscale function
+tme<-as.POSIXlt(ukcpinput$tme,tz="UTC")
 
+# Find out whether daily or hourly
+tint<-as.numeric(tme[2])-as.numeric(tme[1])
+hourly<-TRUE
+if (abs(tint-86400) < 5) hourly=FALSE
+
+# Extract variables - calculate tmean if daily
+if(class(climdata$dtm)[1]=='PackedSpatRaster') dtmc<-rast(ukcpinput$dtm) else dtmc<-ukcpinput$dtm
+if (hourly) {
+  tc<-ukcpinput$temp
+} else {
+  tmin<-ukcpinput$tmin
+  tmax<-ukcpinput$tmax
+  tmean<-.hourtoday(.is(temp_dailytohourly(.rast(tmin,dtmc), .rast(tmax,dtmc), ukcpinput$tme)),mean) # required for relhum downscaling
+}
+rh<-ukcpinput$relhum
+pk<-ukcpinput$pres
+wspeed<-ukcpinput$windspeed
+wdir<-ukcpinput$winddir
+swrad<-ukcpinput$swrad
+lwrad<-ukcpinput$lwrad
+prec<-ukcpinput$prec
+whgti<-ukcpinput$windheight_m
+thgti<-ukcpinput$tempheight_m
 
 
 
