@@ -1,7 +1,8 @@
-#' @title Downscale temperature
-#' @description Downscales coarse-resolution temperature data accounting for elevation
+#' @title Downscale daily temperatures
+#' @description Downscales daily coarse-resolution temperature stats accounting for elevation
 #' effects and optionally cold air drainage and coastal effects
 #' @param climdata a `climdata` model object containing climate data of the same format as `era5climdata`
+#' Expects variables to include a `tmin` and `tmax`
 #' @param sst a SpatRast of sea-surface temperature data (deg C) timeseries that overlaps climdata$tme
 #' @param dtmf a high-resolution SpatRast of elevations
 #' @param dtmm a medium-resolution SpatRast of elevations covering a larger area
@@ -17,6 +18,115 @@
 #' @param thgto height above ground of output temperature measurements.
 #' @param whgto height above ground of output wind speed measurements.
 #' to resolution of `dtmf`.
+#' @return a list of three multi-layer SpatRasters of downscaled daily minimum, maximum and mean temperatures (deg C) matching the
+#' resolution of dtmf.
+#' @details Cold air drainage is calculated by delineating hydrological basins and
+#' calculating flow accumulation and the elevation difference from the highest point of the basin.
+#' Cold-air drainage is assumed to occur when atmospheric stability is high, namely when
+#' the radiation balance is negative and wind speeds are low. Coastal effects are
+#' calculated by determining the ratio of land to sea pixels in an upwind direction.
+#' The provision of `dtmm` allows this ratio to be derived accoutning for land and
+#' sea outside the boundaries of the study area.
+#' @rdname tempdaily_downscale
+#' @import terra
+#' @export
+#' @keywords spatial
+tempdaily_downscale<-function(climdata,sst,dtmf,dtmm,basins,uzf,cad,coastal,thgto,whgto){
+  # Check tmin and tmax among climdata variables
+  if(!any(c("tmin","tmax") %in% names(climdata))) stop("Cannot find daily min/max temperature variables for tempdaily_downscale!!!")
+  if (class(dtmm) == "logical" & coastal) stop("dtmm needed for calculating coastal effects")
+  if (class(climdata$dtm)[1] == "PackedSpatRaster") dtmc<-rast(climdata$dtm) else dtmc<-climdata$dtm
+  if(is.logical(sst)) coastal<-FALSE else if(all(!is.na(values(sst[[1]])))) coastal<-FALSE
+
+  # get variables
+  rh<-climdata$relhum
+  pk<-climdata$pres
+  tmin<-climdata$tmin
+  tmax<-climdata$tmax
+  thgti<-climdata$tempheight_m
+  whgti<-climdata$windheight_m
+  tme<-climdata$tme
+  u2<-.windhgt(climdata$windspeed, whgti, thgto) # wind at downscale temperature height above ground (for cad)
+  swrad<-climdata$swrad
+  lwrad<-climdata$lwrad
+  dtmc<-climdata$dtm
+
+  # Get temp independent
+  if (cad) mu<-.cad_multiplier(dtmf, basins, refhgt=thgti)
+  if (coastal) {
+    # Interpolate sst to all landcells and across full timeseries so no NA
+    if (any(global(sst,anyNA))) sstinterp<-.spatinterp(sst) else sstinterp<-sst
+    sstinterp<-.tmeinterp(sstinterp,NA,tme)
+    if (crs(sst) != crs(dtmf)) sstinterp<-project(sstinterp,crs(dtmf))
+    sstf<-.resample(sstinterp,dtmf,method="cubic")
+    # Calc windspeed at output height if required
+    if(class(uzf)[1] == "logical") uzf<-winddownscale(climdata$windspeed,climdata$winddir,dtmf,dtmm,dtmc,whgti,thgto)
+  }
+
+  # Downscale tmin
+  lrc<-lapserate(.is(tmin), .is(rh), .is(pk))
+  lrc<-.rast(lrc,dtmc)
+  if (crs(lrc) != crs(dtmf)) {
+    lrcp<-project(lrc,crs(dtmf))
+    lrf<-.resample(lrcp,dtmf)
+  } else lrf<-.resample(lrc,dtmf)
+  tminf<-.tempelev(tmin,lrf,lrc,dtmf+thgto,ifel(is.na(dtmc),0,dtmc+thgti))
+  if (cad) {
+    st<-.cad_conditions(tmin,u2,swrad=0,lwrad,dtmc,dtmf,refhgt=thgti) #swrad=0 as we assume tmin in night
+    tcad<-.apply_cad(lrf,mu,st)
+    tminf<-tminf+tcad
+  }
+  if (coastal) tminf<-.tempcoastal(tc=tminf,sst=sstf,u2=uzf,wdir=climdata$winddir,dtmf,dtmm,dtmc)
+
+  # Downscale tmax - no cold air drainage
+  lrc<-lapserate(.is(tmax), .is(rh), .is(pk))
+  lrc<-.rast(lrc,dtmc)
+  if (crs(lrc) != crs(dtmf)) {
+    lrcp<-project(lrc,crs(dtmf))
+    lrf<-.resample(lrcp,dtmf)
+  } else lrf<-.resample(lrc,dtmf)
+  tmaxf<-.tempelev(tmax,lrf,lrc,dtmf+thgto,ifel(is.na(dtmc),0,dtmc+thgti))
+  if (coastal) tmaxf<-.tempcoastal(tc=tmaxf,sst=sstf,u2=uzf,wdir=climdata$winddir,dtmf,dtmm,dtmc)
+
+  # Check tax>tmin (coastal effects can switch)
+  diurnal<-(tmaxf-tminf<0)
+  if(unique(all(diurnal))==0){
+    temp_tmin<-ifel(diurnal,tmaxf,tminf)
+    tmaxf<-ifel(diurnal,tminf,tmaxf)
+    tminf<-temp_tmin
+    remove(temp_tmin)
+    remove(diurnal)
+  }
+  # Calculate daily mean from hourly downscaling - VERY slow - perhaps calculate coarse tmean then downscale???
+  tmeanf<-.hourtoday(temp_dailytohourly(tminf, tmaxf, climdata$tme),mean) # used for relhum & LW downscaling
+
+  # Format outputs
+  terra::time(tminf)<-tme
+  terra::time(tmaxf)<-tme
+  terra::time(tmeanf)<-tme
+
+  out<-list(tmin=tminf,tmax=tmaxf,tmean=tmeanf)
+  return(out)
+}
+#' @title Downscale hourly temperature
+#' @description Downscales coarse-resolution temperature data accounting for elevation
+#' effects and optionally cold air drainage and coastal effects
+#' @param climdata a `climdata` model object containing climate data of the same format as `era5climdata`.
+#' Expects temperature to be in degrees and with the name `temp`.
+#' @param sst a SpatRast of sea-surface temperature data (deg C) timeseries that overlaps climdata$tme
+#' @param dtmf a high-resolution SpatRast of elevations
+#' @param dtmm a medium-resolution SpatRast of elevations covering a larger area
+#' than dtmf (only needed for coastal effects - see details).
+#' @param basins optionally, a fine-resolution SpatRast of basins as returned by [basindelin()]
+#' matching the coordinate reference system and extent of `dtmf`. Calculated if
+#' not supplied.
+#' @param uzf optionally, a SpatRast of fine resolution wind speeds as returned by [winddownscale()].
+#' Calculated if not supplied.
+#' @param cad optional logical indicating whether to calculate cold-air drainage effects
+#' @param coastal optional logical indicating whether to calculate coastal effects
+#' @param thgto height above ground of output temperature measurements.
+#' @param whgto height above ground of output wind speed measurements.
+#' @param tempvar string name of element of climdata holding temperature data (default = 'temp')
 #' @return a multi-layer SpatRast of downscaled temperatures (deg C) matching the
 #' resolution of dtmf.
 #' @details Cold air drainage is calculated by delineating hydrological basins and
@@ -26,7 +136,7 @@
 #' calculated by determining the ratio of land to sea pixels in an upwind direction.
 #' The provision of `dtmm` allows this ratio to be derived accoutning for land and
 #' sea outside the boundaries of the study area.
-#' @rdname tempdownscale
+#' @rdname temphrly_downscale
 #' @import terra
 #' @export
 #' @keywords spatial
@@ -38,11 +148,11 @@
 #'  dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
 #'  dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
 #'  climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
-#'  tmf <- tempdownscale(climdata, sst, dtmf, dtmm, NA, NA,TRUE, TRUE,'tmax',2, 2)
+#'  tmf <- temphrly_downscale(climdata, sst, dtmf, dtmm, NA, NA,TRUE, TRUE,2, 2)
 #'  plot_q_layers(tmf)
 #'  }
-tempdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, uzf = NA,
-                        cad = TRUE, coastal = TRUE, tempvar='temp',thgto=2, whgto=2) {
+temphrly_downscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, uzf = NA,
+                        cad = TRUE, coastal = TRUE,thgto=2, whgto=2, tempvar='temp') {
   if (class(dtmm) == "logical" & coastal) stop("dtmm needed for calculating coastal effects")
   if (class(climdata$dtm)[1] == "PackedSpatRaster") dtmc<-rast(climdata$dtm) else dtmc<-climdata$dtm
   if(is.logical(sst)) coastal<-FALSE else if(all(!is.na(values(sst[[1]])))) coastal<-FALSE
@@ -393,7 +503,7 @@ winddownscale <- function(wspeed, wdir, dtmf, dtmm, dtmc, wca=NA, zi=10, zo = 2)
 #' @param rh a coarse-resolution array of relative humidities (percentage)
 #' @param tcc a coarse-resolution array of temperatures (deg C)
 #' @param tcf a fine-resolution SpatRast of temperatures (deg C) as returned by
-#' [tempdownscale()]
+#' [temphrly_downscale()] or [tempdaily_downscale()]
 #' @param dtmc a coarse-resolution SpatRast of elevations matching
 #' the resolution, extent and coordinate reference system of `rh` and `tc`.
 #' @param rhmin optional single numeric value indicating the minimum realistically
@@ -403,12 +513,12 @@ winddownscale <- function(wspeed, wdir, dtmf, dtmm, dtmc, wca=NA, zi=10, zo = 2)
 #' @import terra
 #' @export
 #' @rdname relhumdownscale
-#' @seealso [tempdownscale()]
+#' @seealso [temphrly_downscale()] and [tempdaily_downscale()]
 #' @keywords spatial
 #' @examples
 #' climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 #' dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
-#' tcf<-tempdownscale(climdata,sst=NA,dtmf=dtmf,cad=FALSE,coastal=FALSE)
+#' tcf<-tempdaily_downscale(climdata,sst=NA,dtmf=dtmf,cad=FALSE,coastal=FALSE)$tmean
 #' rhf<-relhumdownscale(climdata$relhum,climdata$temp,tcf,climdata$dtm)
 #' plot_q_layers(rhf)
 relhumdownscale<-function(rh, tcc, tcf, dtmc, rhmin = 0) {
@@ -418,8 +528,8 @@ relhumdownscale<-function(rh, tcc, tcf, dtmc, rhmin = 0) {
   eaf<-.resample(eac,tcf[[1]])
   rhf<-(.is(eaf)/.satvap(.is(tcf)))*100
   rhf<-.rast(rhf,tcf[[1]])
-  rhf[rhf>100]<-100
-  rhf[rhf<rhmin]<-rhmin
+  rhf<-ifel(rhf>100,100,rhf)
+  rhf<-ifel(rhf<rhmin,rhminrhf)
   return(rhf)
 }
 #' @title Downscale precipitation accounting for elevation effects
@@ -579,7 +689,7 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
 #' @param sst a SpatRast of sea-surface temperature data (deg C) that overlaps with climdata$tme
 #' @param dtmf a high-resolution SpatRast of elevations
 #' @param dtmm a medium-resolution SpatRast of elevations covering a larger area
-#' than dtmf (only needed for coastal effects - see details under [tempdownscale()]).
+#' than dtmf (only needed for coastal effects - see details under [temphrly_downscale()]).
 #' @param basins optionally, a fine-resolution SpatRast of basins as returned by [basindelin()]
 #' matching the coordinate reference system and extent of `dtmf`. Calculated if
 #' not supplied.
@@ -635,9 +745,9 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
 #'  dailymesodat<-spatialdownscale(climdata, sst, dtmf, dtmm, noraincut=0.01)
 #'  plot_q_layers(dailymesodat$tmin)
 spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, cad = TRUE,
-                           coastal = TRUE, thgto =2, whgto=2,
-                           rhmin = 20, pksealevel = TRUE, patchsim = TRUE, terrainshade = TRUE,
-                           precipmethod = "Elev",fast = TRUE, noraincut = 0, toArrays=FALSE) {
+                               coastal = TRUE, thgto =2, whgto=2,
+                               rhmin = 20, pksealevel = TRUE, patchsim = TRUE, terrainshade = TRUE,
+                               precipmethod = "Elev",fast = TRUE, noraincut = 0, toArrays=FALSE) {
   tme<-as.POSIXlt(climdata$tme,tz="UTC")
 
   # Find out whether daily or hourly
@@ -681,20 +791,13 @@ spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, 
   message('Downscaling temperature...')
   # for daily data will calculate daily means from tmin/tmax temporally downscaled to hourly temp
   if (hourly) {
-    tcf<-tempdownscale(climdata,sst,dtmf,dtmm,basins,uzf,cad,coastal,'temp',thgto,whgto)
+    tcf<-temphrly_downscale(climdata,sst,dtmf,dtmm,basins,uzf,cad,coastal,thgto,whgto)
   } else {
-    tminf<-tempdownscale(climdata,sst,dtmf,dtmm,basins,uzf,cad,coastal,'tmin',thgto,whgto)
-    tmaxf<-tempdownscale(climdata,sst,dtmf,dtmm,basins,uzf,cad=FALSE,coastal,'tmax',thgto,whgto)
-    # Check tax>tmin (coastal effects can switch)
-    diurnal<-(tmaxf-tminf<0)
-    if(unique(all(diurnal))==0){
-      temp_tmin<-ifel(diurnal,tmaxf,tminf)
-      tmaxf<-ifel(diurnal,tminf,tmaxf)
-      tminf<-temp_tmin
-      remove(temp_tmin)
-      remove(diurnal)
-    }
-    tmeanf<-.hourtoday(temp_dailytohourly(tminf, tmaxf, climdata$tme),mean) # used for relhum & LW downscaling
+    dailytemps<-tempdaily_downscale(climdata,sst,dtmf,dtmm,basins,uzf,cad,coastal,thgto,whgto)
+    tminf<-dailytemps$tmin
+    tmaxf<-dailytemps$tmax
+    tmeanf<-dailytemps$tmean
+    remove(dailytemps)
   }
 
   message('Downscaling relative humidity')
@@ -763,5 +866,5 @@ spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, 
     out$difrad<-difrad
   }
   return(out)
- }
+}
 
