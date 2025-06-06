@@ -412,7 +412,7 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
                                            'degC','degC','m/s','m/s'),
                               output_units=c('%','%','mm/day','kPa','watt/m^2','watt/m^2',
                                              'degC','degC','m/s','m/s'),
-                              temp_hgt=2, wind_hgt=2,
+                              temp_hgt=1.5, wind_hgt=10, # heights in UKCP data
                               toArrays=TRUE, sampleplot=FALSE){
   # Parameter check
   collection<-match.arg(collection)
@@ -443,11 +443,15 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
 
   # If dtm provided of different crs or resolution resample to that of UKCP data
   sample_ukcp18<-terra::rast(ncfiles[1], subds=strsplit(basename(ncfiles[1]),'_')[[1]][1])[[1]]
+  if(collection=="land-rcm" & domain=="uk") crs(sample_ukcp18)<-"EPSG:27700"
   if(!compareGeom(dtm,sample_ukcp18, crs=TRUE, ext=FALSE,rowcol=FALSE, res=TRUE, stopOnError=FALSE)){
     dtmc<-terra::crop(.resample(dtm,sample_ukcp18),dtm)
   } else dtmc<-dtm
   units(dtmc)<-'m'
   names(dtmc)<-'Elevation'
+
+  # Function to restrict to dates requested
+  filter_times<-function(x,startdate,enddate) x[[which(time(x) >= startdate & time(x) <= enddate)]]
 
   # Load spatrasters from ukcp.nc file, crop to dtmc, convert to normal calendar and add to output list
   clim_list<-list()
@@ -463,6 +467,7 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
 
       # Load and crop data in native crs then project to dtmc crs and recrop
       r <- terra::rast(ncfile, subds=v)
+      if(collection=="land-rcm" & domain=="uk") crs(r)<-"EPSG:27700"
       r<-terra::crop(r,dtmc)
 
       # If requested then convert to real calendar dates and fill missing dates
@@ -481,15 +486,17 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
       # Join if multiple decades of data
       terra::add(var_r)<-r
     }
+    # Filter times
+    var_r<-filter_times(var_r,startdate,enddate)
     # Check & convert units, check all rasters geoms are same
     if(ukcp_u!=out_u) var_r<-.change_rast_units(var_r, out_u)
     if(!terra::compareGeom(dtmc,var_r)) warning(paste(v,"Spatrast NOT comparable to DTM!!") )
     clim_list[[v]]<-var_r
   }
 
-  # Calculate derived variables: wind
+  # Calculate derived variables: wind - option to adjust height above ground
   windspeed<-sqrt(as.array(clim_list$uas)^2+as.array(clim_list$vas)^2)
-  windspeed<-.windhgt(windspeed,zi=10,zo=wind_hgt) # convert to 2m above ground
+  windspeed<-.windhgt(windspeed,zi=10,zo=wind_hgt)
   clim_list$windspeed<-.rast(windspeed,dtmc) # Wind speed (m/s)
   clim_list$winddir<-.rast(as.array((terra::atan2(clim_list$uas,clim_list$vas)*180/pi+180)%%360),dtmc) # Wind direction (deg from N - from)
   units(clim_list$windspeed)<-'m/s'
@@ -499,8 +506,10 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
   names(clim_list$windspeed)<-terra::time(clim_list$windspeed)
   names(clim_list$winddir)<-terra::time(clim_list$winddir)
 
+  # Option to adjust temperature height above ground by lapse rate???
+
   # Calculate derived variables: longwave downward from tmean (calculated from hourly estimate of temp)
-  tme<-as.POSIXlt(time(clim_list$tmax),tz="UTC")
+  tme<-as.POSIXlt(time(clim_list$tasmax),tz="UTC")
   tmean<-.hourtoday(temp_dailytohourly(clim_list$tasmin, clim_list$tasmax, tme),mean) # required for relhum downscaling
   lwup<-terra::app(tmean, fun=.lwup)
   clim_list$lwdown<-clim_list$rls+lwup
@@ -512,16 +521,12 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
   clim_list<-clim_list[c("clt","hurs","pr","psl","lwdown","swdown","tasmax","tasmin", "windspeed","winddir")]
   names(clim_list)<-c('cloud','relhum','prec','pres','lwrad','swrad','tmax','tmin','windspeed','winddir')
 
-  # Restrict to dates requested
-  filter_times<-function(x,startdate,enddate) x[[which(time(x) >= startdate & time(x) <= enddate)]]
-  for(v in names(clim_list)) clim_list[[v]]<-filter_times(clim_list[[v]],startdate,enddate)
-
   ### Create output list
   output_list<-list()
   output_list$dtm<-dtmc
   output_list$tme<-tme
-  output_list$windheight_m<-10 # ukcp windspeed at 10 metres height
-  output_list$tempheight_m<-1.5 # ukcp air temp at 1.5 metres height
+  output_list$windheight_m<-wind_hgt # output windspeed  height
+  output_list$tempheight_m<-1.5 # output air temp  height
 
   # Convert climate data to arrays if required
   if(toArrays) clim_list<-lapply(clim_list,as.array)
