@@ -125,7 +125,7 @@
 #' @param msk=TRUE if output to be masked out where r2 cells = NA
 #' @param method for resample and project can be set
 #' @export
-.resample <- function(r1,r2, msk=FALSE, method='bilinear'){
+.resample <- function(r1,r2, msk=FALSE, method='cubicspline'){
   if (terra::crs(r1) != terra::crs(r2)) r1<-terra::project(r1, terra::crs(r2), method)
   af<-terra::res(r2)[1] /terra::res(r1)[1]
   if (round(af,10) > 1) {			         # If resolution different aggregate
@@ -355,7 +355,26 @@
   solz[cazi<0 & sazi>=0]<-540-solz[cazi<0 & sazi>=0]
   solz
 }
-
+#' @title Calculate skyview
+#'
+#' @param dtm digital terrain spatRaster - usually of at downscale resolution and extent
+#' @param steps - number of segments to use in calculation
+#' @return spatRaster of skyview suitable for use as a parameter to [`swdownscale`] and [`lwdownscale`] functions.
+#' @noRd
+.skyview<-function(dtm,steps=36) {
+  r<-dtm
+  dtm[is.na(dtm)]<-0
+  ha <- array(0, dim(dtm)[1:2])
+  for (s in 1:steps) { # uses horizon angle in calc but places equal importance on each sector of sky
+    ha<-ha+atan(.horizon(dtm,s*360/steps))
+  }
+  ha<-ha/steps
+  ha<-tan(ha)
+  svf<-0.5*cos(2*ha)+0.5
+  svf<-.rast(svf,dtm)
+  svf<-mask(svf,r)
+  return(svf)
+}
 
 #' @title Simulate cloud or rain patchiness
 #' @import gstat
@@ -572,23 +591,7 @@
   }
   horizon
 }
-#' @title Calculate skyview
-#' @export
-#' @keywords internal
-.skyview<-function(dtm,steps=36) {
-  r<-dtm
-  dtm[is.na(dtm)]<-0
-  ha <- array(0, dim(dtm)[1:2])
-  for (s in 1:steps) { # uses horizon angle in calc but places equal importance on each sector of sky
-    ha<-ha+atan(.horizon(dtm,s*360/steps))
-  }
-  ha<-ha/steps
-  ha<-tan(ha)
-  svf<-0.5*cos(2*ha)+0.5
-  svf<-.rast(svf,dtm)
-  svf<-mask(svf,r)
-  return(svf)
-}
+
 # ============================================================================ #
 # ~~~~~~~~~ Basin delineation worker functions here  ~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
