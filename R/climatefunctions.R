@@ -551,3 +551,42 @@ atmos_to_sea_pressure<-function(pres,dtm){
   if(inherits(pres,"numeric")) psl<-as.vector(psl)
   return(psl)
 }
+
+#' Calculate horizon for different solar azimuths and total skyview
+#' @details Skyview places equal importance on each sector of sky
+#' @param dtmf
+#' @param sv_steps
+#' @param hor_steps
+#' @param toArrays
+#'
+#' @return list (length=2) of `skyview` and `horizon` arrays or SpatRasters
+#' @export
+#'
+#' @examples
+#' results<-calculate_terrain_shading(dtmf)
+#' plot(results$skyview)
+#' plot(results$horizon[[c(1,6,12,18)]])
+calculate_terrain_shading<-function(dtm,steps=24,toArrays=FALSE){
+  r<-dtm
+  dtm<-ifel(is.na(dtm),0,dtm)
+  # Calculate horizon angle lookup
+  hor<-array(NA,dim=c(dim(dtm)[1:2],steps))
+  sv<- array(0, dim(dtm)[1:2])
+  for (i in 1:steps){
+    hor[,,i]<-.horizon(dtm,(i-1)*(360/steps))
+    sv<-sv+atan(hor[,,i])
+  }
+  sv<-sv/steps
+  sv<-tan(sv)
+  sv<-0.5*cos(2*sv)+0.5
+
+  if(!toArrays){
+    sv<-.rast(sv,dtm)
+    sv<-mask(sv,r)
+    hor<-.rast(hor,dtm)
+    hor<-mask(hor,r)
+  }
+  return(list(skyview=sv,horizon=hor))
+}
+
+
