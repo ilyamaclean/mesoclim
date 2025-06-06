@@ -59,7 +59,7 @@
 #' }
 temp_dailytohourly <- function(tmn, tmx, tme = NA, lat = NA, long = NA, srte = 0.09) {
   if (inherits(tmn, "SpatRaster")) {
-    if(class(tme)[1]=="logical") tme<-as.POSIXlt(terra::time(tmn[[1]]))
+    if(class(tme)[1]=="logical") tme<-as.POSIXlt(terra::time(tmn))
     tem<-tmn[[1]]
     toArrays<-FALSE
   } else toArrays<-TRUE
