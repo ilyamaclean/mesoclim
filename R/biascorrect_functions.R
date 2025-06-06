@@ -183,7 +183,7 @@ biascorrect_apply<-function(fut_mod, biasmods, rangelims = NA) {
 #' @rdname precipcorrect
 #' @seealso [biascorrect()] for applying corrections to other climate variables and
 #' [precipcorrect_apply()] for applying correction coefficients to multiple datasets.
-precipcorrect <- function(hist_obs, hist_mod, fut_mod=NA, mod_out = FALSE, rangelim = NA) {
+precipcorrect <- function(hist_obs, hist_mod, fut_mod=NA, mod_out = FALSE, rangelim = NA, prec_thold=0.01) {
   if (!inherits(hist_obs, "SpatRaster")) stop("hist_obs must be a SpatRaster")
   if (!inherits(hist_mod, "SpatRaster")) stop("hist_mod must be a SpatRaster")
   if (mod_out == FALSE & inherits(fut_mod, "logical")) fut_mod<-hist_mod
@@ -196,12 +196,12 @@ precipcorrect <- function(hist_obs, hist_mod, fut_mod=NA, mod_out = FALSE, range
   hist_mod<-mask(hist_mod,hist_obs)
   # Calculate observed rainfall total and rain day frac
   rcount<-hist_obs
-  rcount[rcount > 0] <-1
+  rcount[rcount >= prec_thold] <-1
   rtot1<-apply(.is(hist_obs),c(1,2),sum)
   tfrac1<-apply(.is(rcount),c(1,2),sum)/dim(rcount)[3]
   # Calculate modelled rainfall total and rain day frac
   rcount<-hist_mod
-  rcount[rcount > 0] <-1
+  rcount[rcount >= prec_thold] <-1
   rtot2<-apply(.is(hist_mod),c(1,2),sum)
   tfrac2<-apply(.is(rcount),c(1,2),sum)/dim(rcount)[3]
   # Calculate ratios obs/modelled
@@ -271,17 +271,17 @@ precipcorrect <- function(hist_obs, hist_mod, fut_mod=NA, mod_out = FALSE, range
 #' @rdname precipcorrect_apply
 #' @seealso [precipcorrect()] for deriving `biasmods` and `biascorrect_apply` for
 #' applying corrections to other climate variables
-precipcorrect_apply<-function(fut_mod, biasmods) {
+precipcorrect_apply<-function(fut_mod, biasmods, prec_thold=0.01) {
   if (!inherits(fut_mod, "SpatRaster")) stop("fut_mod must be a SpatRaster")
-  mu_tot<-rast(biasmods$mu_tot)
-  mu_frac<-rast(biasmods$mu_frac)
+  mu_tot<-biasmods$mu_tot
+  mu_frac<-biasmods$mu_frac
   # reproject and crop if necessary
   if (crs(fut_mod) != crs(mu_tot)) fut_mod<-project(fut_mod,mu_tot)
   fut_mod<-resample(fut_mod,mu_tot)
   # Calculate and adjust rainfall total and rain day frac
   rcount<-fut_mod
-  rcount[rcount > 0] <-1
-  rtot<-apply(.is(fut_mod),c(1,2),sum)*.is(mu_tot)
+  rcount[rcount >= prec_thold] <-1
+  rtot<-apply(.is(fut_mod),c(1,2),sum,na.rm=TRUE)*.is(mu_tot)
   tfrac<-(apply(.is(rcount),c(1,2),sum)/dim(rcount)[3])*.is(mu_frac)
   # Calculate regional precipitation
   rrain<-apply(.is(fut_mod),3,sum,na.rm=TRUE)
