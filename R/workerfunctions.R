@@ -51,8 +51,8 @@
   # Throw warning if dim of m do not match dim of tem
   if(any(dim(m)[1:2]!=dim(tem)[1:2])){
     warning("In .rast dimensions of matrix/array do not match dimensions of rast template!!!")
-    print(dim(m))
-    print(dim(tem))
+    #print(dim(m))
+    #print(dim(tem))
   }
   r<-rast(m)
   ext(r)<-ext(tem)
@@ -125,7 +125,7 @@
 #' @param msk=TRUE if output to be masked out where r2 cells = NA
 #' @param method for resample and project can be set
 #' @export
-.resample <- function(r1,r2, msk=FALSE, method='cubicspline'){
+.resample <- function(r1,r2, msk=FALSE, method='bilinear'){
   if (terra::crs(r1) != terra::crs(r2)) r1<-terra::project(r1, terra::crs(r2), method)
   af<-terra::res(r2)[1] /terra::res(r1)[1]
   if (round(af,10) > 1) {			         # If resolution different aggregate
@@ -195,7 +195,6 @@
 .spatinterp<-function(r){
   tme<-terra::time(r)
   me<-as.vector(r)
-  n<-which(is.na(me))
   rout<-r
   crs(rout)<-crs(r) # prevents superfluous warnings
   if (length(n) > 0) {
@@ -410,8 +409,8 @@
   hps<-round(ni/(n-1),0)
   if (n != ni) {
     days<-ni/hps
-  } else days <- ni-1
-  yy1 <- predict(g1,newdata=xy,nsim=days+1,debug.level=0)
+  } else days <- ni+1
+  yy1 <- predict(g1,newdata=xy,nsim=days-1,debug.level=0)
   anom<-.rast(yy1,varf[[1]])
   anom<-resample(aggregate(anom,2),anom)
   anom<-mask(anom,varf[[1]])
@@ -1055,7 +1054,7 @@
 #' @param u2 - windspeed in m/s
 #' @param swad - SW downward radiation
 #' @param lwrad - LW downward radiation
-#' @param dtmc - coarse resolution dtm matching climate variable inputs
+#' @param dtmc - coarse resolution dtm matching climate variable inputs - not required if other parameters all spatRasters.
 #' @param dtmf - fine scale dtm for outputs
 #' @param refhgt - of temp above ground (m)
 #'
@@ -1075,7 +1074,7 @@
   uf<-(0.4*u2)/log((refhgt-d)/zm)
   H<-(swrad+lwrad-(5.67*10^-8*0.97*(tc+273.15)^4))*0.5
   st<- -(0.4*9.81*(refhgt-d)*H)/(1241*(tc+273.15)*uf^3)
-  st<-.rast(st,dtmc)
+  if(!inherits(st,"SpatRaster")) st<-.rast(st,dtmc)
   if (crs(st) != crs(dtmf)) st<-project(st,crs(dtmf))
   st<-.resample(st,dtmf)
   st<-ifel(st>1,1,st)
@@ -1192,13 +1191,13 @@
 #' @return Spatraster of temperature that includes coastal effect
 #' @export
 #' @keywords internal
-.tempcoastal<-function(tc, sst, u2, wdir, dtmf, dtmm, dtmc,ndir=8) {
+.tempcoastal<-function(tc, sst, u2, wdir, dtmf, dtmm, dtmc,ndir=8,smooth=5) {
   # Spatial and temporal interpolation of sst and resmapled to match dtmf resolution - IMPROVE THIS !!
   if (any(global(sst,anyNA))) sst<-.spatinterp(sst)
   sst<-.tmeinterp(sst,NA,climdata$tme)
   sstf<-project(sst,dtmf)
   # Resample dtmm to dtmf resolution
-  if(any(res(dtmm)!=res(dtmf))) dtmm<-.resample(dtmm,dtmf)
+  if(any(res(dtmm)!=res(dtmf))) dtmm<-.resample(dtmm,dtmf,msk=TRUE)
   # Calculate coastal exposure for each wind direction
   landsea<-ifel(is.na(dtmm),NA,1)
   lsr<-array(NA,dim=c(dim(dtmf)[1:2],ndir))
@@ -1209,12 +1208,14 @@
   }
   # smooth
   lsr2<-lsr
-  for (i in 0:7) lsr2[,,i+1]<-0.25*lsr[,,(i-1)%%ndir+1]+0.5*lsr[,,i%%ndir+1]+0.25*lsr[,,(i+1)%%ndir+1]
+  for (i in 0:(ndir-1)) lsr2[,,i+1]<-0.25*lsr[,,(i-1)%%ndir+1]+0.5*lsr[,,i%%ndir+1]+0.25*lsr[,,(i+1)%%ndir+1]
+  lsr2<-.is( focal(.rast(lsr2,dtmf),w=smooth,fun="mean",na.policy="omit",na.rm=TRUE) )
+
   lsm<-apply(lsr,c(1,2),mean)
   tst<-min(lsm,na.rm=T)
   if (tst < 1) { # only apply coastal effects if there are coastal area
     # slot in wind speeds
-    wdr<-.rast(wdir,dtmc)
+    if(!inherits(wdir,"SpatRaster")) wdr<-.rast(wdir,dtmc) else wdr<-wdir
     ew<-ext(wdr)
     xy<-data.frame(x=(ew$xmin+ew$xmax)/2,y=(ew$ymin+ew$ymax)/2)
     wdir<-as.numeric(extract(wdr,xy))[-1]

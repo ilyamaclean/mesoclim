@@ -3,6 +3,8 @@
 #' effects and optionally cold air drainage and coastal effects
 #' @param climdata a `climdata` model object containing climate data of the same format as `era5climdata`
 #' Expects variables to include a `tmin` and `tmax`
+#' @param tmean a coarse resolution array or spatRaster of daily mean temperatures identical to climdata inputs.
+#' If NA will calculate from hourluy downscaling of tmin and tmax in `climdata`
 #' @param sst a SpatRast of sea-surface temperature data (deg C) timeseries that overlaps climdata$tme
 #' @param dtmf a high-resolution SpatRast of elevations
 #' @param dtmm a medium-resolution SpatRast of elevations covering a larger area
@@ -31,7 +33,7 @@
 #' @import terra
 #' @export
 #' @keywords spatial
-tempdaily_downscale<-function(climdata,sst,dtmf,dtmm,basins,uzf,cad,coastal,thgto,whgto){
+tempdaily_downscale<-function(climdata,tmean=NA,sst,dtmf,dtmm,basins,uzf,cad,coastal,thgto,whgto){
   # Check tmin and tmax among climdata variables
   if(!any(c("tmin","tmax") %in% names(climdata))) stop("Cannot find daily min/max temperature variables for tempdaily_downscale!!!")
   if (class(dtmm) == "logical" & coastal) stop("dtmm needed for calculating coastal effects")
@@ -51,7 +53,7 @@ tempdaily_downscale<-function(climdata,sst,dtmf,dtmm,basins,uzf,cad,coastal,thgt
   lwrad<-climdata$lwrad
   dtmc<-climdata$dtm
 
-  # Get temp independent
+  # Get temp independent params
   if (cad) mu<-.cad_multiplier(dtmf, basins, refhgt=thgti)
   if (coastal) {
     # Interpolate sst to all landcells and across full timeseries so no NA
@@ -89,32 +91,28 @@ tempdaily_downscale<-function(climdata,sst,dtmf,dtmm,basins,uzf,cad,coastal,thgt
   if (coastal) tmaxf<-.tempcoastal(tc=tmaxf,sst=sstf,u2=uzf,wdir=climdata$winddir,dtmf,dtmm,dtmc)
 
   # Check tax>tmin (coastal effects can switch)
-  diurnal<-(tmaxf-tminf<0)
-  if(unique(all(diurnal))==0){
+  diurnal<-(tmaxf-tminf)<0
+  if(unique(all(diurnal))!=0){
     temp_tmin<-ifel(diurnal,tmaxf,tminf)
     tmaxf<-ifel(diurnal,tminf,tmaxf)
     tminf<-temp_tmin
     remove(temp_tmin)
     remove(diurnal)
   }
+
   # Downscale daily mean (calculated from hourly downscaling of climate tmin and tmax)
-  #tmean<-.hourtoday(temp_dailytohourly(tmin, tmax, climdata$tme),mean)
+  # Assumes no cold air drainage
+  if(is.logical(tmean)) tmean<-.hourtoday(temp_dailytohourly(tmin, tmax, climdata$tme),mean)
+  lrc<-lapserate(.is(tmean), .is(rh), .is(pk))
+  lrc<-.rast(lrc,dtmc)
+  if (crs(lrc) != crs(dtmf)) {
+    lrcp<-project(lrc,crs(dtmf))
+    lrf<-.resample(lrcp,dtmf)
+  } else lrf<-.resample(lrc,dtmf)
+  tmeanf<-.tempelev(tmean,lrf,lrc,dtmf+thgto,ifel(is.na(dtmc),0,dtmc+thgti))
+  if (coastal) tmeanf<-.tempcoastal(tc=tmeanf,sst=sstf,u2=uzf,wdir=climdata$winddir,dtmf,dtmm,dtmc)
 
-  #lrc<-lapserate(.is(tmean), .is(rh), .is(pk))
-  #lrc<-.rast(lrc,dtmc)
-  #if (crs(lrc) != crs(dtmf)) {
-  #  lrcp<-project(lrc,crs(dtmf))
-  #  lrf<-.resample(lrcp,dtmf)
-  #} else lrf<-.resample(lrc,dtmf)
-  #tmeanf<-.tempelev(tmean,lrf,lrc,dtmf+thgto,ifel(is.na(dtmc),0,dtmc+thgti))
-  #if (cad) {
-  #  st<-.cad_conditions(tmean,u2,swrad=0,lwrad,dtmc,dtmf,refhgt=thgti) #swrad=0 as we assume tmin in night
-  #  tcad<-.apply_cad(lrf,mu,st)
-  #  tmeanf<-tmeanf+tcad
-  #}
-  #if (coastal) tmeanf<-.tempcoastal(tc=tmeanf,sst=sstf,u2=uzf,wdir=climdata$winddir,dtmf,dtmm,dtmc)
-
-  tmeanf<-.hourtoday(temp_dailytohourly(tminf, tmaxf, climdata$tme),mean) # used for relhum & LW downscaling
+  #tmeanf<-.hourtoday(temp_dailytohourly(tminf, tmaxf, climdata$tme),mean) # alternative but very slow!!!
 
   # Format outputs
   terra::time(tminf)<-tme
@@ -483,8 +481,9 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)
 #' @seealso [windelev()]
 #' @keywords spatial
 #' @examples
-#' climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 #' dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+#' climdata<-read_climdata(mesoclim::ukcpinput)
+#' climdata$dtm<-unwrap(climdata$dtm)
 #' dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
 #' wsf <- winddownscale(ukcpinput$windspeed, ukcpinput$winddir, dtmf, dtmm, ukcpinput$dtm, zi=ukcpinput$windheight_m)
 #' plot_q_layers(wsf)
@@ -497,7 +496,7 @@ winddownscale <- function(wspeed, wdir, dtmf, dtmm, dtmc, wca=NA, zi=10, zo = 2)
   # If not supplied, calculate terrain adjustment coefs for 8 directions at wind height zo
   if(class(wca)[1]=='logical') wca2<-calculate_windcoeffs(dtmc,dtmm,dtmf,zo) else wca2<-wca
   # Calculate wind direction of centre of study area
-  wdr<-.rast(wdir,dtmc)
+  if(inherits(wdir,"SpatRaster")) wdr<-wdir else wdr<-.rast(wdir,dtmc)
   ll<-.latlongfromrast(wdr)
   xy<-data.frame(x=ll$long,y=ll$lat)
   wdir<-as.numeric(xx<-extract(wdr,xy))[-1]
@@ -506,7 +505,7 @@ winddownscale <- function(wspeed, wdir, dtmf, dtmm, dtmc, wca=NA, zi=10, zo = 2)
   i<-round(wdir/45)%%8
   windmu<-wca2[,,i+1]
   # Resample wind speeds
-  wsr<-.rast(wspeed,dtmc)
+  if(inherits(wspeed,"SpatRaster")) wsr<-wspeed else wsr<-.rast(wspeed,dtmc)
   # Adjust windspeed to output height zo
   if (zi != zo) wsr<-.windhgt(wsr, zi, zo)
   #if (uz !=2) wsr<-wsr*4.8699/log(67.8*uz-5.42)
@@ -538,18 +537,18 @@ winddownscale <- function(wspeed, wdir, dtmf, dtmm, dtmc, wca=NA, zi=10, zo = 2)
 #' @seealso [temphrly_downscale()] and [tempdaily_downscale()]
 #' @keywords spatial
 #' @examples
-#' climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 #' dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+#' climdata<-read_climdata(mesoclim::ukcpinput)
+#' climdata$dtm<-unwrap(climdata$dtm)
 #' tcf<-tempdaily_downscale(climdata,sst=NA,dtmf=dtmf,cad=FALSE,coastal=FALSE)$tmean
 #' rhf<-relhumdownscale(climdata$relhum,climdata$temp,tcf,climdata$dtm)
 #' plot_q_layers(rhf)
 relhumdownscale<-function(rh, tcc, tcf, dtmc, rhmin = 0) {
   eac<-.satvap(tcc)*rh/100
-  eac<-.rast(eac,dtmc)
+  if(!inherits(eac,"SpatRaster")) eac<-.rast(eac,dtmc)
   if (crs(eac) != crs(tcf)) eac<-project(eac,crs(tcf))
   eaf<-.resample(eac,tcf[[1]])
-  rhf<-(.is(eaf)/.satvap(.is(tcf)))*100
-  rhf<-.rast(rhf,tcf[[1]])
+  rhf<-(eaf/.satvap(tcf))*100
   rhf<-ifel(rhf>100,100,rhf)
   rhf<-ifel(rhf<rhmin,rhmin,rhf)
   return(rhf)
@@ -602,13 +601,14 @@ relhumdownscale<-function(rh, tcc, tcf, dtmc, rhmin = 0) {
 #' @keywords spatial
 #' @examples
 #' \dontrun{
-#' climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 #' dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+#' climdata<-read_climdata(mesoclim::ukcpinput)
+#' climdata$dtm<-unwrap(climdata$dtm)
 #' prcf<-precipdownscale(climdata$prec, dtmf, climdata$dtm, method="Elev", noraincut=0.01)
 #' terra::plot(prcf[[1]])
 #' }
 precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, noraincut = 0, patchsim = FALSE, nsim = dim(prec)[3]){
-  prec<-.rast(prec,dtmc)
+  if(!inherits(prec,"SpatRaster")) prec<-.rast(prec,dtmc)
   # check how many non NA cells
   if (method != "Tps" & method != "Elev") stop("method must be one of Tps or Elev")
   v<-as.vector(prec[[1]])
@@ -759,33 +759,39 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
 #' @export
 #' @keywords spatial
 #' @examples
-#'  dir_data<-system.file('extdata/ukcp18sst',package='mesoclim')
-#'  sst<-create_ukcpsst_data(dir_data,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),members='01')
 #'  dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
 #'  dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
-#'  climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
-#'  dailymesodat<-spatialdownscale(climdata, sst, dtmf, dtmm, noraincut=0.01)
+#'  ukcpinput<-read_climdata(mesoclim::ukcpinput)
+#'  ukcp18sst<-rast(mesoclim::ukcp18sst)
+#'  dailymesodat<-spatialdownscale(ukcpinput, ukcp18sst, dtmf, dtmm, noraincut=0.01)
 #'  plot_q_layers(dailymesodat$tmin)
 spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, skyview=NA, horizon=NA,
                               cad = TRUE,coastal = TRUE, thgto =2, whgto=2,
-                               rhmin = 20, pksealevel = TRUE, patchsim = TRUE, terrainshade = TRUE,
+                               rhmin = 20, pksealevel = TRUE, patchsim = FALSE, terrainshade = TRUE,
                                precipmethod = "Elev",fast = TRUE, noraincut = 0, toArrays=FALSE) {
-  tme<-as.POSIXlt(climdata$tme,tz="UTC")
+
+  # Convert variables - unpack any wrapped spatRasters and convert arrays to spatraster
+  input_class<-lapply(lapply(climdata,class),"[",1)
+  if(any(input_class=="PackedSpatRaster")) climdata[which(input_class=="PackedSpatRaster")]<-lapply(climdata[which(input_class=="PackedSpatRaster")],unwrap)
+  if(any(input_class=="array")) climdata[which(input_class=="array")]<-lapply(climdata[which(input_class=="array")],.rast,tem=climdata$dtm)
 
   # Find out whether daily or hourly
+  tme<-as.POSIXlt(climdata$tme,tz="UTC")
   tint<-as.numeric(tme[2])-as.numeric(tme[1])
   hourly<-TRUE
   if (abs(tint-86400) < 5) hourly=FALSE
 
-  # Extract variables - calculate tmean if daily
-  if(class(climdata$dtm)[1]=='PackedSpatRaster') dtmc<-rast(climdata$dtm) else dtmc<-climdata$dtm
+  # Extract temp variables - calculate daily means if required
   if (hourly) {
     tc<-climdata$temp
   } else {
     tmin<-climdata$tmin
     tmax<-climdata$tmax
-    tmean<-.hourtoday(.is(temp_dailytohourly(.rast(tmin,dtmc), .rast(tmax,dtmc), climdata$tme)),mean) # required for relhum downscaling
+    tmean<-.hourtoday(temp_dailytohourly(tmin, tmax, climdata$tme),mean) # required for relhum downscaling
   }
+
+  # Extract other variables
+  dtmc<-climdata$dtm
   rh<-climdata$relhum
   pk<-climdata$pres
   wspeed<-climdata$windspeed
@@ -799,13 +805,14 @@ spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, 
   # ================== Downscale variables ===============================  #
   message('Downscaling wind...')
   uzf<-winddownscale(wspeed,wdir,dtmf,dtmm,dtmc,wca,whgti,whgto)
+
   # winddir
-  uu<-.rast(wspeed*cos(wdir*pi/180),dtmc)
-  vv<-.rast(wspeed*sin(wdir*pi/180),dtmc)
+  uu<-wspeed*cos(wdir*pi/180)
+  vv<-wspeed*sin(wdir*pi/180)
   if (crs(uu) != crs(dtmf)) uu<-project(uu,crs(dtmf))
   if (crs(vv) != crs(dtmf)) vv<-project(vv,crs(dtmf))
-  uu<-.resample(uu,dtmf)
-  vv<-.resample(vv,dtmf)
+  uu<-.resample(uu,dtmf,method="cubicspline")
+  vv<-.resample(vv,dtmf,method="cubicspline")
   wdf<-atan2(vv,uu)*180/pi
   wdf<-.rast(.is(wdf)%%360,dtmf)
   wdf<-mask(wdf,dtmf)
@@ -815,7 +822,7 @@ spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, 
   if (hourly) {
     tcf<-temphrly_downscale(climdata,sst,dtmf,dtmm,basins,uzf,cad,coastal,thgto,whgto)
   } else {
-    dailytemps<-tempdaily_downscale(climdata,sst,dtmf,dtmm,basins,uzf,cad,coastal,thgto,whgto)
+    dailytemps<-tempdaily_downscale(climdata,tmean,sst,dtmf,dtmm,basins,uzf,cad,coastal,thgto,whgto)
     tminf<-dailytemps$tmin
     tmaxf<-dailytemps$tmax
     tmeanf<-dailytemps$tmean
@@ -856,15 +863,14 @@ spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, 
 
   message('Downscaling precipitation...')
   precf<-precipdownscale(prec,dtmf,dtmc,precipmethod,fast,noraincut,patchsim,nsim)
-  # return values
+
+  message('Formatting output...')
   if (hourly) {
     terra::time(tcf)<-climdata$tme
   } else {
     terra::time(tminf)<-climdata$tme
     terra::time(tmaxf)<-climdata$tme
   }
-
-  message('Formatting output...')
   terra::time(rhf)<-climdata$tme
   terra::time(pkf)<-climdata$tme
   terra::time(totswrad)<-climdata$tme
