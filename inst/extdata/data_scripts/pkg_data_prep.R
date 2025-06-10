@@ -21,10 +21,12 @@ t0<-now()
 ukcpinput<-ukcp18toclimarray(dir_ukcp, dtmc,  startdate, enddate,
                              collection, domain, member)
 print(now()-t0)
-
+crs(ukcpinput$dtm)<-"EPSG:27700"
 ukcpinput$dtm<-wrap(ukcpinput$dtm)
 usethis::use_data(ukcpinput,overwrite=TRUE)
 #write_climdata(ukcpinput,"data/ukcpinput.rda",overwrite=TRUE)
+
+# UKCP land sea mask
 
 
 #### Sea Surface temperature data - to match ukcpinput$dtm
@@ -33,7 +35,11 @@ sst<-create_ukcpsst_data(dir_sst,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31
 plot(c(sst,ukcpinput$dtm))
 
 
-#### Create 50m fine scale dtm
+#### Parcels shape file
+
+
+
+#### Create 50m fine scale dtm of Lizard
 dir_terrain50<-"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data/Terrain50"
 dtmuk<-rast(file.path(dir_terrain50,"uk_dtm.tif"))
 e<-ext(160000, 181000, 11000, 30000)
@@ -42,7 +48,16 @@ lsmask<-vect("/Users/jonathanmosedale/Library/CloudStorage/OneDrive-Universityof
 dtm<-mask(dtm,lsmask)
 dtm<-project(dtm,"EPSG:27700")
 plot(dtm)
-writeRaster(dtm,system.file("extdata/dtms/dtmf.tif",package='mesoclim'),overwrite=TRUE)
+writeRaster(dtm,"inst/extdata/dtms/lizard50m.tif",overwrite=TRUE)
+
+# Create smaller extent dtmf near Porthleven
+e<-ext(162000, 167000, 23000, 29000)
+dtm<-crop(dtmuk,e)
+dtm<-mask(dtm,lsmask)
+plot(dtm)
+writeRaster(dtm,"inst/extdata/dtms/dtmf.tif",overwrite=TRUE)
+
+
 
 #### Create corresponding medium dtm - coarser scale and wider extent than dtmf
 dir_terrain50<-"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data/Terrain50"

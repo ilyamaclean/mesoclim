@@ -92,23 +92,24 @@ for(yr in years){
   if(write_yr_tif) writeRaster(r,file.path(dir_haduk1km,paste0('tasmin_',yr,'.tif')) )
 }
 
-######## Crop and aggregate to UKCP 12km grid ########
+######## Crop and aggregate to UKCP 12km grid then interpolate any coastal cells without values ########
+
 rain.r<-rast(file.path(dir_haduk1km,paste0('rain_',years,'.tif')))
 rain.r<-crop(extend(rain.r,ext(lsm12km.r)),ext(lsm12km.r))
 rain12km<-terra::aggregate(rain.r,12,fun="mean",na.rm=TRUE)
-rain12km<-mask(rain12km,lsm12km.r, maskvalue=0)
+rain12km<-mask( .spatinterp(rain12km),lsm12km.r, maskvalue=0 )
 writeRaster(rain12km,file.path(dir_haduk12km,'rain_12km_3yrs.tif'),overwrite=TRUE)
 
 tasmax.r<-rast(file.path(dir_haduk1km,paste0('tasmax_',years,'.tif')))
 tasmax.r<-crop(extend(tasmax.r,ext(lsm12km.r)),ext(lsm12km.r))
 tmax12km<-terra::aggregate(tasmax.r,12,fun="mean",na.rm=TRUE)
-tmax12km<-mask(tmax12km,lsm12km.r, maskvalue=0)
+tmax12km<-mask( .spatinterp(tmax12km),lsm12km.r, maskvalue=0 )
 writeRaster(tmax12km,file.path(dir_haduk12km,'tmax_12km_3yrs.tif'),overwrite=TRUE)
 
 tasmin.r<-rast(file.path(dir_haduk1km,paste0('tasmin_',years,'.tif')))
 tasmin.r<-crop(extend(tasmin.r,ext(lsm12km.r)),ext(lsm12km.r))
 tmin12km<-terra::aggregate(tasmin.r,12,fun="mean",na.rm=TRUE)
-tmin12km<-mask(tmin12km,lsm12km.r, maskvalue=0)
+tmin12km<-mask( .spatinterp(tmin12km),lsm12km.r, maskvalue=0 )
 writeRaster(tmin12km,file.path(dir_haduk12km,'tmin_12km_3yrs.tif'),overwrite=TRUE)
 
 # Observed list of all climate variables
@@ -216,7 +217,8 @@ write_climdata(climdata,filepath=file.path(dir_bcdata,'ukcpdata_2020_2022.Rds'),
 #####################################################################
 # 3. Calculate biascorrect models
 #####################################################################
-
+climdata<-readRDS(file.path(dir_bcdata,'ukcpdata_2020_2022.Rds'))
+climdata[ which(lapply(lapply(climdata,class),"[",1)=="PackedSpatRaster") ]<-lapply(climdata[which(lapply(lapply(climdata,class),"[",1)=="PackedSpatRaster") ],unwrap)
 # Define area that can be corrected - all UKCP cells that possess land cells from Terrain50 (lsmask12km.r)
 msk<-ifel(lsm12km.r==0,NA,lsm12km.r)
 

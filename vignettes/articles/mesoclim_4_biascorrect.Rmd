@@ -21,9 +21,31 @@ Compares modeled historic data with observational data for the same period to ei
 Requires comparable raster stacks of observed and modeled data.
 
 # Bias correction of temperature and precipitation
+Firstly direct comparison of ukcp18rcm 12km data for 2018 and HadUK 12km gridded data from weather station observations. Grid is identical for these two sources of data. Haduk 12km data is only available for the same land/sea mask as UKCP18rcm. Yet many of the 'sea' cells not covered by HadUK 12km also contain land cells.
+
+A landsea mask derived from Terrain 50m was caluclated for the UKCP18 12km grid to provide a proportion of land in each cell.
+
+Derived climate data from 1km HadUK - aggregate to 12km grid - compare with existing 12km 
 
 
-## Observational data
+```{r cf_obs_ukcp_12km}
+dir_haduk1km<-"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data/haduk_1km_monthly"
+dir_haduk12km<-""
+dir_terrain50<-"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data/Terrain50"
+
+dir_ukcp
+yr<-2018
+# Get ukcp18rcm data for UK
+
+# Get Haduk data for UK - FIND function for naming of HadUK data
+for(m in 1:12){
+}
+
+r<-rast(file.path(dir_haduk1km,"tasmax_hadukgrid_uk_1km_day_20210901-20210930.nc"))
+
+```
+
+## Observational data 1km
 
 For observed data we make use of the HadUK 1km gridded data for the Lizard during the year 2018.
 
@@ -32,6 +54,9 @@ For observed data we make use of the HadUK 1km gridded data for the Lizard durin
 tmin1km<-rast(system.file("extdata/haduk/tasmin1km.tif",package="mesoclim"))
 tmax1km<-rast(system.file("extdata/haduk/tasmax1km.tif",package="mesoclim"))
 rain1km<-rast(system.file("extdata/haduk/rainfall1km.tif",package="mesoclim"))
+
+
+
 ```
 
 ## Historic modelled data
