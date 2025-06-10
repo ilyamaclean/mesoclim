@@ -97,6 +97,7 @@ biascorrect <- function(hist_obs, hist_mod, fut_mod = NA, mod_out = FALSE, range
     class(ao) <- "biascorrectmodels"
   } else {
     ao<-.rast(ao,hist_obs)
+    ao<-crop(ao,fut_mod)
   }
   return(ao)
 }
@@ -106,11 +107,11 @@ biascorrect <- function(hist_obs, hist_mod, fut_mod = NA, mod_out = FALSE, range
 #' @param fut_mod a SpatRaster of modelled climate data for for e.g. a future
 #' period to which corrections are applied.
 #' @param biasmods an object of class `biascorrectmodels` derived using [biascorrect()].
-#' @return a SpatRaster matching `fut_mod` with climate data bias corrected.
+#' @return a SpatRaster matching the overlap of `fut_mod` and `biasmods$rindex`
 #' @details The `biascorrect_apply` function allows the same bias correction to be applied
 #' to multiple datasets, spanning e.g. several future time periods or climate scenarious.
-#' The spatial extent of `fut_mod` must at least partially overlap with that of
-#' `hist_obs` when running `biascorrect` as corrected values are only returned for the overlapping area
+#' The spatial extent of `fut_mod` must at least partially overlap with that of area used in
+#' `biasmods` when running `biascorrect` as corrected values are only returned for the overlapping area
 #' @import terra
 #' @import mgcv
 #' @importFrom Rcpp sourceCpp
@@ -121,11 +122,14 @@ biascorrect <- function(hist_obs, hist_mod, fut_mod = NA, mod_out = FALSE, range
 #' @seealso [biascorrect()] for deriving `biasmods` and `precip_correct` for
 #' applying corrections to precipitation datasets.
 biascorrect_apply<-function(fut_mod, biasmods, rangelims = NA) {
-  if (!inherits(fut_mod, "SpatRaster")) stop("fut_mod must be a SpatRaster")
+  if (!inherits(fut_mod, "SpatRaster")) stop("In biascorrect_apply the parameter fut_mod must be a SpatRaster")
   if (!inherits(biasmods, "biascorrectmodels")) stop("biasmods must be an object of class biascorrectmodels")
-  r<-rast(biasmods$rindex)
+  if (inherits(biasmods$rindex,"PackedSpatRaster")) r<-unwrap(biasmods$rindex) else r<-biasmods$rindex
   mods<-biasmods$models
-  if (crs(fut_mod) != crs(r)) fut_mod<-project(fut_mod,r)
+  if (crs(fut_mod) != crs(r)) fut_mod<-project(fut_mod,crs(r))
+  if(!relate(ext(r), ext(fut_mod),"intersects")) warning("Data and bias correction model in biascorrect_apply do not overlap!!!")
+  if(!relate(ext(fut_mod),ext(r),"coveredby")) warning("Data in biascorrect_apply exceeds model area - outputs will be cropped!!!")
+  te<-fut_mod
   fut_mod<-resample(fut_mod,r)
   # Populate m wiht i and j
   ri<-.rast(populatematrix(.is(r)*0, "i"),r)
@@ -151,6 +155,7 @@ biascorrect_apply<-function(fut_mod, biasmods, rangelims = NA) {
   }
   ao<-.rast(ao,fut_mod[[1]])
   ao<-mask(ao,r)
+  ao<-crop(ao,te)
   return(ao)
 }
 #' @title Applies bias correction to precipitation data
@@ -171,6 +176,7 @@ biascorrect_apply<-function(fut_mod, biasmods, rangelims = NA) {
 #' attain. I.e. if set to 2, values in any given grid cell of the returned dataset
 #' cannot exceed twice the maximum amount in the corresponding grid cell in
 #' `hist_obs`.If not supplied (the default), returned values are unbounded.
+#' @param prec_thold - numeric value (mm per day) below which daily precipitation is taken to be zero.
 #' @return If `mod_out = FALSE` (the default), a SpatRaster of bias corrected
 #' precipitation. If `mod_out = TRUE` a list containing two wrapped SpatRasters
 #' representing the amount by which to adjust precipitation totals and precipitation
@@ -245,6 +251,7 @@ precipcorrect <- function(hist_obs, hist_mod, fut_mod=NA, mod_out = FALSE, range
     }
     # convert to SpatRast
     out<-.rast(a2,fut_mod)
+    out<-crop(out,fut_mod)
   }
   return(out)
 }
@@ -256,7 +263,8 @@ precipcorrect <- function(hist_obs, hist_mod, fut_mod=NA, mod_out = FALSE, range
 #' resampled to match data held in `mod_out` if necessary.
 #' @param biasmods list containing two wrapped SpatRasters derived using [precipcorrect()]
 #' representing the amount by which to adjust rainfall totals and rainfall days,
-#' which is used as a basis for adjusting individual rainfall events. `
+#' which is used as a basis for adjusting individual rainfall events.
+#' @param prec_thold numeric value (mm per day) below which precipitation is taken to be zero
 #' @return a SpatRaster matching `fut_mod` with climate data bias corrected.
 #' @details The `precipcorrect_apply` function allows the same bias correction to
 #' be applied to multiple datasets, spanning e.g. several future time periods or
@@ -273,10 +281,13 @@ precipcorrect <- function(hist_obs, hist_mod, fut_mod=NA, mod_out = FALSE, range
 #' applying corrections to other climate variables
 precipcorrect_apply<-function(fut_mod, biasmods, prec_thold=0.01) {
   if (!inherits(fut_mod, "SpatRaster")) stop("fut_mod must be a SpatRaster")
-  mu_tot<-biasmods$mu_tot
-  mu_frac<-biasmods$mu_frac
+  if (inherits(biasmods$mu_tot,"PackedSpatRaster")) mu_tot<-unwrap(biasmods$mu_tot) else mu_tot<-biasmods$mu_tot
+  if (inherits(biasmods$mu_frac,"PackedSpatRaster")) mu_frac<-unwrap(biasmods$mu_frac) else mu_frac<-biasmods$mu_frac
   # reproject and crop if necessary
-  if (crs(fut_mod) != crs(mu_tot)) fut_mod<-project(fut_mod,mu_tot)
+  if (crs(fut_mod) != crs(mu_tot)) fut_mod<-project(fut_mod,crs(mu_tot))
+  if(!relate(ext(mu_tot), ext(fut_mod),"intersects")) warning("Data and bias correction model in precipcorrect_apply do not overlap!!!")
+  if(!relate(ext(fut_mod),ext(mu_tot),"coveredby")) warning("Data in precipcorrect_apply exceeds model area - outputs will be cropped!!!")
+  te<-fut_mod[[1]]
   fut_mod<-resample(fut_mod,mu_tot)
   # Calculate and adjust rainfall total and rain day frac
   rcount<-fut_mod
@@ -301,11 +312,57 @@ precipcorrect_apply<-function(fut_mod, biasmods, prec_thold=0.01) {
   rfrac<-as.vector(t(tfrac))
   mm<-rainadjustm(mm,rrain,rfrac,rtot)
   a2<-array(mm,dim=dim(a))
-  # convert to SpatRast
+  # convert to SpatRast and crop to input fut_mod
   out<-.rast(a2,fut_mod)
+  out<-crop(out,te)
   return(out)
 }
 
+#' Apply bias correction models to all climate variables
+#'
+#' @param climdata - a list of climate and associated data as output by `ukcp18toclimarray` function
+#' @param model_list - a list of bias correction models as output by `biascorrect` and `precipcorrect` functions
+#' names of list elements must match variable names in `climdata`.
+#' @param rangelim fractional amount above the maximum values of precipitation
+#' in model observed data in any given cell by which values in the returned dataset can
+#' attain. I.e. if set to 2, values in any given grid cell of the returned dataset
+#' cannot exceed twice the maximum amount in the corresponding grid cell in
+#' observed data of model.If not supplied (the default), returned values are unbounded.
+#' @param prec_thold - numeric value (mm per day) below which daily precipitation is taken to be zero.
+#'
+#' @return list of bias corected spatRasters and other variables matching `climdata` input
+#' @details
+#' SpatRaster output may be cropped if climdata input extent exceeds the extent over which bias correction
+#' models were developed.
+#'
+#' @export
+#'
+#' @examples
+biascorrect_climdata<-function(climdata, model_list, prec_thold=0.01, rangelims = NA){
+  # Check inputs - names match and convert to spatrasters if required
+  vars<-c("relhum","pres","lwrad","swrad","tmax","tmin","windspeed","prec" )
+  input_vars <-names(climdata)
+  model_vars<-names(model_list)
+  if(!all(vars %in% input_vars)) stop("Cannot find all input variable names in climdata parameter!!!")
+  if(!all(vars %in% model_vars)) stop("Cannot find all input variable names in model_list!!!")
+  input_class<-lapply(lapply(climdata,class),`[[`, 1)
+  if(any(input_class=="PackedSpatRaster")) climdata[which(input_class=="PackedSpatRaster")]<-lapply(climdata[which(input_class=="PackedSpatRaster")],unwrap)
+  if(any(input_class=="array")) climdata[which(input_class=="array")]<-lapply(climdata[which(input_class=="array")],.rast,tem=climdata$dtm)
+
+  # Bias correct variables
+  for (v in vars){
+    if(v!="prec") climdata[[v]]<-biascorrect_apply(fut_mod=climdata[[v]], biasmods=model_list[[v]], rangelims)
+    if(v=="prec") climdata[[v]]<-precipcorrect_apply(fut_mod=climdata[[v]], biasmods=model_list[[v]], prec_thold)
+  }
+  ## Correct other variables to match output of bias correction (may crop)
+  if(ext(climdata$dtm)!=ext(climdata[[v]])){
+    r<-ext(climdata[[v]])
+    climdata$winddir<-crop(climdata$winddir,r)
+    if("cloud" %in% input_vars) climdata$cloud<-crop(climdata$cloud,r)
+    climdata$dtm<-crop(climdata$dtm,r)
+  }
+  return(climdata)
+}
 #' @title Converts era5 hourly data to daily to enable bias correction to be applied to ukcp data
 #' @param filein - filename (including path ) of era5 nc file with required variables
 #' @param pathout - directory in which to save data
@@ -545,6 +602,7 @@ era5todaily<-function(filein,pathout,landsea, elev, output=c('tifs','singlenc','
   }
   return(daily_list)
 }
+
 
 
 # ============================================================================ #
