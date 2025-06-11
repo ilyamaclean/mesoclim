@@ -220,7 +220,7 @@
     }
     s<-which(is.na(m1))
     if (length(s) > 0) {
-      me<-apply(.is(r),3,mean,na.rm=T)
+      me<-unlist(global(r,mean,na.rm=TRUE))
       m2<-.vta(me,r[[1]])
       m1[s]<-m2[s]
     }
@@ -1182,7 +1182,7 @@
 #' @title Coastal temperature effects
 #'
 #' @param tc - downscaled temperature at same res as dtmf
-#' @param sstf - downscaled sea surface temperature to dtmf resolution and extent - no NA and timeseries matches tc
+#' @param sstf - downscaled sea surface temperature to dtmf resolution and extent - no NA and timeseries must match tc
 #' @param u2 - downscaled windspeed at temprature height
 #' @param wdir - wind direction (coarse resolution) - same value for all of dtmf extent will be used
 #' @param dtmf - fine dtm spatraster
@@ -1192,11 +1192,7 @@
 #' @return Spatraster of temperature that includes coastal effect
 #' @export
 #' @keywords internal
-.tempcoastal<-function(tc, sst, u2, wdir, dtmf, dtmm, dtmc,ndir=8,smooth=5) {
-  # Spatial and temporal interpolation of sst and resmapled to match dtmf resolution - IMPROVE THIS !!
-  if (any(global(sst,anyNA))) sst<-.spatinterp(sst)
-  sst<-.tmeinterp(sst,NA,climdata$tme)
-  sstf<-project(sst,dtmf)
+.tempcoastal<-function(tc, sstf, u2, wdir, dtmf, dtmm, dtmc,ndir=8,smooth=5) {
   # Resample dtmm to dtmf resolution
   if(any(res(dtmm)!=res(dtmf))) dtmm<-.resample(dtmm,dtmf,msk=TRUE)
   # Calculate coastal exposure for each wind direction
