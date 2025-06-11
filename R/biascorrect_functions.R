@@ -338,7 +338,7 @@ precipcorrect_apply<-function(fut_mod, biasmods, prec_thold=0.01) {
 #' @export
 #'
 #' @examples
-biascorrect_climdata<-function(climdata, model_list, prec_thold=0.01, rangelims = NA){
+biascorrect_climdata<-function(climdata, model_list, prec_thold=0.01, rangelims = NA, fillna=FALSE){
   # Check inputs - names match and convert to spatrasters if required
   vars<-c("relhum","pres","lwrad","swrad","tmax","tmin","windspeed","prec" )
   input_vars <-names(climdata)
@@ -353,6 +353,7 @@ biascorrect_climdata<-function(climdata, model_list, prec_thold=0.01, rangelims 
   for (v in vars){
     if(v!="prec") climdata[[v]]<-biascorrect_apply(fut_mod=climdata[[v]], biasmods=model_list[[v]], rangelims)
     if(v=="prec") climdata[[v]]<-precipcorrect_apply(fut_mod=climdata[[v]], biasmods=model_list[[v]], prec_thold)
+    if(fillna) climdata[[v]]<-.spatinterp(climdata[[v]])
   }
   ## Correct other variables to match output of bias correction (may crop)
   if(ext(climdata$dtm)!=ext(climdata[[v]])){
