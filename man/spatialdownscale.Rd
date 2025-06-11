@@ -11,13 +11,15 @@ spatialdownscale(
   dtmm = NA,
   basins = NA,
   wca = NA,
+  skyview = NA,
+  horizon = NA,
   cad = TRUE,
   coastal = TRUE,
   thgto = 2,
   whgto = 2,
   rhmin = 20,
   pksealevel = TRUE,
-  patchsim = TRUE,
+  patchsim = FALSE,
   terrainshade = TRUE,
   precipmethod = "Elev",
   fast = TRUE,
@@ -100,12 +102,11 @@ a list of multi-layer SpatRast or 3D arrays of downscaled climate variables and 
 Spatially downscales coarse-resolution climate data
 }
 \examples{
- dir_data<-system.file('extdata/ukcp18sst',package='mesoclim')
- sst<-create_ukcpsst_data(dir_data,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),members='01')
  dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
  dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
- climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
- dailymesodat<-spatialdownscale(climdata, sst, dtmf, dtmm, noraincut=0.01)
+ ukcpinput<-read_climdata(mesoclim::ukcpinput)
+ ukcp18sst<-rast(mesoclim::ukcp18sst)
+ dailymesodat<-spatialdownscale(ukcpinput, ukcp18sst, dtmf, dtmm, noraincut=0.01)
  plot_q_layers(dailymesodat$tmin)
 }
 \keyword{spatial}

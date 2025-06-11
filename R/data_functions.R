@@ -344,4 +344,36 @@ write_climdata<-function(climdata,filepath,overwrite=FALSE){
   return()
 }
 
-
+subset_climdata<-function (climdata, sdatetime, edatetime) {
+  if (class(climdata)[1] == "SpatRaster") {
+    if (all(any(!is.na(values(climdata))))) {
+      sel <- which(time(climdata) >= sdatetime %m-% months(1) &
+                     time(climdata) <= edatetime %m+% months(1))
+      sel <- ifelse(sel < 1, 1, sel)
+      sel <- ifelse(sel > nlyr(climdata), nlyr(climdata),
+                    sel)
+      newdata <- subset(climdata, sel)
+    }
+    else {
+      newdata <- NA
+    }
+  }
+  if (class(climdata)[1] == "list") {
+    sel <- which(climdata$tme >= sdatetime & climdata$tme <=
+                   edatetime)
+    newdata <- list()
+    newdata$dtm <- climdata$dtm
+    newdata$tme <- climdata$tme[sel]
+    newdata$windheight_m <- climdata$windheight_m
+    newdata$tempheight_m <- climdata$tempheight_m
+    vars <- names(climdata)[which(!names(climdata) %in% c("dtm",
+                                                          "tme", "windheight_m", "tempheight_m"))]
+    for (v in vars) {
+      if (class(climdata[[v]])[1] == "SpatRaster")
+        newdata[[v]] <- subset(climdata[[v]], sel)
+      if (class(climdata[[v]])[1] == "array")
+        newdata[[v]] <- climdata[[v]][, , sel]
+    }
+  }
+  return(newdata)
+}

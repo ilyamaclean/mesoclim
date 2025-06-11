@@ -20,7 +20,7 @@
 }}
 
 \item{dtmc}{\itemize{
-\item coarse resolution dtm matching climate variable inputs
+\item coarse resolution dtm matching climate variable inputs - not required if other parameters all spatRasters.
 }}
 
 \item{dtmf}{\itemize{

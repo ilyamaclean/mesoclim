@@ -65,8 +65,8 @@ Using pre-calculated bias correction models.
 
 ```{r bias_correction}
 # Get pre-calculated models
-dir_bmodels<-"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data/bias_correct_models"
-model_list<-readRDS(file.path(dir_bmodels,paste0('bias_correct_models_2020_2022.Rds')))
+dir_bcmodels<-"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data/bias_correct_models"
+model_list<-readRDS(file.path(dir_bcmodels,paste0('bias_correct_models_2020_2022.Rds')))
 
 # Apply  models
 climdata<-biascorrect_climdata(ukcpinput,model_list,prec_thold =0.01)

@@ -69,8 +69,9 @@ simulating the trajectory of low pressure systems.
 }
 \examples{
 \dontrun{
-climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+climdata<-read_climdata(mesoclim::ukcpinput)
+climdata$dtm<-unwrap(climdata$dtm)
 prcf<-precipdownscale(climdata$prec, dtmf, climdata$dtm, method="Elev", noraincut=0.01)
 terra::plot(prcf[[1]])
 }

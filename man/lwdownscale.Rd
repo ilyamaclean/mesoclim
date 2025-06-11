@@ -4,7 +4,7 @@
 \alias{lwdownscale}
 \title{Downscale longwave radiation}
 \usage{
-lwdownscale(lwrad, tc, tcf, tme, dtmf, dtmc, terrainshade = FALSE)
+lwdownscale(lwrad, tc, tcf, tme, dtmf, dtmc, skyview = NA, terrainshade = TRUE)
 }
 \arguments{
 \item{lwrad}{\itemize{

@@ -4,7 +4,7 @@
 \alias{.tempcoastal}
 \title{Coastal temperature effects}
 \usage{
-.tempcoastal(tc, sst, u2, wdir, dtmf, dtmm, dtmc, ndir = 8)
+.tempcoastal(tc, sst, u2, wdir, dtmf, dtmm, dtmc, ndir = 8, smooth = 5)
 }
 \arguments{
 \item{tc}{\itemize{

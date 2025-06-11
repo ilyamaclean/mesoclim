@@ -4,7 +4,7 @@
 \alias{precipcorrect_apply}
 \title{Applies bias correction model to precipitation data}
 \usage{
-precipcorrect_apply(fut_mod, biasmods)
+precipcorrect_apply(fut_mod, biasmods, prec_thold = 0.01)
 }
 \arguments{
 \item{fut_mod}{a stacked SpatRast of modelled precipitation data for
@@ -13,7 +13,9 @@ resampled to match data held in \code{mod_out} if necessary.}
 
 \item{biasmods}{list containing two wrapped SpatRasters derived using \code{\link[=precipcorrect]{precipcorrect()}}
 representing the amount by which to adjust rainfall totals and rainfall days,
-which is used as a basis for adjusting individual rainfall events. `}
+which is used as a basis for adjusting individual rainfall events.}
+
+\item{prec_thold}{numeric value (mm per day) below which precipitation is taken to be zero}
 }
 \value{
 a SpatRaster matching \code{fut_mod} with climate data bias corrected.

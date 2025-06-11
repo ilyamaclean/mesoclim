@@ -13,7 +13,7 @@ period to which corrections are applied.}
 \item{biasmods}{an object of class \code{biascorrectmodels} derived using \code{\link[=biascorrect]{biascorrect()}}.}
 }
 \value{
-a SpatRaster matching \code{fut_mod} with climate data bias corrected.
+a SpatRaster matching the overlap of \code{fut_mod} and \code{biasmods$rindex}
 }
 \description{
 The function \code{biascorrect_apply} applies a set of bias corrections
@@ -22,8 +22,8 @@ derived using \code{bias_correct} to a spatial climate dataset
 \details{
 The \code{biascorrect_apply} function allows the same bias correction to be applied
 to multiple datasets, spanning e.g. several future time periods or climate scenarious.
-The spatial extent of \code{fut_mod} must at least partially overlap with that of
-\code{hist_obs} when running \code{biascorrect} as corrected values are only returned for the overlapping area
+The spatial extent of \code{fut_mod} must at least partially overlap with that of area used in
+\code{biasmods} when running \code{biascorrect} as corrected values are only returned for the overlapping area
 }
 \seealso{
 \code{\link[=biascorrect]{biascorrect()}} for deriving \code{biasmods} and \code{precip_correct} for

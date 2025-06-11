@@ -11,6 +11,7 @@ swdownscale(
   dtmc,
   patchsim = FALSE,
   nsim = dim(swrad)[3],
+  hor = NA,
   terrainshade = FALSE
 )
 }
@@ -30,6 +31,8 @@ patchiness during downscaling. More realistically captures variation, but slower
 
 \item{nsim}{optionally the number of independent cloud cover patchiness simulations to perform. Outputs
 are temporally interpolated (see details).}
+
+\item{hor}{optional 3D array or spatRaster of horizone angles}
 
 \item{terrainshade}{optional logical indicating whether to adjust incoming radiation
 for terrain shading. If TRUE, total downward shortwave radiation is partioned into its

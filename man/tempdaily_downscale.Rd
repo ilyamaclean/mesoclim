@@ -6,6 +6,7 @@
 \usage{
 tempdaily_downscale(
   climdata,
+  tmean = NA,
   sst,
   dtmf,
   dtmm,
@@ -20,6 +21,9 @@ tempdaily_downscale(
 \arguments{
 \item{climdata}{a \code{climdata} model object containing climate data of the same format as \code{era5climdata}
 Expects variables to include a \code{tmin} and \code{tmax}}
+
+\item{tmean}{a coarse resolution array or spatRaster of daily mean temperatures identical to climdata inputs.
+If NA will calculate from hourluy downscaling of tmin and tmax in \code{climdata}}
 
 \item{sst}{a SpatRast of sea-surface temperature data (deg C) timeseries that overlaps climdata$tme}
 

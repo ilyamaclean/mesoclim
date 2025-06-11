@@ -50,8 +50,9 @@ To enhance computational efficiency, Wind direction is assumed constant over the
 \code{dtmf}.
 }
 \examples{
-climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+climdata<-read_climdata(mesoclim::ukcpinput)
+climdata$dtm<-unwrap(climdata$dtm)
 dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
 wsf <- winddownscale(ukcpinput$windspeed, ukcpinput$winddir, dtmf, dtmm, ukcpinput$dtm, zi=ukcpinput$windheight_m)
 plot_q_layers(wsf)
