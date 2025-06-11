@@ -11,6 +11,7 @@ library(mesoclimAddTrees)
 
 ##############  DIRECTORIES ####################### #######################
 # Root directory relative to these data inputs
+dir_od<-"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data"
 dir_root<-"/Users/jonathanmosedale/Data"
 dir_in<-file.path(dir_root,'mesoclim_inputs')
 list.files(dir_in)

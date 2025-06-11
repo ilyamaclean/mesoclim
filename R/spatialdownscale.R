@@ -488,7 +488,7 @@ swdownscale<-function(swrad, tme, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)
 #' wsf <- winddownscale(ukcpinput$windspeed, ukcpinput$winddir, dtmf, dtmm, ukcpinput$dtm, zi=ukcpinput$windheight_m)
 #' plot_q_layers(wsf)
 winddownscale <- function(wspeed, wdir, dtmf, dtmm, dtmc, wca=NA, zi=10, zo = 2) {
-  # Coarsen dtmm resolution if currently same as dtmf - speeds calculations and simplifies coast line!
+  # Coarsen dtmm resolution if currently same as dtmf
   if(all(res(dtmm)==res(dtmf))){
     dtmm_res<-round(exp( ( log(terra::res(dtmc)[1]) + log(terra::res(dtmf)[1]) ) / 2 ))
     dtmm<-terra::aggregate(dtmm,dtmm_res / res(dtmf),  na.rm=TRUE)

@@ -195,6 +195,7 @@
 .spatinterp<-function(r){
   tme<-terra::time(r)
   me<-as.vector(r)
+  n<-which(is.na(me))
   rout<-r
   crs(rout)<-crs(r) # prevents superfluous warnings
   if (length(n) > 0) {
