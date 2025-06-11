@@ -722,6 +722,7 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
 #' @param coastal optional logical indicating whether to calculate coastal effects
 #' @param thgto height above ground of temperature output.
 #' @param whgto height above ground of wind speed output.
+#' @param include_tmean if TRUE and daily data will output mean daily temperature based on hourly downsccaling
 #' @param rhmin minimum relative humidity (set to avoid relative humidity dropping too low
 #' during down-scaling). Default 20 (percent).
 #' @param pksealevel optional logical indicating whether input pressure data represent
@@ -746,7 +747,7 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
 #'    \item{tme}{POSIXlt object of times corresponding to climate observations}
 #'    \item{windheight_m}{Height of windspeed data in metres above ground (as numeric)}
 #'    \item{tempheight_m}{Height of temperature data in metres above ground (as numeric)}
-#'    \item{temp}{Temperature (deg C) - is replaced with `tmax` and `tmin` if input data is daily.}
+#'    \item{temp}{Temperature (deg C) - is replaced with `tmax` and `tmin` if input data is daily and `tmean` if `include_tmean`=TRUE.}
 #'    \item{relhum}{Relative humidity (Percentage)}
 #'    \item{pres}{Sea-level atmospheric pressure (kPa)}
 #'    \item{swrad}{Total downward shortwave radiation (W/m^2)}
@@ -766,7 +767,7 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
 #'  dailymesodat<-spatialdownscale(ukcpinput, ukcp18sst, dtmf, dtmm, noraincut=0.01)
 #'  plot_q_layers(dailymesodat$tmin)
 spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, skyview=NA, horizon=NA,
-                              cad = TRUE,coastal = TRUE, thgto =2, whgto=2,
+                              cad = TRUE,coastal = TRUE, thgto =2, whgto=2,include_tmean=FALSE,
                                rhmin = 20, pksealevel = TRUE, patchsim = FALSE, terrainshade = TRUE,
                                precipmethod = "Elev",fast = TRUE, noraincut = 0, toArrays=FALSE) {
 
@@ -870,6 +871,7 @@ spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, 
   } else {
     terra::time(tminf)<-climdata$tme
     terra::time(tmaxf)<-climdata$tme
+    terra::time(tmeanf)<-climdata$tme
   }
   terra::time(rhf)<-climdata$tme
   terra::time(pkf)<-climdata$tme
@@ -885,7 +887,8 @@ spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, 
     if(toArrays) climout<-lapply(climout,as.array)
     out<-c(out,climout)
   } else {
-    climout<-list( tmin=tminf,tmax=tmaxf,relhum=rhf,pres=pkf,swrad=totswrad,lwrad=lwf,windspeed=uzf,winddir=wdf,prec=precf)
+    if(!include_tmean) climout<-list( tmin=tminf,tmax=tmaxf,relhum=rhf,pres=pkf,swrad=totswrad,lwrad=lwf,windspeed=uzf,winddir=wdf,prec=precf)
+    if(include_tmean) climout<-list( tmean=tmeanf,tmin=tminf,tmax=tmaxf,relhum=rhf,pres=pkf,swrad=totswrad,lwrad=lwf,windspeed=uzf,winddir=wdf,prec=precf)
     if(toArrays) climout<-lapply(climout,as.array)
     out<-c(out,climout)
   }

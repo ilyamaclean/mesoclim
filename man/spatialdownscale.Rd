@@ -17,6 +17,7 @@ spatialdownscale(
   coastal = TRUE,
   thgto = 2,
   whgto = 2,
+  include_tmean = FALSE,
   rhmin = 20,
   pksealevel = TRUE,
   patchsim = FALSE,
@@ -53,6 +54,8 @@ not supplied.}
 
 \item{whgto}{height above ground of wind speed output.}
 
+\item{include_tmean}{if TRUE and daily data will output mean daily temperature based on hourly downsccaling}
+
 \item{rhmin}{minimum relative humidity (set to avoid relative humidity dropping too low
 during down-scaling). Default 20 (percent).}
 
@@ -87,7 +90,7 @@ a list of multi-layer SpatRast or 3D arrays of downscaled climate variables and 
 \item{tme}{POSIXlt object of times corresponding to climate observations}
 \item{windheight_m}{Height of windspeed data in metres above ground (as numeric)}
 \item{tempheight_m}{Height of temperature data in metres above ground (as numeric)}
-\item{temp}{Temperature (deg C) - is replaced with \code{tmax} and \code{tmin} if input data is daily.}
+\item{temp}{Temperature (deg C) - is replaced with \code{tmax} and \code{tmin} if input data is daily and \code{tmean} if \code{include_tmean}=TRUE.}
 \item{relhum}{Relative humidity (Percentage)}
 \item{pres}{Sea-level atmospheric pressure (kPa)}
 \item{swrad}{Total downward shortwave radiation (W/m^2)}

@@ -89,6 +89,10 @@ if(outputs){
 # Size of area and number of parcels that it will downscale for
 print(paste("Downscaling for an area of",round(expanse(aoi,"km"),0),"km^2, generating output for",nrow(parcels_v),"parcels"))
 
+
+###### Load bias correction models if required
+if(bias_correct) model_list<-readRDS(bcmodels_file)
+
 ###### Calculate topographical properties - worth it if looping over several downscaling calls (eg multiple years)
 # Windshelter coef
 t0<-now()
@@ -126,25 +130,23 @@ if(outputs){
 }
 print(paste0("Climate data processing = ",now()-t0))
 
-############## BIAS CORRECTION ####################### #######################
-t0<-now()
-if(bias_correct){
-  model_list<-readRDS(bcmodels_file)
 
-  # Apply  models
-  climdata<-biascorrect_climdata(climdata,model_list,prec_thold =0.01)
-  for(v in c('tmin','tmax','relhum','pres','swrad','lwrad','windspeed','winddir','prec')) plot(climdata[[v]][[1]],main=v)
-}
-print(paste0("Bias correction processing = ",now()-t0))
-
-############## SPATIAL DOWNSCALE BY YEAR AND MONTH ####################### #######################
+############## BIASD CORRECTION AND SPATIAL DOWNSCALE BY YEAR AND MONTH ####################### #######################
 # Option to write yearly .tifs
 # Option to write parcel .csv outputs  - appends new data to parcel file outputs with each loop
 years<-unique(c(year(startdate):year(enddate)))
 # By YEAR
 for (yr in years){
   t0<-now()
-  # BY month
+
+  ### BIAS CORRECTION of year's data if requested
+  if(bias_correct){
+    climdata<-biascorrect_climdata(climdata,model_list,prec_thold =0.01)
+    if(outputs) for(v in c('tmin','tmax','relhum','pres','swrad','lwrad','windspeed','winddir','prec')) plot(climdata[[v]][[1]],main=v)
+    print(paste0("Bias correction processing = ",now()-t0))
+  }
+
+  # SPATIAL DOWNSCALE BY month
   out<-list()
   for(m in seq(1,12)){
     print(m)
@@ -154,12 +156,10 @@ for (yr in years){
     climdata<-subset_climdata(clim,sdatetime,edatetime)
     out[[m]]<-spatialdownscale(climdata=climdata, sst=sstdata,
                                   dtmf=dtmf, dtmm=dtmm, basins = basins, wca=wca, skyview=skyview, horizon=horizon, cad = TRUE,
-                                  coastal = TRUE, thgto =2, whgto=2,
+                                  coastal = TRUE, thgto =2, whgto=2, include_tmean=TRUE,
                                   rhmin = 20, pksealevel = TRUE, patchsim = FALSE,
                                   terrainshade = TRUE, precipmethod = "Elev", fast = TRUE, noraincut = 0.01)
   }
-  downscale_time<-now()-t0
-  print(paste("Time for downscaling single year =", format(downscale_time)))
 
   # Create whole year rasters for each var from list of months
   mesoclimate<-list()
@@ -170,9 +170,12 @@ for (yr in years){
   append_vars<-names(out[[1]])[c(5:length(out[[1]]))]
   for(v in append_vars) mesoclimate[[v]]<-rast(unlist(lapply(out,"[",v)))
 
-  # Plot mean,max and min days for each variable
+  downscale_time<-now()-t0
+  print(paste("Time for downscaling single year =", format(downscale_time)))
+
+  # Plot mean,max and min days for each variable if spatraster
   if(outputs){
-    climvars<-c('tmin','tmax','relhum','pres','swrad','lwrad','windspeed','winddir','prec')
+    climvars<-names(mesoclimate)[which(unlist(lapply(mesoclimate,inherits,what="SpatRaster")))]
     for(var in climvars){
       print(var)
       r<-mesoclimate[[var]]
