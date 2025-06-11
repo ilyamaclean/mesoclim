@@ -868,10 +868,14 @@ spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, 
   message('Formatting output...')
   if (hourly) {
     terra::time(tcf)<-climdata$tme
+    names(tcf)<-climdata$tme
   } else {
     terra::time(tminf)<-climdata$tme
     terra::time(tmaxf)<-climdata$tme
     terra::time(tmeanf)<-climdata$tme
+    names(tminf)<-climdata$tme
+    names(tmaxf)<-climdata$tme
+    names(tmeanf)<-climdata$tme
   }
   terra::time(rhf)<-climdata$tme
   terra::time(pkf)<-climdata$tme
@@ -880,6 +884,13 @@ spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, 
   terra::time(uzf)<-climdata$tme
   terra::time(wdf)<-climdata$tme
   terra::time(precf)<-climdata$tme
+  names(rhf)<-climdata$tme
+  names(pkf)<-climdata$tme
+  names(totswrad)<-climdata$tme
+  names(lwf)<-climdata$tme
+  names(uzf)<-climdata$tme
+  names(wdf)<-climdata$tme
+  names(precf)<-climdata$tme
 
   out<-list(dtm=dtmf,tme=climdata$tme,windheight_m=whgto,tempheight_m=thgto)
   if (hourly) {
@@ -894,6 +905,7 @@ spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, 
   }
   if (terrainshade){
     terra::time(difrad)<-climdata$tme
+    names(difrad)<-climdata$tme
     out$difrad<-difrad
   }
   return(out)
