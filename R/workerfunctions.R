@@ -1194,7 +1194,7 @@
 #' @return Spatraster of temperature that includes coastal effect
 #' @export
 #' @keywords internal
-.tempcoastal<-function(tc, sstf, u2, wdir, dtmf, dtmm, dtmc,ndir=32,smooth=5,correct=TRUE) {
+.tempcoastal<-function(tc, sstf, u2, wdir, dtmf, dtmm, dtmc,ndir=32,smooth=5,correct=FALSE) {
   # Resample dtmm to dtmf resolution
   if(any(res(dtmm)!=res(dtmf))) dtmm<-.resample(dtmm,dtmf,msk=TRUE)
 
