@@ -1188,14 +1188,17 @@
 #' @param dtmf - fine dtm spatraster
 #' @param dtmm - fine-scale dtm covering wider area than dtmf (but same resolution!!)
 #' @param dtmc - coarse dtm spatraster matching resolution and extent of wdir
-#'
+#' @param ndir - number of directions to calculate for wind exposure
+#' @param smooth - number of cells to use for smoothing matrix
+#' @param correct - corrects each timestep  so that output mean temp of area matches input area mean temp
 #' @return Spatraster of temperature that includes coastal effect
 #' @export
 #' @keywords internal
-.tempcoastal<-function(tc, sstf, u2, wdir, dtmf, dtmm, dtmc,ndir=8,smooth=5) {
+.tempcoastal<-function(tc, sstf, u2, wdir, dtmf, dtmm, dtmc,ndir=32,smooth=5,correct=TRUE) {
   # Resample dtmm to dtmf resolution
   if(any(res(dtmm)!=res(dtmf))) dtmm<-.resample(dtmm,dtmf,msk=TRUE)
-  # Calculate coastal exposure for each wind direction
+
+  # Calculate coastal exposure for each wind direction - NOT very realistic for complex coasts if ndir=8
   landsea<-ifel(is.na(dtmm),NA,1)
   lsr<-array(NA,dim=c(dim(dtmf)[1:2],ndir))
   for (i in 0:(ndir-1)) {
@@ -1237,10 +1240,13 @@
     lswgt<- -0.1095761+p2*(llsr+3.401197)-0.1553487*llsm
     swgt<-.rast(1/(1+exp(-lswgt)),tc)
     tcp<-swgt*sstf+(1-swgt)*tc
-    # calculate aggregation factor - DOESN'T WORK VERY WELL - perhaps focal smoothing would be better???
-    af<-res(dtmc)[1]/res(dtmf)[1]
-    tcc<-resample(aggregate(tcp,af,na.rm=TRUE),tcp)
-    tcp<-tc+(tcp-tcc)
+    # Correct area mean temps to equal area mean input temps???? - NOT suitable for tiles
+    # Increases temperature range significantly!!
+    if(correct){
+      af<-res(dtmc)[1]/res(dtmf)[1]
+      tcc<-resample(aggregate(tcp,af,na.rm=TRUE),tcp)
+      tcp<-tc+(tcp-tcc)
+    }
   } else tcp<-tc
   return(tcp)
 }
