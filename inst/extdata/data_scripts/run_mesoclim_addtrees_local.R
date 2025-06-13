@@ -10,9 +10,9 @@ dir_bcmodels<-"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-Universityo
 # Parcel file and label for outputs
 # parcels_file<-file.path(dir_root,'CEH_Exmoor.shp') # exmoor
 # parcels_file<-file.path(dir_root,'mesoclim_inputs','killerton','land_parcels.shp') # killerton
-# parcels_file<-file.path(dir_root,'mesoclim_inputs','focal_parcels.shp') # s devon
-parcels_file<-file.path(dir_root,'mesoclim_inputs','land_parcels.shp') # porthleven
-arealabel<-"test"
+parcels_file<-file.path(dir_root,'mesoclim_inputs','focal_parcels.shp') # s devon
+# parcels_file<-file.path(dir_root,'mesoclim_inputs','land_parcels.shp') # porthleven
+arealabel<-"sdevon"
 
 # UKCP options and time period
 member<-"01"
@@ -138,27 +138,31 @@ years<-unique(c(year(startdate):year(enddate)))
 # By YEAR
 for (yr in years){
   t0<-now()
+  yrstart<-as.POSIXlt(paste0(yr,'/01/01'),tz=tz(climdata$tme))
+  yrend<-as.POSIXlt(paste0(yr,'/12/31'),tz=tz(climdata$tme))
+  climdata_y<-subset_climdata(climdata,yrstart,yrend)
 
   ### BIAS CORRECTION of year's data if requested
   if(bias_correct){
-    climdata<-biascorrect_climdata(climdata,model_list,prec_thold =0.01)
-    if(outputs) for(v in c('tmin','tmax','relhum','pres','swrad','lwrad','windspeed','winddir','prec')) plot(climdata[[v]][[1]],main=v)
+    climdata_y<-biascorrect_climdata(climdata_y,model_list,prec_thold =0.01,fillna=TRUE)
+    if(outputs) for(v in c('tmin','tmax','relhum','pres','swrad','lwrad','windspeed','winddir','prec')) plot(climdata_y[[v]][[1]],main=v)
     print(paste0("Bias correction processing = ",now()-t0))
   }
 
-  # SPATIAL DOWNSCALE BY month
+  # SPATIAL DOWNSCALE BY month and tile
   out<-list()
   for(m in seq(1,12)){
     print(m)
     sdatetime<-as.POSIXlt(paste0(yr,'/',m,'/01'),tz=tz(climdata$tme))
     dys<-lubridate::days_in_month(sdatetime)
     edatetime<-as.POSIXlt(paste0(yr,'/',sprintf("%02d", m),'/',sprintf("%02d", dys)),tz=tz(climdata$tme))
-    climdata<-subset_climdata(clim,sdatetime,edatetime)
-    out[[m]]<-spatialdownscale(climdata=climdata, sst=sstdata,
-                                  dtmf=dtmf, dtmm=dtmm, basins = basins, wca=wca, skyview=skyview, horizon=horizon, cad = TRUE,
-                                  coastal = TRUE, thgto =2, whgto=2, include_tmean=TRUE,
-                                  rhmin = 20, pksealevel = TRUE, patchsim = FALSE,
-                                  terrainshade = TRUE, precipmethod = "Elev", fast = TRUE, noraincut = 0.01)
+    climdata_m<-subset_climdata(climdata_y,sdatetime,edatetime)
+    out[[m]]<-spatialdownscale(climdata=climdata_m,
+                                sst=sstdata,
+                                dtmf=dtmf, dtmm=dtmm, basins = basins, wca=wca, skyview=skyview, horizon=horizon, cad = TRUE,
+                                coastal = TRUE, thgto =2, whgto=2, include_tmean=TRUE,
+                                rhmin = 20, pksealevel = TRUE, patchsim = FALSE,
+                                terrainshade = TRUE, precipmethod = "Elev", fast = TRUE, noraincut = 0.01)
   }
 
   # Create whole year rasters for each var from list of months
@@ -169,6 +173,7 @@ for (yr in years){
   mesoclimate$tme<-do.call(c,(lapply(out,"[[","tme")))
   append_vars<-names(out[[1]])[c(5:length(out[[1]]))]
   for(v in append_vars) mesoclimate[[v]]<-rast(unlist(lapply(out,"[",v)))
+  for(v in append_vars) names(mesoclimate[[v]])<-terra::time(mesoclimate[[v]])
 
   downscale_time<-now()-t0
   print(paste("Time for downscaling single year =", format(downscale_time)))
@@ -213,8 +218,8 @@ print(paste("Run time =", format(now()-tstart)))
 
 
 ############## Get a parcel variable and plot a map of it   ####################### #######################
-#  var_sf<-get_parcel_var(mesoclimate,'swrad', parcels_v,id='gid', stat='mean' )
-#  map_parcel_var(var_sf[which(st_is_valid(var_sf)),], plotvar='swrad', idvar='gid')
+#  var_sf<-get_parcel_var(mesoclimate,'tmean', parcels_v,id='gid', stat='mean' )
+#  map_parcel_var(var_sf[which(st_is_valid(var_sf)),], plotvar='tmean', idvar='gid')
 
 
 

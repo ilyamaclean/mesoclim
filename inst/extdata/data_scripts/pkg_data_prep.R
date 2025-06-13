@@ -1,6 +1,7 @@
 ### UKCP18 inputs for the southwest May 2018
 
-ukcp_aoi<-ext(24000, 336000, -60000, 204000 )
+ukcp_aoi<-ext(120000, 200000, -10000, 100000 )
+
 dtmc_uk<-rast(system.file('extdata/ukcp18rcm/orog_land-rcm_uk_12km_osgb.nc',package='mesoclim'))
 dtmc<-crop(dtmc_uk,ukcp_aoi)
 dtmc<-project(dtmc,"EPSG:27700")
@@ -14,7 +15,7 @@ domain<-'uk'
 member<-'01'
 rcp<-'rcp85'
 startdate<-as.POSIXlt('2018/05/01')
-enddate<-as.POSIXlt('2018/06/01') ### CHANGE FUNCTION SO THIS IS END DATE NOT ENDDATE +1
+enddate<-as.POSIXlt('2018/05/31') ### CHANGE FUNCTION SO THIS IS END DATE NOT ENDDATE +1
 
 # Processes using already downloaded ukcp18rcm files in dir_data
 t0<-now()
@@ -24,6 +25,7 @@ print(now()-t0)
 crs(ukcpinput$dtm)<-"EPSG:27700"
 ukcpinput$dtm<-wrap(ukcpinput$dtm)
 usethis::use_data(ukcpinput,overwrite=TRUE)
+
 #write_climdata(ukcpinput,"data/ukcpinput.rda",overwrite=TRUE)
 
 # UKCP land sea mask
@@ -42,7 +44,7 @@ plot(c(sst,ukcpinput$dtm))
 #### Create 50m fine scale dtm of Lizard
 dir_terrain50<-"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data/Terrain50"
 dtmuk<-rast(file.path(dir_terrain50,"uk_dtm.tif"))
-e<-ext(160000, 181000, 11000, 30000)
+e<-ext(160000, 182000, 10000, 30000)
 dtm<-crop(dtmuk,e)
 lsmask<-vect("/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data/Boundaries/CTRY_DEC_2023_UK_BGC.shp") %>% project(dtm)
 dtm<-mask(dtm,lsmask)
@@ -58,13 +60,13 @@ plot(dtm)
 writeRaster(dtm,"inst/extdata/dtms/dtmf.tif",overwrite=TRUE)
 
 
-
 #### Create corresponding medium dtm - coarser scale and wider extent than dtmf
 dir_terrain50<-"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data/Terrain50"
 dtmuk<-rast(file.path(dir_terrain50,"uk_dtm.tif"))
 lsmask<-vect("/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data/Boundaries/CTRY_DEC_2023_UK_BGC.shp") %>% project("EPSG:27700")
-e<-ext(160000-40000, 181000+40000, 11000-40000, 30000+40000)
+e<-ext(130000, 200000, 10000, 70000)
 dtm<-crop(dtmuk,e)
+plot(dtm)
 dtm<-project(dtm,"EPSG:27700")
 dtm<-mask(dtm,lsmask)
 dtmm<-mask(terra::aggregate(dtm,20,  na.rm=TRUE), lsmask)
