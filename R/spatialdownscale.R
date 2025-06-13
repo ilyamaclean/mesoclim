@@ -62,7 +62,7 @@ tempdaily_downscale<-function(climdata,tmean=NA,sst,dtmf,dtmm,basins,uzf,cad,coa
     if (crs(sst) != crs(dtmf)) sstinterp<-project(sstinterp,crs(dtmf))
     sstf<-.resample(sstinterp,dtmf,method="cubic")
     # Calc windspeed at output height if required
-    if(class(uzf)[1] == "logical") uzf<-winddownscale(climdata$windspeed,climdata$winddir,dtmf,dtmm,dtmc,whgti,thgto)
+    #if(class(uzf)[1] == "logical") uzf<-winddownscale(climdata$windspeed,climdata$winddir,dtmf,dtmm,dtmc,wca,whgti,thgto)
   }
 
   # Downscale tmin

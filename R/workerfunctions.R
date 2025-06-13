@@ -1194,7 +1194,7 @@
 #' @return Spatraster of temperature that includes coastal effect
 #' @export
 #' @keywords internal
-.tempcoastal<-function(tc, sstf, u2, wdir, dtmf, dtmm, dtmc,ndir=32,smooth=5,correct=FALSE) {
+.tempcoastal<-function(tc, sstf, u2, wdir, dtmf, dtmm, dtmc,ndir=32,smooth=5,correct=TRUE) {
   # Resample dtmm to dtmf resolution
   if(any(res(dtmm)!=res(dtmf))) dtmm<-.resample(dtmm,dtmf,msk=TRUE)
 
@@ -1240,12 +1240,14 @@
     lswgt<- -0.1095761+p2*(llsr+3.401197)-0.1553487*llsm
     swgt<-.rast(1/(1+exp(-lswgt)),tc)
     tcp<-swgt*sstf+(1-swgt)*tc
-    # Correct area mean temps to equal area mean input temps???? - NOT suitable for tiles
-    # Increases temperature range significantly!!
+    # Correct using area mean via aggreg???? - NOT suitable when tiling
+    # BUT Increases temperature range significantly across while area!!!
+    # Perhaps should only be applied to cells with a coastal effect??
     if(correct){
       af<-res(dtmc)[1]/res(dtmf)[1]
       tcc<-resample(aggregate(tcp,af,na.rm=TRUE),tcp)
-      tcp<-tc+(tcp-tcc)
+      #tcp<-tc+(tcp-tcc) # original version
+      tcp<-tc+(tcp-tcc)*swgt # new version
     }
   } else tcp<-tc
   return(tcp)

@@ -100,11 +100,11 @@ spatialdownscale_tiles<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wc
         if(!is.logical(skyview)) sky_tile<-crop(skyview,t) else sky_tile<-NA
         if(!is.logical(horizon)) hor_tile<-crop(horizon,t) else hor_tile<-NA
 
-        mesoclimate<-spatialdownscale(climdata_m,sst=sstdata, dtmf=dtmf_tile, dtmm=dtmm,
+        mesoclimate<-spatialdownscale(climdata_m,sst, dtmf_tile, dtmm,
                                       basins = basins_tile, wca=wca_tile, skyview=sky_tile, horizon=hor_tile,
-                                      cad = TRUE, coastal = TRUE, thgto =2, whgto=2, include_tmean=TRUE,
-                                      rhmin = 20, pksealevel = TRUE, patchsim = FALSE,
-                                      terrainshade = TRUE, precipmethod = "Elev", fast = TRUE, noraincut = 0.01)
+                                      cad, coastal, thgto, whgto, include_tmean,
+                                      rhmin, pksealevel, patchsim,
+                                      terrainshade, precipmethod, fast, noraincut)
 
         # assign to list of tiles
         mesoclimate_tiles[[n]]<-mesoclimate
@@ -135,7 +135,6 @@ spatialdownscale_tiles<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wc
   append_vars<-names(allmonths[[1]])[c(5:length(allmonths[[1]]))]
   for(v in append_vars) mesoyear[[v]]<-rast(unlist(lapply(allmonths,"[",v)))
   for(v in append_vars) names(mesoyear[[v]])<-terra::time(mesoyear[[v]])
-
   return(mesoyear)
 } # function
 
@@ -176,6 +175,8 @@ create_overlapping_tiles<-function(template.r,overlap=1000,sz=10000){
     xend<-c(xend,xmax)
   }
 
+  ymax<-ext(template.r)[4]
+  ymin<-ext(template.r)[3]
   ytiles<-(ymax-ymin)%/%sz
   ystart<-seq(ymin,ymin+(sz*ytiles-1),sz-overlap)
   yend<-(ystart+sz)
