@@ -61,81 +61,98 @@ spatialdownscale_tiles<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wc
                                  rhmin = 20, pksealevel = TRUE, patchsim = FALSE, terrainshade = TRUE,
                                  precipmethod = "Elev",fast = TRUE, noraincut = 0, toArrays=FALSE, overlap=1000, sz=10000){
 
-  # Calculate overlapping tile set (nb size can vary) - should be set automatically!
+  # Convert variables - unpack any wrapped spatRasters and convert arrays to spatraster
+  input_class<-lapply(lapply(climdata,class),"[",1)
+  if(any(input_class=="PackedSpatRaster")) climdata[which(input_class=="PackedSpatRaster")]<-lapply(climdata[which(input_class=="PackedSpatRaster")],unwrap)
+  if(any(input_class=="array")) climdata[which(input_class=="array")]<-lapply(climdata[which(input_class=="array")],.rast,tem=climdata$dtm)
+  if(inherits(sst,"PackedSpatRaster")) sst<-unwrap(sst)
+  dtmc<-climdata$dtm
+
+  # Calculate topographical properties -for whole area if not supplied
+  if(is.logical(wca)) wca<-calculate_windcoeffs(dtmc,dtmm,dtmf,zo=2)
+  if(is.logical(basins)) basins<-basindelin(dtmf, boundary = 2)
+  if(is.logical(skyview) | is.logical(horizon)){
+    results<-calculate_terrain_shading(dtmf,steps=24,toArrays=FALSE)
+    skyview<-results$skyview
+    horizon<-results$horizon
+  }
+
+  # Calculate overlapping tile set (nb size can vary)
   tileset<-create_overlapping_tiles(dtmf,overlap,sz)
   tiles<-tileset$tile_extents[which(tileset$tile_land=="y")]
 
-  # Check whole year of data supplied
+  # Calculate year/months of data supplied
   start<-climdata$tme[1]
   end<-climdata$tme[length(climdata$tme)]
-  year<-unique(year(climdata$tme))
-  if(length(year)>10) stop("More than one year's climate data provided to spatialdownscale_tiles!!!")
-  yrstart<-as.POSIXlt(paste0(year,'/01/01'),tz=tz(climdata$tme))
-  yrend<-as.POSIXlt(paste0(year,'/12/31'),tz=tz(climdata$tme))
-  if(start!=yrstart | end!=yrend) stop("Not a whole year's data provided to spatialdownscale_tiles!!!")
+  yrs<-unique(year(climdata$tme))
+  message(paste("Running for",length(tiles),"tiles from",format(start),"to",format(end)))
 
-  # SPATIAL DOWNSCALE BY month
   allmonths<-list()
-  for(m in seq(1,12)){
-    print(m)
-    sdatetime<-as.POSIXlt(paste0(yr,'/',m,'/01'),tz=tz(climdata$tme))
-    dys<-lubridate::days_in_month(sdatetime)
-    edatetime<-as.POSIXlt(paste0(yr,'/',sprintf("%02d", m),'/',sprintf("%02d", dys)),tz=tz(climdata$tme))
-    climdata_m<-subset_climdata(climdata_y,sdatetime,edatetime)
+  t0<-now()
+  for(y in yrs){
+    yrstart<-as.POSIXlt(paste0(y,'/01/01'),tz=tz(climdata$tme))
+    yrend<-as.POSIXlt(paste0(y,'/12/31'),tz=tz(climdata$tme))
+    climdata_y<-subset_climdata(climdata,yrstart,yrend)
+    mnths<-unique(month(climdata_y$tme))
+    for(m in mnths){
+      message(paste0("Downscaling ",sprintf("%02d", m),"/",y))
+      # Get this yr/month data
+      sdatetime<-as.POSIXlt(paste0(yr,'/',m,'/01'),tz=tz(climdata$tme))
+      dys<-lubridate::days_in_month(sdatetime)
+      edatetime<-as.POSIXlt(paste0(yr,'/',sprintf("%02d", m),'/',sprintf("%02d", dys)),tz=tz(climdata$tme))
+      climdata_m<-subset_climdata(climdata_y,sdatetime,edatetime)
 
-    # Downscale by tile
-    mesoclimate_tiles<-list()
-    n<-1
-    for(t in tiles){
-      # for(t in tiles[c(1,2,4,5,7,8)]){
-      xmx<- t$xmax
-      xmn<- t$xmin
-      ymx<- t$ymax
-      ymn<- t$ymin
-      dtmf_tile<-crop(dtmf,t)
-      if(!all(is.na(values(dtmf_tile)))){ # Check it contains land cells (assumes already masked)
-        print(paste("Downscaling tile",t))
-        if(!is.logical(basins)) basins_tile<-crop(basins,t) else basins_tile<-NA
-        if(!is.logical(wca)) wca_tile<-.is(crop(.rast(wca,dtmf),t)) else wca_tile<-NA
-        if(!is.logical(skyview)) sky_tile<-crop(skyview,t) else sky_tile<-NA
-        if(!is.logical(horizon)) hor_tile<-crop(horizon,t) else hor_tile<-NA
+      # Downscale by tile
+      mesoclimate_tiles<-list()
+      for(n in 1:length(tiles)){
+        # for(n in 1:length(tiles[c(1,2,4,5,7,8)])){
+        t<-tiles[[n]]
+        print(paste("Downscaling tile",n))
+        xmx<- t$xmax
+        xmn<- t$xmin
+        ymx<- t$ymax
+        ymn<- t$ymin
+        dtmf_tile<-crop(dtmf,t)
+        basins_tile<-crop(basins,t)
+        wca_tile<-.is(crop(.rast(wca,dtmf),t))
+        sky_tile<-crop(skyview,t)
+        hor_tile<-crop(horizon,t)
 
-        mesoclimate<-spatialdownscale(climdata_m,sst, dtmf_tile, dtmm,
+        mesoclimate<-spatialdownscale(climdata_m, sst, dtmf_tile, dtmm,
                                       basins = basins_tile, wca=wca_tile, skyview=sky_tile, horizon=hor_tile,
                                       cad, coastal, thgto, whgto, include_tmean,
                                       rhmin, pksealevel, patchsim,
                                       terrainshade, precipmethod, fast, noraincut)
 
-        # assign to list of tiles
-        mesoclimate_tiles[[n]]<-mesoclimate
-        downscale_time<-now()-t0
-        print(paste("Time for downscaling single year for tile",t,"=", format(downscale_time)))
-        n<-n+1
-        rm(mesoclimate)
-      } # downscale one tile
-    } # downscale tiles
+        mesoclimate_tiles[[length(mesoclimate_tiles)+1]]<-mesoclimate
+      } # downscale tiles
 
-    # Recreate single month data of merged tiles
-    mesomonth<-list()
-    mesomonth$dtm<-dtmf
-    mesomonth$tme<-mesoclimate_tiles[[1]]$tme
-    mesomonth$windheight_m<-mesoclimate_tiles[[1]]$windheight_m
-    mesomonth$tempheight_m<-mesoclimate_tiles[[1]]$tempheight_m
-    append_vars<-names(mesoclimate_tiles[[1]])[c(5:length(mesoclimate_tiles[[1]]))]
-    for(v in append_vars) mesomonth[[v]]<-do.call(merge, lapply(mesoclimate_tiles,`[[`, v))
-    for(v in append_vars) names(mesomonth[[v]])<-terra::time(mesomonth[[v]])
-  } # month
+      # Recreate single month data of merged tiles
+      mesomonth<-list()
+      mesomonth$dtm<-dtmf
+      mesomonth$tme<-mesoclimate_tiles[[1]]$tme
+      mesomonth$windheight_m<-mesoclimate_tiles[[1]]$windheight_m
+      mesomonth$tempheight_m<-mesoclimate_tiles[[1]]$tempheight_m
+      append_vars<-names(mesoclimate_tiles[[1]])[c(5:length(mesoclimate_tiles[[1]]))]
+      for(v in append_vars) mesomonth[[v]]<-do.call(merge, lapply(mesoclimate_tiles,`[[`, v))
+      for(v in append_vars) names(mesomonth[[v]])<-terra::time(mesomonth[[v]])
 
-  # Reconstruct year's data
-  mesoyear<-list()
-  mesoyear$dtm<-allmonths[[1]]$dtm
-  mesoyear$windheight_m<-allmonths[[1]]$windheight_m
-  mesoyear$tempheight_m<-allmonths[[1]]$tempheight_m
-  mesoyear$tme<-do.call(c,(lapply(allmonths,"[[","tme")))
+      allmonths[[length(allmonths)+1]] <-mesomonth
+      print(paste("Time for downscaling ALL tiles for ALL months of year",yr,"=",format(now()-t0)))
+    } # month
+  } # years
+
+  # Reconstruct final output combining all montly timesteps
+  mesoout<-list()
+  mesoout$dtm<-allmonths[[1]]$dtm
+  mesoout$windheight_m<-allmonths[[1]]$windheight_m
+  mesoout$tempheight_m<-allmonths[[1]]$tempheight_m
+  mesoout$tme<-do.call(c,(lapply(allmonths,"[[","tme")))
   append_vars<-names(allmonths[[1]])[c(5:length(allmonths[[1]]))]
-  for(v in append_vars) mesoyear[[v]]<-rast(unlist(lapply(allmonths,"[",v)))
-  for(v in append_vars) names(mesoyear[[v]])<-terra::time(mesoyear[[v]])
-  return(mesoyear)
+  for(v in append_vars) mesoout[[v]]<-rast(unlist(lapply(allmonths,"[",v)))
+  for(v in append_vars) names(mesoout[[v]])<-terra::time(mesoout[[v]])
+
+  return(mesoout)
 } # function
 
 #' Create overlapping tile set

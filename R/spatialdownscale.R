@@ -775,12 +775,18 @@ spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, 
   input_class<-lapply(lapply(climdata,class),"[",1)
   if(any(input_class=="PackedSpatRaster")) climdata[which(input_class=="PackedSpatRaster")]<-lapply(climdata[which(input_class=="PackedSpatRaster")],unwrap)
   if(any(input_class=="array")) climdata[which(input_class=="array")]<-lapply(climdata[which(input_class=="array")],.rast,tem=climdata$dtm)
+  if(inherits(sst,"PackedSpatRaster")) sst<-unwrap(sst)
 
   # Find out whether daily or hourly
   tme<-as.POSIXlt(climdata$tme,tz="UTC")
   tint<-as.numeric(tme[2])-as.numeric(tme[1])
   hourly<-TRUE
   if (abs(tint-86400) < 5) hourly=FALSE
+
+  # Check likely memory use compared with free RAM - even daily requires converting to hourly for some downscaling
+   mmry<-mem_info(dtmf, n=length(tme)*24, print=FALSE)
+   if (mmry["needed"]>(0.5*mmry["available"]) & mmry["needed"]<mmry["available"]) warning("High free memory use predicted - consider using spatialdownscale_tile option!!!")
+   if (mmry["needed"]>mmry["available"]) warning("Memory demand predicted to exceed available memory - use spatialdownscale_tile option!!!")
 
   # Extract temp variables - calculate daily means if required
   if (hourly) {
