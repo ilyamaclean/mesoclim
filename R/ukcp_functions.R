@@ -451,7 +451,7 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
   names(dtmc)<-'Elevation'
 
   # Function to restrict to dates requested
-  filter_times<-function(x,startdate,enddate) x[[which(time(x) >= startdate & time(x) <= enddate)]]
+  filter_times<-function(x,startdate,enddate) x[[which(date(time(x)) >= startdate & date(time(x))  <= enddate)]]
 
   # Load spatrasters from ukcp.nc file, crop to dtmc, convert to normal calendar and add to output list
   clim_list<-list()
