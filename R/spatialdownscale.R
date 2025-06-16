@@ -34,10 +34,17 @@
 #' @export
 #' @keywords spatial
 tempdaily_downscale<-function(climdata,tmean=NA,sst,dtmf,dtmm,basins,uzf,cad,coastal,thgto,whgto){
+  # Convert variables - unpack any wrapped spatRasters and convert arrays to spatraster
+  input_class<-lapply(lapply(climdata,class),"[",1)
+  if(any(input_class=="PackedSpatRaster")) climdata[which(input_class=="PackedSpatRaster")]<-lapply(climdata[which(input_class=="PackedSpatRaster")],unwrap)
+  if(any(input_class=="array")) climdata[which(input_class=="array")]<-lapply(climdata[which(input_class=="array")],.rast,tem=climdata$dtm)
+  if(inherits(sst,"PackedSpatRaster")) sst<-unwrap(sst)
   # Check tmin and tmax among climdata variables
   if(!any(c("tmin","tmax") %in% names(climdata))) stop("Cannot find daily min/max temperature variables for tempdaily_downscale!!!")
   if (class(dtmm) == "logical" & coastal) stop("dtmm needed for calculating coastal effects")
-  if (class(climdata$dtm)[1] == "PackedSpatRaster") dtmc<-rast(climdata$dtm) else dtmc<-climdata$dtm
+  dtmc<-climdata$dtm
+
+  # Test to see if coastal effects possible MORE ONT HIS!!
   if(is.logical(sst)) coastal<-FALSE else if(all(!is.na(values(sst[[1]])))) coastal<-FALSE
 
   # get variables
@@ -167,8 +174,12 @@ tempdaily_downscale<-function(climdata,tmean=NA,sst,dtmf,dtmm,basins,uzf,cad,coa
 #'  }
 temphrly_downscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, uzf = NA,
                         cad = TRUE, coastal = TRUE,thgto=2, whgto=2, tempvar='temp') {
-  if (class(dtmm) == "logical" & coastal) stop("dtmm needed for calculating coastal effects")
-  if (class(climdata$dtm)[1] == "PackedSpatRaster") dtmc<-rast(climdata$dtm) else dtmc<-climdata$dtm
+  # Convert variables - unpack any wrapped spatRasters and convert arrays to spatraster
+  input_class<-lapply(lapply(climdata,class),"[",1)
+  if(any(input_class=="PackedSpatRaster")) climdata[which(input_class=="PackedSpatRaster")]<-lapply(climdata[which(input_class=="PackedSpatRaster")],unwrap)
+  if(any(input_class=="array")) climdata[which(input_class=="array")]<-lapply(climdata[which(input_class=="array")],.rast,tem=climdata$dtm)
+  if(inherits(sst,"PackedSpatRaster")) sst<-unwrap(sst)
+  dtmc<-climdata$dtm
   if(is.logical(sst)) coastal<-FALSE else if(all(!is.na(values(sst[[1]])))) coastal<-FALSE
   rh<-climdata$relhum
   pk<-climdata$pres
@@ -234,16 +245,19 @@ temphrly_downscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, uzf = 
 #' pk <- presdownscale(climdata$pres, terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')), climdata$dtm)
 #' terra::plot(pk[[1]])
 presdownscale<-function(pk, dtmf, dtmc, sealevel = TRUE) {
-  if (class(pk)[1] == "array") pk<-.rast(pk,dtmc)
+  if (class(pk)[1] == "array"){
+    pk<-.rast(pk,dtmc)
+    tme<-NA } else tme<-time(pk)
   dtmc<-ifel(is.na(dtmc),0,dtmc)
   # Convert to sea level
   if (sealevel == FALSE) {
     pk<-pk/(((293-0.0065*dtmc)/293)^5.26)
   }
-  # Convrt to fine res elevations
+  # Convert to fine res elevations
   if (crs(dtmf) != crs(dtmc)) pk<-project(pk,crs(dtmf))
   pkf<-.resample(pk,dtmf)
   pkf<-pkf*((293-0.0065*dtmf)/293)^5.26
+  if(!inherits(tme,"logical")) time(pkf)<-tme
   return(pkf)
 }
 
@@ -609,6 +623,7 @@ relhumdownscale<-function(rh, tcc, tcf, dtmc, rhmin = 0) {
 #' }
 precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, noraincut = 0, patchsim = FALSE, nsim = dim(prec)[3]){
   if(!inherits(prec,"SpatRaster")) prec<-.rast(prec,dtmc)
+
   # check how many non NA cells
   if (method != "Tps" & method != "Elev") stop("method must be one of Tps or Elev")
   v<-as.vector(prec[[1]])
