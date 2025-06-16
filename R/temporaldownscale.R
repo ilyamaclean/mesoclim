@@ -59,7 +59,7 @@
 #' }
 temp_dailytohourly <- function(tmn, tmx, tme = NA, lat = NA, long = NA, srte = 0.09) {
   if (inherits(tmn, "SpatRaster")) {
-    if(class(tme)[1]=="logical") tme<-as.POSIXlt(terra::time(tmn))
+    if(inherits(tme,"logical")) tme<-as.POSIXlt(terra::time(tmn))
     tem<-tmn[[1]]
     toArrays<-FALSE
   } else toArrays<-TRUE
@@ -163,10 +163,10 @@ blendtemp_hadukera5<-function(tasmin,tasmax,era5t2m) {
 #' humh<-hum_dailytohourly(climdata$relhum, climdata$tmin, climdata$tmax, temph, psl, presh, climdata$tme)
 #' plot_q_layers(mesoclim:::.rast(humh,dtmc))
 #' }
-hum_dailytohourly <- function(relhum, tasmin, tasmax, temph, psl, presh, tme, relmin = 2, adjust = TRUE) {
+hum_dailytohourly <- function(relhum, tasmin, tasmax, temph, psl, presh, tme=NA, relmin = 2, adjust = TRUE) {
   # Determine outputs from inputs
-  if (inherits(relhum, "PackedSpatRaster")) pres<-unwrap(relhum)
   if(inherits(relhum, "SpatRaster")){
+    if(inherits(tme,"logical")) tme<-as.POSIXlt(terra::time(relhum))
     toArrays<-FALSE
     tem<-relhum[[1]]
   } else toArrays<-TRUE
@@ -187,10 +187,6 @@ hum_dailytohourly <- function(relhum, tasmin, tasmax, temph, psl, presh, tme, re
 
   # Make consistent with daily
   if (adjust) {
-    #if (length(unique(tme$year)) > 1) {
-    #  sel2<-c(2:(length(tme)-1))
-    #} else sel2<-c(1:length(tme))
-    #sel2<-c(1:length(tme))
     reld <- .hourtoday(relh)
     mult<-relhum / reld
     mult[is.na(mult)] <- 1
@@ -231,10 +227,10 @@ hum_dailytohourly <- function(relhum, tasmin, tasmax, temph, psl, presh, tme, re
 #' climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 #' presh<-pres_dailytohourly(climdata$pres,climdata$tme)
 #' plot_q_layers(terra::rast(presh,crs=terra::crs(climdata$dtm),extent=terra::ext(climdata$dtm))
-pres_dailytohourly <- function(pres, tme, adjust = TRUE) {
+pres_dailytohourly <- function(pres, tme=NA, adjust = TRUE) {
   # Determine outputs from inputs
-  if (inherits(pres, "PackedSpatRaster")) pres<-unwrap(pres)
   if(inherits(pres, "SpatRaster")){
+    if(inherits(tme,"logical")) tme<-as.POSIXlt(terra::time(pres))
     toArrays<-FALSE
     tem<-pres[[1]]
     pres<-.is(pres)
@@ -242,7 +238,7 @@ pres_dailytohourly <- function(pres, tme, adjust = TRUE) {
   # if vector convert to 3d array
   if(inherits(pres,"numeric")) pres<-.vta(pres,matrix(nrow=1,ncol=1))
 
-  mn<-min(pres,na.rm=T)-1
+    mn<-min(pres,na.rm=T)-1
   mx<-max(pres,na.rm=T)+1
   presh <- .daytohour(pres)
   presh[presh<mn]<-mn
@@ -298,11 +294,15 @@ pres_dailytohourly <- function(pres, tme, adjust = TRUE) {
 #' @examples
 #' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
 #' swradhr<-swrad_dailytohourly_v2(radsw=daily100m$swrad, tme=as.POSIXlt(terra::time(unwrap(daily100m$swrad))), clearsky = NA, r = daily100m$dtm, adjust = TRUE, toArray=FALSE)
-swrad_dailytohourly <- function(radsw, tme, clearsky = NA, r = r, adjust = TRUE, toArray=TRUE) {
-  if (inherits(radsw, "PackedSpatRaster")) radsw<-unwrap(radsw)
+swrad_dailytohourly <- function(radsw, tme=NA, r = NA, clearsky = NA,  adjust = TRUE) {
   # Check geo info in either radsw or as r; convert radsw to array
-  if(class(radsw)[1]=='SpatRaster') r<-radsw[[1]] else{
-    if(class(r)[1]!='SpatRaster') stop('Lacking geo information. Need radsw or r to be class SpatRaster!')
+  if(inherits(radsw,'SpatRaster')){
+    toArrays<-FALSE
+    r<-radsw[[1]]
+    if(inherits(tme,"logical")) tme<-as.POSIXlt(terra::time(radsw))
+  } else{
+    if(!inherits(r,'SpatRaster')) stop('Lacking geo information. Need radsw or r to be class SpatRaster!')
+    toArrays<-TRUE
   }
   # If NA, calaculate daily clearsky radiation
   if (class(clearsky) == "logical") clearsky <- .clearskyraddaily(tme,r)
@@ -352,7 +352,7 @@ swrad_dailytohourly <- function(radsw, tme, clearsky = NA, r = r, adjust = TRUE,
   yr<-tme$year[2]
   sel<-which(tmeh$year==yr)
   radh<-radh[,,sel]
-  if(!toArray){ # convert to spatraster
+  if(!toArrays){ # convert to spatraster
     radh<-.rast(radh,r)
     time(radh) <- seq.POSIXt(tme[1],  by = "hour", length.out=length(tme)*24)
   }
@@ -379,14 +379,14 @@ swrad_dailytohourly <- function(radsw, tme, clearsky = NA, r = r, adjust = TRUE,
 #'  Effective sky emissvity can be used to calaculate downward longwave radiation (Lwd).
 #'  The formula is Lwd = skyem * Lwu where Lwu is upward longwave radiation given
 #'  by Lwu=0.97*5.67*10**-8*(tc+273.15). Here tc is average surface temperature (deg C))
-#'  but an adequate approximation is derived if subtited by air temperature.
-#' TO DO - Option of providing cloud cover data to correct sky emissivity values??
+#'  but an adequate approximation is derived if substituted by air temperature.
+#'  TO DO - Option of providing cloud cover data to correct sky emissivity values??
 #' @keywords temporal
 #' @examples
 #' lwhr<- lw_dailytohourly(lw=daily100m$lwrad, dtm=daily100m$dtm, hrtemps=hrtemps, hrrh=hrrh, hrpres=hrpres, tme=daily100m$tme,  adjust = FALSE)
-lw_dailytohourly <- function(lw=daily100m$lwrad, dtm=daily100m$dtm, hrtemps=hrtemps, hrrh=hrrh, hrpres=hrpres, tme,  adjust = FALSE) {
-  if (inherits(lw, "PackedSpatRaster")) lw<-unwrap(pres)
+lw_dailytohourly <- function(lw, hrtemps, hrrh, hrpres, tme=NA,  adjust = TRUE) {
   if(inherits(lw, "SpatRaster")){
+    if(inherits(tme,"logical")) tme<-as.POSIXlt(terra::time(lw))
     toArrays<-FALSE
     tem<-lw[[1]]
   } else toArrays<-TRUE
@@ -446,7 +446,7 @@ lw_dailytohourly <- function(lw=daily100m$lwrad, dtm=daily100m$dtm, hrtemps=hrte
 #' (1) hourly wind speed (m/s)
 #' (2) hourly wind direction (degrees from north)
 #' @export
-#' @details For interpolation, u and v wind vectors are derived form wind speed andd direction
+#' @details For interpolation, u and v wind vectors are derived form wind speed and direction
 #' and these are interpolated to hourly, with backward calculations then performed to
 #' derive wind speed and direction.
 #' ~~ * Need to spline interpolate u and v wind vectors. We could simulate
@@ -458,8 +458,9 @@ lw_dailytohourly <- function(lw=daily100m$lwrad, dtm=daily100m$dtm, hrtemps=hrte
 #' # Compare daily and hrly
 #' summary(climdata$windspeed); summary(wh$wsh)
 #' summary(climdata$winddir); summary(wh$wdh)
-wind_dailytohourly <- function(ws, wd, tme, adjust = TRUE) {
+wind_dailytohourly <- function(ws, wd, tme=NA, adjust = TRUE) {
   if(inherits(ws,"SpatRaster")){
+    if(inherits(tme,"logical")) tme<-as.POSIXlt(terra::time(ws))
     toArrays<-FALSE
     tem<-ws[[1]]
   } else toArrays<-TRUE
@@ -715,3 +716,69 @@ plotrain <- function(daily, subdaily) {
 # ============================================================================ #
 # ~~ * Worth writing a wrapper function to combine all of above into a single
 # ~~   function
+temporaldownscale<-function(climdaily, adjust = TRUE, clearsky=NA, srte = 0.09, relmin = 10, noraincut = 0, toArrays=FALSE){
+  # Check input data is daily
+  tme<-as.POSIXlt(climdaily$tme,tz="UTC")
+  if (abs((as.numeric(tme[2])-as.numeric(tme[1]))) !=86400) stop("Data provided to `temporaldownscale` function is NOT daily!!!")
+
+  # Convert variables - unpack any packed spatRasters and convert arrays to spatraster with time
+  input_class<-lapply(lapply(climdaily,class),"[",1)
+  if(any(input_class=="PackedSpatRaster")) climdaily[which(input_class=="PackedSpatRaster")]<-lapply(climdaily[which(input_class=="PackedSpatRaster")],unwrap)
+  if(any(input_class=="array")){
+    ary<-which(input_class=="array")
+    climdaily[ary]<-lapply(climdaily[ary],.rast,tem=climdaily$dtm)
+    for (n in ary) terra::time(climdaily[[n]])<-climdaily$tme
+  }
+
+  # Check likely memory use compared with free RAM - even daily requires converting to hourly for some downscaling
+  mmry<-mem_info(climdaily$dtm, n=length(tme)*24*4, print=FALSE)
+  if (mmry["needed"]>(0.5*mmry["available"]) & mmry["needed"]<mmry["available"]) warning("High free memory use predicted - consider running in smaller timesteps!!!")
+  if (mmry["needed"]>mmry["available"]) warning("Memory demand predicted to exceed available memory - run in smaller timesteps!!!")
+
+  # Temperature -  no account taken of hourly variation in windspeed
+  hrtemps<-temp_dailytohourly(climdaily$tmin, climdaily$tmax, srte=srte)
+
+  # Pressure
+  hrpres<-pres_dailytohourly(pres=climdaily$pres, adjust=adjust)
+
+  # Rel humidity
+  dailypsl<-atmos_to_sea_pressure(climdaily$pres,climdaily$dtm)
+  hrrh<-hum_dailytohourly(relhum=climdaily$relhum, tasmin=climdaily$tmin, tasmax=climdaily$tmax, temph=hrtemps, psl=dailypsl, presh=hrpres, relmin=relmin, adjust=adjust)
+
+  # SW radiation
+  hrsw<-swrad_dailytohourly(radsw=climdaily$swrad, clearsky = clearsky,  adjust=adjust)
+
+  # LW radiation
+  hrlw<-lw_dailytohourly(lw=climdaily$lwrad, hrtemps=hrtemps, hrrh=hrrh, hrpres=hrpres, adjust=adjust)
+
+  # Precipitation
+
+  # Windspeed
+  hrwind<-wind_dailytohourly(climdaily$windspeed, climdaily$winddir, adjust = adjust)
+
+  # Format outputs
+  if(!toArrays){
+    climhourly<-climdaily[c("dtm","tme","windheight_m","tempheight_m")]
+    climhourly$temp<-hrtemps
+    climhourly$relhum<-hrrh
+    climhourly$pres<-hrpres
+    climhourly$swrad<-hrsw
+    climhourly$lwrad<-hrlw
+    climhourly$windspeed<-hrwind$wsh
+    climhourly$winddir<-hrwind$wdh
+    # climhourly$prec<-hrprec
+  } else{
+    climhourly<-climdaily[c("dtm","tme","windheight_m","tempheight_m")]
+    climhourly$temp<-.is(hrtemps)
+    climhourly$relhum<-.is(hrrh)
+    climhourly$pres<-.is(hrpres)
+    climhourly$swrad<-.is(hrsw)
+    climhourly$lwrad<-.is(hrlw)
+    climhourly$windspeed<-.is(hrwind$wsh)
+    climhourly$winddir<-.is(hrwind$wdh)
+    # climhourly$prec<-.is(hrprec)
+  }
+  return(climhourly)
+}
+
+
