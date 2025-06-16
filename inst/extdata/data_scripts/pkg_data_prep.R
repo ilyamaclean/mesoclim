@@ -76,7 +76,7 @@ writeRaster(dtmm,system.file("extdata/dtms/dtmm.tif",package='mesoclim'),overwri
 #### Crop mesoclimate outputs to smaller area
 daily100m<-lapply(mesoclimate,function(x) if(class(x)[1]=="SpatRaster") wrap(crop(x,e)) else x)
 lapply(daily100m,class)
-usethis::use_data(daily100m)
+usethis::use_data(daily100m,overwrite=TRUE)
 
 ##### HadUK data for bias correction
 dtm<-rast(system.file("extdata/dtms/dtmf.tif",package='mesoclim'))
