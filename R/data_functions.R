@@ -297,15 +297,16 @@ checkinputs <- function(input_list, tstep = c("hour","day"),plots=TRUE){
 #' Reads a climate dataset as output by for example `ukcp18toclimdata()` and written by `write_climdata()`
 #' Unwraps any PackedSpatRasters to Spatrasters
 #' @param filepath - either a pre-loaded list or filepath to a list of prepared climate data as written by `write_climdata()`
-#'
+#' @param toSpatRast - if TRUE converts all arrays to spatrasters with time dimension from tme
 #' @return R list of climate data
 #' @export
 #' @keywords preprocess data
 #' @examples
 #' climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 #' climdata<-read_climdata(ukcpinput)
-read_climdata<-function(filepath){
+read_climdata<-function(filepath,toSpatRast=TRUE){
   if(class(filepath)=="list") climdata<-lapply(filepath,function(x) if(class(x)[1]=='PackedSpatRaster') terra::unwrap(x) else x)
+
   if(class(filepath)=="character"){
     if(file.exists(filepath)!=TRUE) stop('Filepath provided does NOT exist!!')
     typ<-substr(filepath,(nchar(filepath)-3),nchar(filepath))
@@ -315,8 +316,15 @@ read_climdata<-function(filepath){
       varname<-substr(filename,1,nchar(filename)-4)
       climdata<-mget(varname)[[1]]
     }  else climdata<-readRDS(filepath)
+    # Unwrap
     climdata<-lapply(climdata,function(x) if(class(x)[1]=='PackedSpatRaster') terra::unwrap(x) else x)
   }
+  if(toSpatRast){
+    climdata<-lapply( climdata,function(x) if(inherits(x,'array')) .rast(x,climdata$dtm) else x )
+    sel<-which(unlist(lapply(climdata,function(x) inherits(x,"SpatRaster"))))
+    for(n in sel) if(nlyr(climdata[[n]])>1) terra::time(climdata[[n]])<-climdata$tme
+  }
+
   return(climdata)
 }
 
