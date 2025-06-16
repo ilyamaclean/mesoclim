@@ -89,15 +89,15 @@ spatialdownscale_tiles<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wc
 
   allmonths<-list()
   t0<-now()
-  for(y in yrs){
-    yrstart<-as.POSIXlt(paste0(y,'/01/01'),tz=tz(climdata$tme))
-    yrend<-as.POSIXlt(paste0(y,'/12/31'),tz=tz(climdata$tme))
+  for(yr in yrs){
+    yrstart<-as.POSIXlt(paste0(yr,'/01/01'),tz=tz(climdata$tme))
+    yrend<-as.POSIXlt(paste0(yr,'/12/31'),tz=tz(climdata$tme))
     climdata_y<-subset_climdata(climdata,yrstart,yrend)
     mnths<-unique(month(climdata_y$tme))
     for(m in mnths){
-      message(paste0("Downscaling ",sprintf("%02d", m),"/",y))
+      message(paste0("Downscaling ",sprintf("%02d", m),"/",yr))
       # Get this yr/month data
-      sdatetime<-as.POSIXlt(paste0(yr,'/',m,'/01'),tz=tz(climdata$tme))
+      sdatetime<-as.POSIXlt(paste0(yr,'/',sprintf("%02d", m),'/01'),tz=tz(climdata$tme))
       dys<-lubridate::days_in_month(sdatetime)
       edatetime<-as.POSIXlt(paste0(yr,'/',sprintf("%02d", m),'/',sprintf("%02d", dys)),tz=tz(climdata$tme))
       climdata_m<-subset_climdata(climdata_y,sdatetime,edatetime)
