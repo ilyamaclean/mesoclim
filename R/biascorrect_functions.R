@@ -347,13 +347,17 @@ biascorrect_climdata<-function(climdata, model_list, prec_thold=0.01, rangelims 
   if(!all(vars %in% model_vars)) stop("Cannot find all input variable names in model_list!!!")
   input_class<-lapply(lapply(climdata,class),`[[`, 1)
   if(any(input_class=="PackedSpatRaster")) climdata[which(input_class=="PackedSpatRaster")]<-lapply(climdata[which(input_class=="PackedSpatRaster")],unwrap)
-  if(any(input_class=="array")) climdata[which(input_class=="array")]<-lapply(climdata[which(input_class=="array")],.rast,tem=climdata$dtm)
+  if(any(input_class=="array")){
+    climdata[which(input_class=="array")]<-lapply(climdata[which(input_class=="array")],.rast,tem=climdata$dtm)
+    for(n in which(input_class=="array")) terra::time(climdata[[n]])<-climdata$tme
+  }
 
   # Bias correct variables
   for (v in vars){
     if(v!="prec") climdata[[v]]<-biascorrect_apply(fut_mod=climdata[[v]], biasmods=model_list[[v]], rangelims)
     if(v=="prec") climdata[[v]]<-precipcorrect_apply(fut_mod=climdata[[v]], biasmods=model_list[[v]], prec_thold)
     if(fillna) climdata[[v]]<-.spatinterp(climdata[[v]])
+    terra::time(climdata[[v]])<-climdata$tme
   }
   ## Correct other variables to match output of bias correction (may crop)
   if(ext(climdata$dtm)!=ext(climdata[[v]])){
