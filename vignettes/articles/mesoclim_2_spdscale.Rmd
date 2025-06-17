@@ -266,19 +266,15 @@ pres<-presdownscale(climdata$pres, dtmf, climdata$dtm, sealevel = FALSE)
 plot(pres[[13]],main="Pressue")
 ```
 
-### Precipitation
+### Relative Humidity 
 
-The `precipdownscale()` function provides various options and methods to downscale rainfall. 
+Downscales atmospheric or sea level pressure to atmospheric pressure while accounting for finer resolution variation in terrain 
 
-```{r precip-dscale}
-method<-'Elev'
+```{r rh_dscale}
+tmeanc<-.hourtoday(temp_dailytohourly(climdata$tmin, climdata$tmax, climdata$tme),mean) 
+rhf<-relhumdownscale(climdata$relhum,tcc=tmeanc,tcf=dailytemps$tmean,dtmc=climdata$dtm,rhmin=20)
 
-precelev<-precipdownscale(climdata$prec,dtmf,climdata$dtm,
-  method = method, fast = TRUE,noraincut = 0.01,patchsim = FALSE,
-  nsim = dim(climdata$prec)[3] )
-terra::time(precelev)<-climdata$tme
-
-plot(precelev[[15]])
+plot(rhf[[13]],main="Relative Humidity 13/05/2018")
 ```
 
 ### Longwave radiation downscale
@@ -299,15 +295,29 @@ Options include downscaling with effects of terrain shading and / or a simulatio
 
 
 ```{r sw-dscale}
-swrad_noef<-swdownscale(climdata$swrad,as.POSIXlt(ukcpinput$tme, tz = "UTC"),dtmf,climdata$dtm,patchsim = FALSE,hor=horizon, terrainshade = FALSE)
-swrad_tshd<-swdownscale(climdata$swrad,as.POSIXlt(ukcpinput$tme, tz = "UTC"),dtmf,climdata$dtm,patchsim = FALSE,hor=horizon,terrainshade = TRUE)
-swrad_cldtshd<-swdownscale(climdata$swrad,as.POSIXlt(ukcpinput$tme, tz = "UTC"),dtmf,climdata$dtm,patchsim = TRUE,hor=horizon,terrainshade = TRUE)
+swrad_noef<-swdownscale(climdata$swrad,dtmf=dtmf,dtmc=climdata$dtm,patchsim = FALSE,hor=horizon, terrainshade = FALSE)
+swrad_tshd<-swdownscale(climdata$swrad,dtmf=dtmf,dtmc=climdata$dtm,patchsim = FALSE,hor=horizon,terrainshade = TRUE)
+swrad_cldtshd<-swdownscale(climdata$swrad,dtmf=dtmf,dtmc=climdata$dtm,patchsim = TRUE,hor=horizon,terrainshade = TRUE)
 
 swrad_compare<-c(swrad_noef$swf[[13]],swrad_tshd$swf[[13]],swrad_cldtshd$swf[[13]])
 names(swrad_compare)<-c("SW no effect","SW terrainshade","SW terrainshade & patchsim")                      
 plot(swrad_compare)
 ```
 
+### Precipitation
+
+The `precipdownscale()` function provides various options and methods to downscale rainfall. 
+
+```{r precip-dscale}
+method<-'Elev'
+
+precelev<-precipdownscale(climdata$prec,dtmf,climdata$dtm,
+  method = method, fast = TRUE,noraincut = 0.01,patchsim = FALSE,
+  nsim = dim(climdata$prec)[3] )
+terra::time(precelev)<-climdata$tme
+
+plot(precelev[[15]])
+```
 
 
 
