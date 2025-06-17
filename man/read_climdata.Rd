@@ -4,11 +4,15 @@
 \alias{read_climdata}
 \title{Read climate data}
 \usage{
-read_climdata(filepath)
+read_climdata(filepath, toSpatRast = TRUE)
 }
 \arguments{
 \item{filepath}{\itemize{
 \item either a pre-loaded list or filepath to a list of prepared climate data as written by \code{write_climdata()}
+}}
+
+\item{toSpatRast}{\itemize{
+\item if TRUE converts all arrays to spatrasters with time dimension from tme
 }}
 }
 \value{

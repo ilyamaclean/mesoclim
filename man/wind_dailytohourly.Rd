@@ -4,7 +4,7 @@
 \alias{wind_dailytohourly}
 \title{Daily to hourly wind speed downscake}
 \usage{
-wind_dailytohourly(ws, wd, tme, adjust = TRUE)
+wind_dailytohourly(ws, wd, tme = NA, adjust = TRUE)
 }
 \arguments{
 \item{ws}{\itemize{
@@ -33,17 +33,32 @@ a list of two arrays:
 Derives arrays of hourly wind speed and direction from arrays of daily data.
 }
 \details{
-For interpolation, u and v wind vectors are derived form wind speed andd direction
+For interpolation, u and v wind vectors are derived form wind speed and direction
 and these are interpolated to hourly, with backward calculations then performed to
 derive wind speed and direction.
 ~~ * Need to spline interpolate u and v wind vectors. We could simulate
 ~~   inter-hourly variability. Follows a Weiball distribution so quite easy I suspect.
 }
 \examples{
-climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
-wh<-wind_dailytohourly(climdata$windspeed, climdata$winddir, climdata$tme, adjust = TRUE)
-# Compare daily and hrly
-summary(climdata$windspeed); summary(wh$wsh)
-summary(climdata$winddir); summary(wh$wdh)
+# ========================================================================= #
+# ~~~~~~~~~~~~~~~~~~~~ input provided as SpatRaster ======================= #
+# ========================================================================= #
+climdaily<-read_climdata(ukcpinput)
+ws<-climdaily$windspeed
+wd<-climdaily$winddir
+hrwind<-wind_dailytohourly(ws, wd, tme=NA, adjust = TRUE)
+# Plot results for one cell
+cell_ws<-t(extract(hrwind$wsh,matrix(c(175000,40000),ncol=2)))
+matplot(time(hrwind$wsh),cell_ws, type = "l", lty = 1)
+# ========================================================================= #
+# ~~~~~~~~~~~~~~~~~~~~ input provided as vector =========================== #
+# ========================================================================= #
+ws<-unlist(global(climdaily$windspeed,mean))
+wd<-unlist(global(climdaily$winddir,mean))
+tme<-as.POSIXlt(terra::time(climdaily$windspeed))
+hrwind<-wind_dailytohourly(ws, wd, tme=tme, adjust = TRUE)
+hr_tme<-as.POSIXlt(unlist(lapply(tme,FUN=function(x) x+(60*60*c(0:23)) )))
+# Plot results to compare
+matplot(x=as.numeric(hr_tme),y=hrwind$wsh, type = "l", lty = 1)
 }
 \keyword{temporal}

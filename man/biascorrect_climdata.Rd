@@ -4,7 +4,13 @@
 \alias{biascorrect_climdata}
 \title{Apply bias correction models to all climate variables}
 \usage{
-biascorrect_climdata(climdata, model_list, prec_thold = 0.01, rangelims = NA)
+biascorrect_climdata(
+  climdata,
+  model_list,
+  prec_thold = 0.01,
+  rangelims = NA,
+  fillna = FALSE
+)
 }
 \arguments{
 \item{climdata}{\itemize{

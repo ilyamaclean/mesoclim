@@ -29,7 +29,7 @@ spatialdownscale(
 )
 }
 \arguments{
-\item{climdata}{a \code{climdata} model object containing climate data of the same format as \code{era5climdata}}
+\item{climdata}{a \code{climdata} model object containing climate data of the same format as \code{ukcp18toclimarray}}
 
 \item{sst}{a SpatRast of sea-surface temperature data (deg C) that overlaps with climdata$tme}
 
@@ -107,9 +107,9 @@ Spatially downscales coarse-resolution climate data
 \examples{
  dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
  dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
- ukcpinput<-read_climdata(mesoclim::ukcpinput)
- ukcp18sst<-rast(mesoclim::ukcp18sst)
- dailymesodat<-spatialdownscale(ukcpinput, ukcp18sst, dtmf, dtmm, noraincut=0.01)
- plot_q_layers(dailymesodat$tmin)
+ climdata<-read_climdata(mesoclim::ukcpinput)
+ sst<-unwrap(mesoclim::ukcp18sst)
+ mesodat<-spatialdownscale(climdata, sst, dtmf, dtmm, include_tmean=TRUE,noraincut=0.01)
+ for(n in 5:length(mesodat)) plot(mesodat[[n]][[12]],main=paste(names(mesodat)[n],mesodat$tme[n]))
 }
 \keyword{spatial}

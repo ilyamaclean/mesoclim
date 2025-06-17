@@ -27,8 +27,8 @@ resolution of dtmf.
 Downscales an array of pressure data applying elevation effects
 }
 \examples{
-climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
+climdata<- read_climdata(mesoclim::ukcpinput)
 pk <- presdownscale(climdata$pres, terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')), climdata$dtm)
-terra::plot(pk[[1]])
+panel(c(pk[[1]],pk[[5]],pk[[10]],pk[[20]]),main=paste0("Atmospheric pressure ",c(1,5,10,15),"/05/2018"))
 }
 \keyword{spatial}

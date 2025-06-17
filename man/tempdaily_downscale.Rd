@@ -14,8 +14,8 @@ tempdaily_downscale(
   uzf,
   cad,
   coastal,
-  thgto,
-  whgto
+  thgto = 2,
+  whgto = 2
 )
 }
 \arguments{
@@ -66,5 +66,14 @@ the radiation balance is negative and wind speeds are low. Coastal effects are
 calculated by determining the ratio of land to sea pixels in an upwind direction.
 The provision of \code{dtmm} allows this ratio to be derived accoutning for land and
 sea outside the boundaries of the study area.
+}
+\examples{
+climdata<-read_climdata(mesoclim::ukcpinput)
+dtmf<-rast(system.file("extdata/dtms/dtmf.tif",package="mesoclim"))
+dtmm<-rast(system.file("extdata/dtms/dtmm.tif",package="mesoclim"))
+basins<-basindelin(dtmf, boundary = 2)
+wsf<-winddownscale(climdata$windspeed, climdata$winddir, dtmf, dtmm, climdata$dtm, zi=climdata$windheight_m)
+dailytemps<-tempdaily_downscale(climdata,NA,unwrap(mesoclim::ukcp18sst),dtmf,dtmm,basins,wsf,cad = TRUE,coastal = TRUE,2,2)
+panel(c(dailytemps$tmin[[13]],dailytemps$tmax[[13]],dailytemps$tmean[[13]]),main=paste(c("Tmin","Tmax","Tmean"),"13/05/2018"))
 }
 \keyword{spatial}

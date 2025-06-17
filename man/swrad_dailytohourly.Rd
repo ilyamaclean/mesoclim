@@ -4,14 +4,7 @@
 \alias{swrad_dailytohourly}
 \title{Daily to hourly shortwave radiation}
 \usage{
-swrad_dailytohourly(
-  radsw,
-  tme,
-  clearsky = NA,
-  r = r,
-  adjust = TRUE,
-  toArray = TRUE
-)
+swrad_dailytohourly(radsw, tme = NA, r = NA, clearsky = NA, adjust = TRUE)
 }
 \arguments{
 \item{radsw}{\itemize{
@@ -22,13 +15,15 @@ swrad_dailytohourly(
 \item POSIXlt object of dates corresponding to radsw
 }}
 
+\item{r}{\itemize{
+\item if radsw is a spatraster r=NA
+- if radsw is an array, r is a terra::SpatRaster object giving the extent of radsw
+- if radsw is a vector of c(lat,lon) of the location radsw describes
+}}
+
 \item{clearsky}{\itemize{
 \item optionally an array with dimensions matching radsw of daily clearsky
 radiation as returned by clearskyraddaily(). Calculated if not supplied
-}}
-
-\item{r}{\itemize{
-\item a terra::SpatRaster object giving the extent of radsw used for deriving the lat and long of grid cells
 }}
 
 \item{adjust}{\itemize{
@@ -57,7 +52,38 @@ mostly by bias correction anyway
 ~~   then calculate longwave
 }
 \examples{
-climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
-swradhr<-swrad_dailytohourly_v2(radsw=daily100m$swrad, tme=as.POSIXlt(terra::time(unwrap(daily100m$swrad))), clearsky = NA, r = daily100m$dtm, adjust = TRUE, toArray=FALSE)
+# ========================================================================= #
+# ~~~~~~~~~~~~~~~~~~~~ input provided as SpatRaster ======================= #
+# ========================================================================= #
+climdaily<- read_climdata(mesoclim::ukcpinput)
+hrsw <- swrad_dailytohourly(climdaily$swrad)
+# Plot results for one cell
+cell_sw<-t(extract(hrsw,matrix(c(175000,40000),ncol=2)))
+matplot(as_datetime(time(hrsw)),cell_sw, type = "l", lty = 1)
+# ========================================================================= #
+# ~~~~~~~~~~~~~~~~~~~~ input provided as 3D array ======================= #
+# ========================================================================= #
+hrsw <- swrad_dailytohourly(.is(climdaily$swrad),tme=climdaily$tme,r=climdaily$dtm)
+cell_sw<-hrsw[3,4,]
+hr_tme<-as.POSIXlt(unlist(lapply(climdaily$tme,FUN=function(x) x+(60*60*c(0:23)) )))
+matplot(x=as.numeric(hr_tme),y=cell_sw, type = "l", lty = 1)
+# ========================================================================= #
+# ~~~~~~~~~~~~~~~~~~~~ input provided as vector =========================== #
+# ========================================================================= #
+radsw <- c(120,150,100)
+tme <- as.POSIXlt(c(0:2) * 3600 * 24, origin = "2018-05-01", tz = "UTC")
+r=c(50,0) # (lat,lon of location)
+hrsw <- swrad_dailytohourly(radsw,tme,r)
+hr_tme<-as.POSIXlt(unlist(lapply(tme,FUN=function(x) x+(60*60*c(0:23)) )))
+# Plot results to compare
+matplot(x=as.numeric(hr_tme),y=hrsw, type = "l", lty = 1)
+
+radsw<-unlist(global(climdaily$swrad,mean))
+tme<-as.POSIXlt(terra::time(climdaily$swrad))
+r<-c(50,-5)
+hrsw <- swrad_dailytohourly(radsw,tme,r)
+hr_tme<-as.POSIXlt(unlist(lapply(tme,FUN=function(x) x+(60*60*c(0:23)) )))
+# Plot results to compare
+matplot(x=as.numeric(hr_tme),y=hrsw, type = "l", lty = 1)
 }
 \keyword{temporal}

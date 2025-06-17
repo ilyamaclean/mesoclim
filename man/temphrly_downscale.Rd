@@ -5,7 +5,7 @@
 \title{Downscale hourly temperature}
 \usage{
 temphrly_downscale(
-  climdata,
+  climhrly,
   sst,
   dtmf,
   dtmm = NA,
@@ -19,9 +19,6 @@ temphrly_downscale(
 )
 }
 \arguments{
-\item{climdata}{a \code{climdata} model object containing climate data of the same format as \code{era5climdata}.
-Expects temperature to be in degrees and with the name \code{temp}.}
-
 \item{sst}{a SpatRast of sea-surface temperature data (deg C) timeseries that overlaps climdata$tme}
 
 \item{dtmf}{a high-resolution SpatRast of elevations}
@@ -45,6 +42,9 @@ Calculated if not supplied.}
 \item{whgto}{height above ground of output wind speed measurements.}
 
 \item{tempvar}{string name of element of climdata holding temperature data (default = 'temp')}
+
+\item{climdata}{a \code{climdata} model object containing climate data of the same format as \code{era5climdata}.
+Expects temperature to be in degrees and with the name \code{temp}.}
 }
 \value{
 a multi-layer SpatRast of downscaled temperatures (deg C) matching the
@@ -64,15 +64,15 @@ The provision of \code{dtmm} allows this ratio to be derived accoutning for land
 sea outside the boundaries of the study area.
 }
 \examples{
-\dontrun{
-# Takes ~90 seconds to run
- dir_data<-system.file('extdata/ukcp18sst',package='mesoclim')
- sst<-create_ukcpsst_data(dir_data,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),member='01')
- dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
- dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
- climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
- tmf <- temphrly_downscale(climdata, sst, dtmf, dtmm, NA, NA,TRUE, TRUE,2, 2)
- plot_q_layers(tmf)
- }
+climdata<- read_climdata(mesoclim::ukcpinput)
+climhrly<-temporaldownscale(climdaily, adjust = TRUE, clearsky=NA, srte = 0.09, relmin = 10, noraincut = 0)
+dtmf<-rast(system.file("extdata/dtms/dtmf.tif",package="mesoclim"))
+dtmm<-rast(system.file("extdata/dtms/dtmm.tif",package="mesoclim"))
+basins<-basindelin(dtmf, boundary = 2)
+wsfhr<-winddownscale(climhrly$windspeed, climhrly$winddir, dtmf, dtmm, climhrly$dtm, zi=climhrly$windheight_m)
+sst<-unwrap(ukcp18sst)
+tempf<-temphrly_downscale(climhrly, sst, dtmf, dtmm, basins, uzf = wsfhr,tempvar="temp")
+panel(tempf[[c(1,6,12,18)]],main=paste('Temperature',c('00:00', '06:00', '12:00', '18:00'),' on 1 May 2018'))
+matplot(time(tempf),unlist(global(tempf,mean,na.rm=TRUE)), type = "l", lty = 1, main='Mean hourly temperature of whole area')
 }
 \keyword{spatial}

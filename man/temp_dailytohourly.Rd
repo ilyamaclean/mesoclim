@@ -38,39 +38,25 @@ value derived using ERA5 data for western Europe, but performs reasonably well
 globally
 }
 \examples{
-\dontrun{
-climdata<- read_climdata(system.file('extdata/era5/input.rds',package='mesoclim'))
-tc<-climdata$temp
 # ========================================================================= #
 # ~~~~~~~~~~~~~~~~~~~~ input provided as vector =========================== #
 # ========================================================================= #
 # Derive daily tmx and tmn from hourly era5 data
-tch <- apply(tc, 3, mean, na.rm = TRUE)
-tcm <- matrix(tch, ncol = 24, byrow = TRUE)
-tmn <- apply(tcm, 1, min)
-tmx <- apply(tcm, 1, max)
-tme <- as.POSIXlt(c(0:30) * 3600 * 24, origin = "2018-05-01", tz = "UTC")
+tmx <- c(15,15,18,20,12)
+tmn <- c(10,9,12,12,6)
+tme <- as.POSIXlt(c(0:4) * 3600 * 24, origin = "2018-05-01", tz = "UTC")
 # Use interpolation function
-tcp <- temp_dailytohourly(tmn, tmx, tme, 50, -5)
-tmeh <- as.POSIXct(climdata$tme)
+hr_temp <- temp_dailytohourly(tmn, tmx, tme, 50, -5)
+hr_tme<-as.POSIXlt(unlist(lapply(tme,FUN=function(x) x+(60*60*c(0:23)) )))
 # Plot results to compare
-plot(tch ~ tmeh, type="l", ylim = c(8, 18), xlab = "Date", ylab = "Temperature")
-par(new = TRUE)
-plot(tcp ~ tmeh, type="l", ylim = c(8, 18), col = "red", xlab = "", ylab = "")
+matplot(x=as.numeric(hr_tme),y=hr_temp, type = "l", lty = 1)
 # ========================================================================= #
 # ~~~~~~~~~~~~~~~~~~~~ input provided as SpatRaster ======================= #
 # ========================================================================= #
-dtmc <- climdata$dtm
-# Derive tmx and tmn from hourly and convert to spatraster
-tmn <- .rast(hourtodayCpp(tc, "min"),dtmc)
-tmx <- .rast(hourtodayCpp(tc, "max"),dtmc)
-# Use interpolation function
-tp <- temp_dailytohourly(tmn, tmx, tme)
-# Plot results to compare
-tc <- .rast(tc,dtmc)
-par(mfrow=c(2,1))
-plot(tc[[4]]-tp[[4]],main='Difference (tc-tp) for coldest tc hour')
-plot(tc[[665]]-tp[[665]],main='Difference (tc-tp) for hottest tc hour')
-}
+climdaily<- read_climdata(mesoclim::ukcpinput)
+hrtemps<-temp_dailytohourly(climdaily$tmin, climdaily$tmax, srte = 0.09)
+# Plot results for one cell
+cell_temp<-t(extract(hrtemps,matrix(c(175000,40000),ncol=2)))
+matplot(as_datetime(time(hrtemps)),cell_temp, type = "l", lty = 1)
 }
 \keyword{temporal}
