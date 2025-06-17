@@ -23,40 +23,26 @@
 #' globally
 #' @keywords temporal
 #' @examples
-#' \dontrun{
-#' climdata<- read_climdata(system.file('extdata/era5/input.rds',package='mesoclim'))
-#' tc<-climdata$temp
 #' # ========================================================================= #
 #' # ~~~~~~~~~~~~~~~~~~~~ input provided as vector =========================== #
 #' # ========================================================================= #
 #' # Derive daily tmx and tmn from hourly era5 data
-#' tch <- apply(tc, 3, mean, na.rm = TRUE)
-#' tcm <- matrix(tch, ncol = 24, byrow = TRUE)
-#' tmn <- apply(tcm, 1, min)
-#' tmx <- apply(tcm, 1, max)
-#' tme <- as.POSIXlt(c(0:30) * 3600 * 24, origin = "2018-05-01", tz = "UTC")
+#' tmx <- c(15,15,18,20,12)
+#' tmn <- c(10,9,12,12,6)
+#' tme <- as.POSIXlt(c(0:4) * 3600 * 24, origin = "2018-05-01", tz = "UTC")
 #' # Use interpolation function
-#' tcp <- temp_dailytohourly(tmn, tmx, tme, 50, -5)
-#' tmeh <- as.POSIXct(climdata$tme)
+#' hr_temp <- temp_dailytohourly(tmn, tmx, tme, 50, -5)
+#' hr_tme<-as.POSIXlt(unlist(lapply(tme,FUN=function(x) x+(60*60*c(0:23)) )))
 #' # Plot results to compare
-#' plot(tch ~ tmeh, type="l", ylim = c(8, 18), xlab = "Date", ylab = "Temperature")
-#' par(new = TRUE)
-#' plot(tcp ~ tmeh, type="l", ylim = c(8, 18), col = "red", xlab = "", ylab = "")
+#' matplot(x=as.numeric(hr_tme),y=hr_temp, type = "l", lty = 1)
 #' # ========================================================================= #
 #' # ~~~~~~~~~~~~~~~~~~~~ input provided as SpatRaster ======================= #
 #' # ========================================================================= #
-#' dtmc <- climdata$dtm
-#' # Derive tmx and tmn from hourly and convert to spatraster
-#' tmn <- .rast(hourtodayCpp(tc, "min"),dtmc)
-#' tmx <- .rast(hourtodayCpp(tc, "max"),dtmc)
-#' # Use interpolation function
-#' tp <- temp_dailytohourly(tmn, tmx, tme)
-#' # Plot results to compare
-#' tc <- .rast(tc,dtmc)
-#' par(mfrow=c(2,1))
-#' plot(tc[[4]]-tp[[4]],main='Difference (tc-tp) for coldest tc hour')
-#' plot(tc[[665]]-tp[[665]],main='Difference (tc-tp) for hottest tc hour')
-#' }
+#' climdaily<- read_climdata(mesoclim::ukcpinput)
+#' hrtemps<-temp_dailytohourly(climdaily$tmin, climdaily$tmax, srte = 0.09)
+#' # Plot results for one cell
+#' cell_temp<-t(extract(hrtemps,matrix(c(175000,40000),ncol=2)))
+#' matplot(as_datetime(time(hrtemps)),cell_temp, type = "l", lty = 1)
 temp_dailytohourly <- function(tmn, tmx, tme = NA, lat = NA, long = NA, srte = 0.09) {
   if (inherits(tmn, "SpatRaster")) {
     if(inherits(tme,"logical")) tme<-as.POSIXlt(terra::time(tmn))
@@ -151,18 +137,32 @@ blendtemp_hadukera5<-function(tasmin,tasmax,era5t2m) {
 #' Derives an array of hourly relative humidity values from daily values.
 #' @keywords temporal
 #' @examples
-#' \dontrun{
-#' climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
-#' # Get hourly variables required for rel hum downscaling
-#' dtmc<-climdata$dtm
-#' temph<-as.array(hourlytemp(mesoclim:::.rast(climdata$tmin,dtmc), mesoclim:::.rast(climdata$tmax,dtmc), climdata$tme, 50, -2.5))
-#' presh<-pres_dailytohourly(climdata$pres,climdata$tme)
-#' # Get sea level pressure - MAKE THIS A FUNCTION!!
-#' psl_r<-mesoclim:::.rast(climdata$pres,dtmc) / (((293-0.0065*ifel(is.na(dtmc),0,dtmc))/293)^5.26)
-#' psl<-mesoclim:::.rta(psl_r,length(climdata$tme))
-#' humh<-hum_dailytohourly(climdata$relhum, climdata$tmin, climdata$tmax, temph, psl, presh, climdata$tme)
-#' plot_q_layers(mesoclim:::.rast(humh,dtmc))
-#' }
+#' # ========================================================================= #
+#' # ~~~~~~~~~~~~~~~~~~~~ input provided as vector =========================== #
+#' # ========================================================================= #
+#' # Derive daily tmx and tmn from hourly era5 data
+#' rh<-c(80,80,70,90,80)
+#' tmx <- c(15,15,18,20,12)
+#' tmn <- c(10,9,12,12,6)
+#' tme <- as.POSIXlt(c(0:4) * 3600 * 24, origin = "2018-05-01", tz = "UTC")
+#' pres<-c(96,97,98,99,100)
+#' hr_temp <- temp_dailytohourly(tmn, tmx, tme, 50, -5)
+#' hr_pres<-pres_dailytohourly(pres,tme)
+#' # Use interpolation function
+#' hrrh <- hum_dailytohourly(rh, tmn, tmx,hr_temp,pres,hr_pres,relmin = 10)
+#' hr_tme<-as.POSIXlt(unlist(lapply(tme,FUN=function(x) x+(60*60*c(0:23)) )))
+#' # Plot results to compare
+#' matplot(x=as.numeric(hr_tme),y=hrrh, type = "l", lty = 1)
+#' # ========================================================================= #
+#' # ~~~~~~~~~~~~~~~~~~~~ input provided as SpatRaster ======================= #
+#' # ========================================================================= #
+#' climdaily<- read_climdata(mesoclim::ukcpinput)
+#' hr_temp<-temp_dailytohourly(climdaily$tmin, climdaily$tmax, srte = 0.09)
+#' hr_pres<-pres_dailytohourly(climdaily$pres)
+#' hrrh <- hum_dailytohourly(climdaily$relhum, climdaily$tmin, climdaily$tmax,hr_temp,climdaily$pres, hr_pres,relmin = 10)
+#' # Plot results for one cell
+#' cell_rh<-t(extract(hrrh,matrix(c(175000,40000),ncol=2)))
+#' matplot(as_datetime(time(hrrh)),cell_rh, type = "l", lty = 1)#'
 hum_dailytohourly <- function(relhum, tasmin, tasmax, temph, psl, presh, tme=NA, relmin = 2, adjust = TRUE) {
   # Determine outputs from inputs
   if(inherits(relhum, "SpatRaster")){
@@ -224,9 +224,24 @@ hum_dailytohourly <- function(relhum, tasmin, tasmax, temph, psl, presh, tme=NA,
 #' derived by reversing the equation Psl = pres*((293-0.0065z)/293)**5.26
 #' @keywords temporal
 #' @examples
-#' climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
-#' presh<-pres_dailytohourly(climdata$pres,climdata$tme)
-#' plot_q_layers(terra::rast(presh,crs=terra::crs(climdata$dtm),extent=terra::ext(climdata$dtm))
+#' # ========================================================================= #
+#' # ~~~~~~~~~~~~~~~~~~~~ input provided as vector =========================== #
+#' # ========================================================================= #
+#' # Derive daily tmx and tmn from hourly era5 data
+#' pres <- c(99,96,94,92,100)
+#' tme <- as.POSIXlt(c(0:4) * 3600 * 24, origin = "2018-05-01", tz = "UTC")
+#' hrpres <- pres_dailytohourly(pres,tme)
+#' hr_tme<-as.POSIXlt(unlist(lapply(tme,FUN=function(x) x+(60*60*c(0:23)) )))
+#' # Plot results to compare
+#' matplot(x=as.numeric(hr_tme),y=hrpres, type = "l", lty = 1)
+#' # ========================================================================= #
+#' # ~~~~~~~~~~~~~~~~~~~~ input provided as SpatRaster ======================= #
+#' # ========================================================================= #
+#' climdaily<- read_climdata(mesoclim::ukcpinput)
+#' hrpres<-pres_dailytohourly(climdaily$pres)
+#' # Plot results for one cell
+#' cell_pres<-t(extract(hrpres,matrix(c(175000,40000),ncol=2)))
+#' matplot(as_datetime(time(cell_pres)),cell_pres, type = "l", lty = 1)
 pres_dailytohourly <- function(pres, tme=NA, adjust = TRUE) {
   # Determine outputs from inputs
   if(inherits(pres, "SpatRaster")){
@@ -272,7 +287,9 @@ pres_dailytohourly <- function(pres, tme=NA, adjust = TRUE) {
 #' @param tme  - POSIXlt object of dates corresponding to radsw
 #' @param clearsky - optionally an array with dimensions matching radsw of daily clearsky
 #'           radiation as returned by clearskyraddaily(). Calculated if not supplied
-#' @param r - a terra::SpatRaster object giving the extent of radsw used for deriving the lat and long of grid cells
+#' @param r - if radsw is a spatraster r=NA
+#'          - if radsw is an array, r is a terra::SpatRaster object giving the extent of radsw
+#'          - if radsw is a vector of c(lat,lon) of the location radsw describes
 #' @param adjust - optional logical which if TRUE ensures that, after interpolation, returned
 #'          hourly values, when averaged to daily, match the input
 #'
@@ -292,20 +309,64 @@ pres_dailytohourly <- function(pres, tme=NA, adjust = TRUE) {
 #' ~~   then calculate longwave
 #' @keywords temporal
 #' @examples
-#' climdata<- read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
-#' swradhr<-swrad_dailytohourly_v2(radsw=daily100m$swrad, tme=as.POSIXlt(terra::time(unwrap(daily100m$swrad))), clearsky = NA, r = daily100m$dtm, adjust = TRUE, toArray=FALSE)
+#' # ========================================================================= #
+#' # ~~~~~~~~~~~~~~~~~~~~ input provided as vector =========================== #
+#' # ========================================================================= #
+#' radsw <- c(120,150,100)
+#' tme <- as.POSIXlt(c(0:2) * 3600 * 24, origin = "2018-05-01", tz = "UTC")
+#' r=c(50,0) # (lat,lon of location)
+#' hrsw <- swrad_dailytohourly(radsw,tme,r)
+#' hr_tme<-as.POSIXlt(unlist(lapply(tme,FUN=function(x) x+(60*60*c(0:23)) )))
+#' # Plot results to compare
+#' matplot(x=as.numeric(hr_tme),y=hrsw, type = "l", lty = 1)
+#'
+#' radsw<-unlist(global(climdaily$swrad,mean))
+#' tme<-as.POSIXlt(terra::time(climdaily$swrad))
+#' r<-c(50,-5)
+#' hrsw <- swrad_dailytohourly(radsw,tme,r)
+#' hr_tme<-as.POSIXlt(unlist(lapply(tme,FUN=function(x) x+(60*60*c(0:23)) )))
+#' # Plot results to compare
+#' matplot(x=as.numeric(hr_tme),y=hrsw, type = "l", lty = 1)
+#' # ========================================================================= #
+#' # ~~~~~~~~~~~~~~~~~~~~ input provided as SpatRaster ======================= #
+#' # ========================================================================= #
+#' climdaily<- read_climdata(mesoclim::ukcpinput)
+#' hrsw <- swrad_dailytohourly(climdaily$swrad)
+#' # Plot results for one cell
+#' cell_sw<-t(extract(hrsw,matrix(c(175000,40000),ncol=2)))
+#' matplot(as_datetime(time(hrsw)),cell_sw, type = "l", lty = 1)
+#' # ========================================================================= #
+#' # ~~~~~~~~~~~~~~~~~~~~ input provided as 3D array ======================= #
+#' # ========================================================================= #
+#' hrsw <- swrad_dailytohourly(.is(climdaily$swrad),tme=climdaily$tme,r=climdaily$dtm)
+#' cell_sw<-hrsw[3,4,]
+#' hr_tme<-as.POSIXlt(unlist(lapply(climdaily$tme,FUN=function(x) x+(60*60*c(0:23)) )))
+#' matplot(x=as.numeric(hr_tme),y=cell_sw, type = "l", lty = 1)
 swrad_dailytohourly <- function(radsw, tme=NA, r = NA, clearsky = NA,  adjust = TRUE) {
-  # Check geo info in either radsw or as r; convert radsw to array
+  # Check geo info in either radsw or as r and get lat / lon
   if(inherits(radsw,'SpatRaster')){
-    toArrays<-FALSE
     r<-radsw[[1]]
+    lat<-.latslonsfromr(r)$lats # reprojects to 4326
+    lon<-.latslonsfromr(r)$lons # reprojects to 4326
     if(inherits(tme,"logical")) tme<-as.POSIXlt(terra::time(radsw))
-  } else{
-    if(!inherits(r,'SpatRaster')) stop('Lacking geo information. Need radsw or r to be class SpatRaster!')
-    toArrays<-TRUE
+    out<-'SpatRaster'
   }
-  # If NA, calaculate daily clearsky radiation
-  if (class(clearsky) == "logical") clearsky <- .clearskyraddaily(tme,r)
+  if(inherits(radsw,'array')){
+    if(!inherits(r,'SpatRaster')) stop('Lacking geo information. If radsw an array, r must be a SpatRaster!')
+    lat<-.latslonsfromr(r)$lats # reprojects to 4326
+    lon<-.latslonsfromr(r)$lons # reprojects to 4326
+    out<-'array'
+  }
+  if(inherits(radsw,'numeric')){
+    if(!inherits(r,'numeric') | length(r)!=2) stop('Lacking geo information. If radsw a vector, r must be a vector of c(lat,lon)!!')
+    lat<-r[1]
+    lon<-r[2]
+    out<-'vector'
+  }
+
+  # If NA, calculate daily clearsky radiation
+  if (class(clearsky) == "logical") clearsky <- .clearskyraddaily(tme,lat)
+
   # Calculate clear sky fraction
   radsw<-.is(radsw)
 
@@ -319,22 +380,21 @@ swrad_dailytohourly <- function(radsw, tme=NA, r = NA, clearsky = NA,  adjust = 
   radfh[radfh < 0] <- 0
 
   # Calculate hourly clear sky radiation
-  lat<-.latslonsfromr(r)$lats # reprojects to 4326
-  lon<-.latslonsfromr(r)$lons # reprojects to 4326
-
   tmeh <- as.POSIXlt(seq(tme[1],tme[length(tme)]+23*3600, by = 3600))
   jd<-juldayvCpp(tmeh$year+1900, tmeh$mon+1, tmeh$mday)
   lt <- tmeh$hour
   lons<-as.vector(t(lon))
   lats<-as.vector(t(lat))
-  csh<-clearskyradmCpp(jd,lt,lats, lons)
+  csh<-clearskyradmCpp(jd,lt,lats,lons)
   csh[is.na(csh)] <- 0
-  # make spatraster
-  csh.r<-rep(r,length(lt))
-  values(csh.r)<-csh
 
   # Calculate hourly radiation
-  radh <- .is(csh.r) * radfh
+  if(out %in% c('SpatRaster','array')){
+    csh.r<-rep(r,length(lt))
+    values(csh.r)<-csh
+    radh <- .is(csh.r) * radfh
+  } else radh <-.is(csh) * radfh
+
   # Make consistent with daily
   if (adjust) {
     radd <- .hourtoday(radh)
@@ -346,16 +406,21 @@ swrad_dailytohourly <- function(radsw, tme=NA, r = NA, clearsky = NA,  adjust = 
   radh[radh > 1352.778] <- 1352.778
   radh[radh < 0] <- 0
   radh[is.na(radh)] <- 0
-  msk<-.mta(radsw[,,1],dim(radh)[3])
-  msk[is.na(msk)==F]<-1
-  radh<-radh*msk
-  yr<-tme$year[2]
-  sel<-which(tmeh$year==yr)
-  radh<-radh[,,sel]
-  if(!toArrays){ # convert to spatraster
+
+  # Format output
+  if(out %in% c('SpatRaster','array')){
+    msk<-.mta(radsw[,,1],dim(radh)[3])
+    msk[is.na(msk)==F]<-1
+    radh<-radh*msk
+    yr<-tme$year[2]
+    sel<-which(tmeh$year==yr)
+    radh<-radh[,,sel]
+  }
+  if(out=='SpatRaster'){
     radh<-.rast(radh,r)
     time(radh) <- seq.POSIXt(tme[1],  by = "hour", length.out=length(tme)*24)
   }
+  if(out=='vector') radh<-as.vector(radh)
   return(radh)
 }
 # ============================================================================ #

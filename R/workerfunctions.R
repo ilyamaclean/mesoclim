@@ -1330,7 +1330,7 @@
 #' @returns a 3D array of e.g. daily values form hourly
 #' @noRd
 .applynotna<-function(a,fun) {
-  if(inherits(a,'numeric')|length(dim(a))==1) a<-array(a,dim=c(1,1,length(a)))
+  if(inherits(a,c('numeric','integer'))|length(dim(a))==1) a<-array(a,dim=c(1,1,length(a)))
   m<-matrix(a,ncol=dim(a)[1]*dim(a)[2],byrow=T)
   sel<-which(is.na(m[1,])==F)
   r<-apply(m[,sel,drop=FALSE],2,fun)
@@ -1357,13 +1357,17 @@
 #' @param fun - a function , typically mean, min, max or sum
 #' @returns a 3D array, SpatRaster or vector of daily data matching class
 #' @noRd
+#' @examples
+#' a<-seq(1:48)
+#' hrout<-.hourtoday(a)
 .hourtoday<-function(a,fun=mean) {
+    # Convert input a to 3D array
     if(inherits(a,"SpatRaster")){
       tem<-a[[1]]
       a<-.is(a)
       toSpatRaster<-TRUE
     } else toSpatRaster<-FALSE
-    if(inherits(a,'numeric')|length(dim(a))==1){
+    if(inherits(a,c('integer','numeric')) | length(dim(a))<3){
       a<-array(a,dim=c(1,1,length(a)))
       toVector<-TRUE
     } else toVector<-FALSE
@@ -1372,7 +1376,7 @@
       y<-matrix(x,ncol=24,byrow=T)
       apply(y,1,fun,na.rm=T)
     }
-    d<-.applynotna(a,.htd)
+    d<-.applynotna(a,fun=.htd)
     if (toVector) d<-as.vector(d)
     if (toSpatRaster) d<-.rast(d,tem)
     return(d)
@@ -1475,6 +1479,9 @@
 }
 #' @title Calculate clear sky radiation
 #' @noRd
+#' @example
+#' tme<-as.POSIXlt(seq(as.POSIXct("2021-06-22 00:00"), as.POSIXct("2021-06-22 23:00"), by = "hour"))
+#' .clearskyrad(tme,60,0)
 .clearskyrad <- function(tme, lat, long, tc = 15, rh = 80, pk = 101.3) {
   jd<-.jday(tme)
   lt <- tme$hour+tme$min/60+tme$sec/3600
@@ -1493,11 +1500,19 @@
 }
 #' @title Calculates average daily clear sky radiation over all pixels of a SpatRaster object and all days in tme
 #' @param tme - a POSIXlt object of dates
-#' @param r - a terra::SpatRaster object
-#' @return a 3D array of expected daily clear sky radiation values (W/m**2)
+#' @param r - a single layer terra::SpatRaster object, a 2D aray or a vector/numeric of latitude of location(s)
+#' @return expected daily clear sky radiation values (W/m**2) in the form of a 3D array (if r = spatraster, nlyr=length(tme))
+#' a vector of length(tme) if r = vector) or a array of lenght(tme) x length(r) if r= vector.
 #' @noRd
-#' # To work for r when not already lat/lon projection
-.clearskyraddaily <- function(tme, r) {
+#' @examples
+#' tme<-as.POSIXlt(seq(as.POSIXct("2018-01-01 00:00"), as.POSIXct("2018-01-01 23:00"), by = "hour"))
+#' .clearskyraddaily(tme,r=50)
+#' .clearskyraddaily(tme,r=c(50,55,60))
+#' .clearskyraddaily(tme,r=unwrap(ukcpinput$dtm))
+#'
+.clearskyraddaily <- function(tme, r){
+  if(!inherits(r,c('SpatRaster','numeric','array'))) stop('Parameter r in .clearskyraddaily must be spatraster, array or numeric')
+
   #1440 = minutes in day
   # dmean - sums for each day
   dmean<-function(x) {
@@ -1505,7 +1520,7 @@
     apply(x, 1, mean, na.rm=T)
   }
   # Get lat for each cell in r
-  lats<-.latslonsfromr(r)$lats # reprojects to 4326
+  if(inherits(r,'SpatRaster')) lats<-.latslonsfromr(r)$lats else lats<-r# reprojects to 4326
   #e <- ext(r)
   #lats <- seq(e$ymax - res(r)[2] / 2, e$ymin + res(r)[2] / 2, length.out = dim(r)[1]) # ASSUMES crs in lat lon??
   jd <- rep(juldayvCpp(tme$year + 1900, tme$mon + 1, tme$mday),  each = 1440)
@@ -1519,11 +1534,16 @@
   lt<-matrix(rep(lt, each = n1), ncol = n2)
 
   # Calculate clear sky radiation and convert to daily
-  csr <- clearskyrad(lt, lats, long=0, jd)
+  #csr <- clearskyrad(lt, lats, long=0, jd) # orig
+  csr <- clearskyrad(jd, lt, lats, long=0)
   csd <- apply(csr, 1, dmean)
-  csda <- array(rep(csd, dim(r)[2]), dim=c(length(tme), dim(r)[1:2]))
-  csda <- aperm(csda, c(2,3,1))
-  csda
+  # If r parameter was spatRaster return 3D array, vector returns vector otherwise an array[length(tme),length(r)]
+  if(inherits(r,c('SpatRaster','array'))){
+    csda <- array(rep(csd, dim(r)[2]), dim=c(length(tme), dim(r)[1:2]))
+    output <- aperm(csda, c(2,3,1))
+  } else if(length(r)==1) output<-as.vector(csd) else output<-csd
+
+  return(output)
 }
 # ============================================================================ #
 # ~~~~~~~~~~~~~ Temporal downscale worker functions here ~~~~~~~~~~~~~~~~~~~~~ #

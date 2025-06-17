@@ -430,9 +430,11 @@ converthumidity <- function (h, intype = "relative", outtype = "vapour pressure"
 #' @keywords climate
 #' @examples
 #' jd <- 2459752 #"2022-06-21" as julian day
+#' jd<-2459215 # 01/01/2021
 #' tme<-seq(0,23,1)
-#' csr<-clearskyrad(jd,tme,50,-2.5)
+#' csr<-clearskyrad(jd,tme,60,0)
 #' plot(csr ~ tme, type = "l", lwd = 2, xlab = expression(paste("Hour")), ylab = "Clearsky radiation")
+#' print(sum(csr))
 clearskyrad <- function(jd, lt, lat, long, tc = 15, rh = 80, pk = 101.3) {
   sa<-.solalt(lt,lat,long,jd)*pi/180
   m<-35*sin(sa)*((1224*sin(sa)^2+1)^(-0.5))
