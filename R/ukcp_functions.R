@@ -37,7 +37,6 @@ create_ukcpsst_data<-function(
   if(!dir.exists(dir_data))(stop(paste("Directory",dir_data,"does not exist!!!")))
   if(class(startdate)[1]!="POSIXlt" | class(enddate)[1]!="POSIXlt") stop("Date parameters NOT POSIXlt class!!")
 
-
   # Derive months of data required - will output month before and after start and end dates for interpolation
   start<-startdate %m-% months(1)
   end<-enddate %m+% months(1)
@@ -55,13 +54,6 @@ create_ukcpsst_data<-function(
   not_present<-which(!file.exists(ncfiles))
   if (length(not_present)>0) stop(paste("Input .nc files required are NOT present: ",ncfiles[not_present]," ") )
 
-  # Get extent of aoi and project to same as ukcp data (lat lon)
-  #if(!class(aoi)=='logical'){
-  #  if(!class(aoi)[1] %in% c("SpatRaster","SpatVector","sf")) stop("Parameter aoi NOT of suitable spatial class ")
-  #  if(class(aoi)[1]=="sf") aoi<-vect(aoi)
-  #  target_crs<-terra::crs(rast(ncfiles[1]))
-  #  aoi_e<-ext( project(aoi,target_crs) )
-  #}
   # Get spatrast stack
   var_r<-terra::rast()
   for(f in ncfiles){
@@ -76,7 +68,11 @@ create_ukcpsst_data<-function(
   tme<-terra::time(var_r)
   var_r<-var_r[[which(terra::time(var_r) %within%  interval(start-month(1), end+month(1)) ) ]]
   names(var_r)<-terra::time(var_r)
-
+  # If no valid sea temperatures (eg all land area) return NA
+  if(all(is.na(values(var_r[[1]])))){
+    message("No valid sea cells found in area requested!!")
+    var_r<-NA
+  }
   return(var_r)
 }
 
