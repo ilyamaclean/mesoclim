@@ -46,8 +46,7 @@ biascorrect <- function(hist_obs, hist_mod, fut_mod = NA, mod_out = FALSE, range
     msk3<-apply(a3,c(1,2),mean,na.rm=T)
     msk<-msk1*msk2*msk3
   } else msk<-msk1*msk2
-  # Check whether dataset has more than 1000 entries per time-series and
-  # subset if it does
+  # Check whether dataset has more than 1000 entries per time-series and subset if it does
   n<-dim(a1)[3]
   if (n > samplenum) s<-sample(0:n,samplenum-2,replace = FALSE)  # two less so min and max can be tagged on
   if (mod_out) {

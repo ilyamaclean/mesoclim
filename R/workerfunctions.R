@@ -153,24 +153,23 @@
 #' @export
 #'
 #' @examples
-#' sst.r<-rast(system.file("extdata/sst/NWSClim_NWSPPE_r001i1p00000_2018_gridT.nc",pkg="mesoclim"),"SST")[[1]]
-#' aoi.r<-rast(system.file("extdata/dtms/dtmm.tif",pkg="mesoclim"))
+#' sst.r<-rast(system.file("extdata/sst/NWSClim_NWSPPE_r001i1p00000_2018_gridT.nc",package="mesoclim"),"SST")[[1]]
+#' aoi.r<-unwrap(mesoclim::ukcpinput$dtm)
 #' plot(.sea_to_coast(sst.r,aoi.r))
 .sea_to_coast<-function(sst.r,aoi.r, ext_cells=8){
   # Extend area to make sure sea surface temperature data matches coastal areas
   aoibuf.r<-terra::extend(aoi.r,c(ext_cells,ext_cells),fill=1)
   # Re-project/sample sst to extended aoi
   newsst.r<-project(sst.r,aoibuf.r)
-  # Interpolate coastal sea cells
+  # Interpolate sst to non-land cells in aoi
   target<-sum(c(crop(newsst.r[[1]],aoi.r),aoi.r),na.rm=T)
   n<-1
   while(anyNA(values(target)) & n<=5){
     plot(target,main=n)
     newsst.r<-focal(newsst.r, w=9, fun=mean, na.policy="only", na.rm=T)
-
     target<-sum(c(crop(newsst.r[[1]],aoi.r),aoi.r),na.rm=T)
     n<-n+1
-    if(n>5) warning("CHECK interpolation of coastal cells in create_ukcpsst_data function!!!")
+    if(n>5) warning("CHECK interpolation of coastal cells in .sea_to_coast function!!!")
   }
   newsst.r<-mask(crop(newsst.r,aoi.r),aoi.r,inverse=TRUE)
   return(newsst.r)

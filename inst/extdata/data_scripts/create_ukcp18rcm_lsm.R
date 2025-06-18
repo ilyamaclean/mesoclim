@@ -86,6 +86,8 @@ crs(r)<-"EPSG:27700"
 r<-crop(r,lsm12km.r)
 
 lsm1km.r<-disagg(lsm12km.r,12)
+writeRaster(lsm1km.r,"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data/Terrain50/uk_seamask_1km.tif",overwrite=TRUE)
+
 lsm<-ifel(lsm1km.r==0,NA,lsm1km.r)
 r<-mask(r,lsm)
 
@@ -125,5 +127,4 @@ plot(c(r,lsm1km.r))
 lsm12km.r<-trim(lsm12km.r,value=0,padding=1)
 plot(lsm12km.r)
 
-writeRaster(lsm1km.r,"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data/Terrain50/uk_seamask_1km.tif",overwrite=TRUE)
 

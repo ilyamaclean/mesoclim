@@ -5,30 +5,34 @@ source(setup_file)
 
 tstart<-now()
 dir_bcmodels<-"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data/bias_correct_models"
-
+dir_sst<-"inst/extdata/sst"
 ############## RUN PARAMETERS ####################### #######################
-# Parcel file and label for outputs
+# Parcel file and label for outputs - can be a tif in which case parcel made of whole extent
 # parcels_file<-file.path(dir_root,'CEH_Exmoor.shp') # exmoor
 # parcels_file<-file.path(dir_root,'mesoclim_inputs','killerton','land_parcels.shp') # killerton
-parcels_file<-file.path(dir_root,'mesoclim_inputs','focal_parcels.shp') # s devon
+# parcels_file<-file.path(dir_root,'mesoclim_inputs','focal_parcels.shp') # s devon
 # parcels_file<-file.path(dir_root,'mesoclim_inputs','land_parcels.shp') # porthleven
-arealabel<-"sdevon"
+parcels_file<-file.path(dir_root,'mesoclim_inputs','wscotlandext.shp') # west scotland high elev dif & coast
+# parcels_file<-file.path(system.file("extdata/dtms/dtmf_inland.tif",package="mesoclim")) # inland tif example
+
+
+arealabel<-"wscotland"
 
 # UKCP options and time period
 member<-"01"
-startyear<-"2022"
-endyear<-"2022"
-startdate<-as.POSIXlt(paste0(startyear,'/01/01'),tz="UTC")
-enddate<-as.POSIXlt(paste0(endyear,'/12/31'),tz="UTC")
+startyear<-"2018"
+endyear<-"2018"
+startdate<-as.POSIXlt(paste0(startyear,'/05/01'),tz="UTC")
+enddate<-as.POSIXlt(paste0(endyear,'/05/31'),tz="UTC")
 
 # Bias correction?
 bias_correct<-TRUE
-bcmodels_file<-file.path(dir_bcmodels,'bias_correct_models_2020_2022.Rds') # will need to be after definition of model member
+bcmodels_file<-file.path(dir_bcmodels,paste0('bias_correct_models_',member,'_2020_2022.Rds')) # will need to be after definition of model member
 
 # Which outputs - graphical, parcel csv, mesoclim grids
 dir_out<-file.path(dir_root,'mesoclim_outputs')
 outputs<-TRUE
-parcel_output<-TRUE
+parcel_output<-FALSE
 mesoclim_output<-TRUE
 
 print(paste("Parcels input file:",parcels_file))
@@ -53,22 +57,27 @@ res="12km"
 dtmuk<-terra::rast(ukdtm_file) # 50m resolution dtm of all UK
 coast_v<-terra::project(terra::vect(coast_file),dtmuk)
 
-# Load parcels file - check geometries and project to crs of output dtm (OS coords)
-parcels_sf<-st_read(parcels_file)
-num_invalid<-length(which(!st_is_valid(parcels_sf)))
-if(num_invalid>0) print(paste("Correcting ",num_invalid,"geometries in parcel file provided:",parcels_file))
-parcels_sf<-st_make_valid(parcels_sf)
-num_invalid<-length(which(!st_is_valid(parcels_sf)))
-if(num_invalid>0) warning(paste("There remain ",num_invalid,"invalid geometries after correction!!!"))
-
-parcels_v<-terra::project(terra::vect(parcels_sf),dtmuk)
+# Load parcels file - whole area used if raster otherwise checks geometries - converts to terra vect
+if(tools::file_ext(parcels_file)=="tif"){
+  parcels_v<-vect(ext(rast(parcels_file)))
+  crs(parcels_v)<-crs(rast(parcels_file))
+} else{
+  parcels_sf<-st_read(parcels_file)
+  num_invalid<-length(which(!st_is_valid(parcels_sf)))
+  if(num_invalid>0) print(paste("Correcting ",num_invalid,"geometries in parcel file provided:",parcels_file))
+  parcels_sf<-st_make_valid(parcels_sf)
+  num_invalid<-length(which(!st_is_valid(parcels_sf)))
+  if(num_invalid>0) warning(paste("There remain ",num_invalid,"invalid geometries after correction!!!"))
+  parcels_v<-terra::vect(parcels_sf)
+}
+parcels_v<-terra::project(parcels_v,dtmuk)
 
 # Generate local area and dtm and wider extents
 aoi<-terra::vect(terra::ext(parcels_v))
 terra::crs(aoi)<-terra::crs(parcels_v)
 
-# Load ukcp coarse resolution dtm for aoi
-dtmc<-get_ukcp_dtm(aoi, ukcpdtm_file)
+# Load ukcp coarse resolution dtm for aoi - assumes no coastal etc effects beyond 12km of parcel locations
+dtmc<-mesoclimAddTrees::get_ukcp_dtm(aoi, ukcpdtm_file)
 
 # Create fine resolution dtm of downscaling area  - ensure they fall within extent of loaded dtm & mask to coast_v (sets sea to NA)
 dtmf<-terra::mask(terra::crop(terra::crop(dtmuk,aoi),dtmuk),coast_v)
@@ -80,6 +89,7 @@ dtmm <- terra::mask(terra::crop(terra::crop(dtmuk, dtmc), dtmuk), coast_v)
 
 # Plot dtmf and overlay parcels
 if(outputs){
+  plot(dtmuk);plot(vect(ext(dtmc)),col="red",add=T)
   terra::plot(dtmc,main='DTMs')
   #terra::plot(dtmm,add=TRUE)
   terra::plot(dtmf,add=TRUE)
@@ -151,13 +161,14 @@ for (yr in years){
 
   # SPATIAL DOWNSCALE BY month and tile
   out<-list()
-  for(m in seq(1,12)){
+  mnths<-unique(month(climdata_y$tme))
+  for(m in mnths){
     print(m)
     sdatetime<-as.POSIXlt(paste0(yr,'/',m,'/01'),tz=tz(climdata$tme))
     dys<-lubridate::days_in_month(sdatetime)
     edatetime<-as.POSIXlt(paste0(yr,'/',sprintf("%02d", m),'/',sprintf("%02d", dys)),tz=tz(climdata$tme))
     climdata_m<-subset_climdata(climdata_y,sdatetime,edatetime)
-    out[[m]]<-spatialdownscale(climdata=climdata_m,
+    out[[length(out)+1]]<-spatialdownscale(climdata=climdata_m,
                                 sst=sstdata,
                                 dtmf=dtmf, dtmm=dtmm, basins = basins, wca=wca, skyview=skyview, horizon=horizon, cad = TRUE,
                                 coastal = TRUE, thgto =2, whgto=2, include_tmean=TRUE,

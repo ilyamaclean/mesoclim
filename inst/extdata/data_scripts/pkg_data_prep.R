@@ -14,7 +14,7 @@ domain<-'uk'
 member<-'01'
 rcp<-'rcp85'
 startdate<-as.POSIXlt('2018/05/01')
-enddate<-as.POSIXlt('2018/05/31') ### CHANGE FUNCTION SO THIS IS END DATE NOT ENDDATE +1
+enddate<-as.POSIXlt('2018/05/31')
 
 # Processes using already downloaded ukcp18rcm files in dir_data
 t0<-now()
@@ -26,6 +26,62 @@ ukcpinput$dtm<-wrap(ukcpinput$dtm)
 usethis::use_data(ukcpinput,overwrite=TRUE)
 
 #write_climdata(ukcpinput,"data/ukcpinput.rda",overwrite=TRUE)
+
+########################## Sea Surface temperature data - to match ukcpinput$dtm ##########################
+dir_sst<-"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data/SST"
+sst<-create_ukcpsst_data(dir_sst,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),dtmc=ukcpinput$dtm, member="01")
+plot(c(sst,ukcpinput$dtm))
+
+
+########################## UKCP18 inputs for southwest for the future May 2030  ##########################
+startdate<-as.POSIXlt('2030/05/01')
+enddate<-as.POSIXlt('2030/05/31')
+ukcpfuture<-ukcp18toclimarray(dir_ukcp, dtmc,  startdate, enddate,
+                             collection, domain, member)
+print(now()-t0)
+crs(ukcpfuture$dtm)<-"EPSG:27700"
+ukcpfuture$dtm<-wrap(ukcpfuture$dtm)
+usethis::use_data(ukcpfuture,overwrite=TRUE)
+
+futuredata<-read_climdata(mesoclim::ukcpfuture)
+
+
+########################## UKCP18 inputs for INLAND location for May 2018  ##########################
+ukcp_aoi<-ext(400000, 480000, 250000, 350000 )
+dtmc_uk<-rast(system.file('extdata/ukcp18rcm/orog_land-rcm_uk_12km_osgb.nc',package='mesoclim'))
+dtmc_inland<-crop(dtmc_uk,ukcp_aoi)
+dtmc_inland<-project(dtmc_inland,"EPSG:27700")
+
+####  Create dtmf and dtmm for INLAND area ####
+dir_terrain50<-"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data/Terrain50"
+dtmuk<-rast(file.path(dir_terrain50,"uk_dtm.tif"))
+dtmfe<-ext(435000, 440000, 300000, 305000)
+dtmf_inland<-crop(dtmuk,dtmfe)
+dtmm_inland<-crop(dtmuk,dtmc_inland)
+
+plot(dtmc_uk)
+plot(vect(ext(dtmc_inland)),add=TRUE)
+
+plot(dtmc_inland)
+plot(dtmm_inland,add=T)
+plot(vect(ext(dtmf_inland)),col='red',add=TRUE)
+plot(dtmf_inland)
+
+writeRaster(dtmf,"inst/extdata/dtms/dtmf_inland.tif",overwrite=TRUE)
+writeRaster(dtmm,"inst/extdata/dtms/dtmm_inland.tif",overwrite=TRUE)
+
+startdate<-as.POSIXlt('2018/05/01')
+enddate<-as.POSIXlt('2018/05/31')
+
+ukcpinland<-ukcp18toclimarray(dir_ukcp, dtmc_inland,  startdate, enddate,
+                              collection, domain, member)
+print(now()-t0)
+crs(ukcpinland$dtm)<-"EPSG:27700"
+ukcpinland$dtm<-wrap(ukcpinland$dtm)
+usethis::use_data(ukcpinland,overwrite=TRUE)
+
+ukcpinland<-read_climdata(mesoclim::ukcpinland)
+
 
 ##########################  DTMs  ##########################
 #### Create 50m fine scale dtm of Lizard = lizard50m.tif
@@ -65,10 +121,6 @@ lapply(daily100m,class)
 usethis::use_data(daily100m,overwrite=TRUE)
 
 
-########################## Sea Surface temperature data - to match ukcpinput$dtm ##########################
-dir_sst<-"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data/SST"
-sst<-create_ukcpsst_data(dir_sst,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),dtmc=ukcpinput$dtm, member="01")
-plot(c(sst,ukcpinput$dtm))
 
 
 ########################## Parcels shape file ##########################
