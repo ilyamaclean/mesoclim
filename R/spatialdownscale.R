@@ -41,21 +41,26 @@
 #' wsf<-winddownscale(climdata$windspeed, climdata$winddir, dtmf, dtmm, climdata$dtm, zi=climdata$windheight_m)
 #' dailytemps<-tempdaily_downscale(climdata,NA,unwrap(mesoclim::ukcp18sst),dtmf,dtmm,basins,wsf,cad = TRUE,coastal = TRUE,2,2)
 #' panel(c(dailytemps$tmin[[13]],dailytemps$tmax[[13]],dailytemps$tmean[[13]]),main=paste(c("Tmin","Tmax","Tmean"),"13/05/2018"))
-tempdaily_downscale<-function(climdata,tmean=NA,sst,dtmf,dtmm,basins,uzf,cad,coastal,thgto=2,whgto=2){
+tempdaily_downscale<-function(climdata,tmean=NA,sst=NA,dtmf,dtmm,basins,uzf,cad=TRUE,coastal=TRUE,thgto=2,whgto=2){
   # Convert variables - unpack any wrapped spatRasters and convert arrays to spatraster
   input_class<-lapply(lapply(climdata,class),"[",1)
   if(any(input_class=="PackedSpatRaster")) climdata[which(input_class=="PackedSpatRaster")]<-lapply(climdata[which(input_class=="PackedSpatRaster")],unwrap)
   if(any(input_class=="array")) climdata[which(input_class=="array")]<-lapply(climdata[which(input_class=="array")],.rast,tem=climdata$dtm)
   if(inherits(sst,"PackedSpatRaster")) sst<-unwrap(sst)
+
+  # Test to see if any valid sst data provided to estimate coastal effects
+  if(inherits(sst,"SpatRaster")) if(all(is.na(values(sst[[1]])))) sst<-NA
+  if(is.logical(sst)){
+    if(coastal==TRUE) message("Ignoring coastal effects as no valid sea surface temperature data provided - assuming inland area!!")
+    coastal<-FALSE
+  }
+
   # Check tmin and tmax among climdata variables
   if(!any(c("tmin","tmax") %in% names(climdata))) stop("Cannot find daily min/max temperature variables for tempdaily_downscale!!!")
   if (class(dtmm) == "logical" & coastal) stop("dtmm needed for calculating coastal effects")
   dtmc<-climdata$dtm
 
-  # Test to see if coastal effects possible MORE ONT HIS!!
-  if(is.logical(sst)) coastal<-FALSE else if(all(!is.na(values(sst[[1]])))) coastal<-FALSE
-
-  # get variables
+  # Get variables
   rh<-climdata$relhum
   pk<-climdata$pres
   tmin<-climdata$tmin
@@ -187,6 +192,14 @@ temphrly_downscale<-function(climhrly, sst, dtmf, dtmm = NA, basins = NA, uzf = 
   if(any(input_class=="PackedSpatRaster")) climhrly[which(input_class=="PackedSpatRaster")]<-lapply(climhrly[which(input_class=="PackedSpatRaster")],unwrap)
   if(any(input_class=="array")) climhrly[which(input_class=="array")]<-lapply(climhrly[which(input_class=="array")],.rast,tem=climhrly$dtm)
   if(inherits(sst,"PackedSpatRaster")) sst<-unwrap(sst)
+
+  # Test to see if any valid sst data provided to estimate coastal effects
+  if(inherits(sst,"SpatRaster")) if(all(is.na(values(sst[[1]])))) sst<-NA
+  if(is.logical(sst)){
+    if(coastal==TRUE) message("Ignoring coastal effects as no valid sea surface temperature data provided - assuming inland area!!")
+    coastal<-FALSE
+  }
+
   dtmc<-climhrly$dtm
   if(is.logical(sst)) coastal<-FALSE else if(all(!is.na(values(sst[[1]])))) coastal<-FALSE
   rh<-climhrly$relhum
