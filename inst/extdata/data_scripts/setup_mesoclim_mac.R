@@ -22,6 +22,8 @@ dir.exists(dir_ukcp)
 dir_sst<-dir_in
 dir.exists(dir_sst)
 
+dir_bcmodels<-"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data/bias_correct_models"
+
 ##############  FILEPATHS ####################### #######################
 coast_file<-file.path(dir_in,'CTRY_DEC_2023_UK_BGC.shp') # MHW line generalised to 20m
 file.exists(coast_file)

@@ -2,35 +2,32 @@
 # Set up libraries files and directories for mac/jasmin
 setup_file<-"inst/extdata/data_scripts/setup_mesoclim_mac.R"
 source(setup_file)
-
 tstart<-now()
-dir_bcmodels<-"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data/bias_correct_models"
-dir_sst<-"inst/extdata/sst"
+
 ############## RUN PARAMETERS ####################### #######################
-# Parcel file and label for outputs - can be a tif in which case parcel made of whole extent
+#### Parcel file and label for outputs - can be a tif in which case parcel made of whole extent
 # parcels_file<-file.path(dir_root,'CEH_Exmoor.shp') # exmoor
-# parcels_file<-file.path(dir_root,'mesoclim_inputs','killerton','land_parcels.shp') # killerton
+parcels_file<-file.path(dir_root,'mesoclim_inputs','killerton','land_parcels.shp') # killerton
 # parcels_file<-file.path(dir_root,'mesoclim_inputs','focal_parcels.shp') # s devon
 # parcels_file<-file.path(dir_root,'mesoclim_inputs','land_parcels.shp') # porthleven
-parcels_file<-file.path(dir_root,'mesoclim_inputs','wscotlandext.shp') # west scotland high elev dif & coast
+# parcels_file<-file.path(dir_root,'mesoclim_inputs','wscotlandext.shp') # west scotland high elev dif & coast
 # parcels_file<-file.path(system.file("extdata/dtms/dtmf_inland.tif",package="mesoclim")) # inland tif example
 
+#### Label for outputs
+arealabel<-"killerton"
 
-arealabel<-"wscotland"
-
-# UKCP options and time period
+#### UKCP options and time period
 member<-"01"
-startyear<-"2018"
-endyear<-"2018"
-startdate<-as.POSIXlt(paste0(startyear,'/05/01'),tz="UTC")
-enddate<-as.POSIXlt(paste0(endyear,'/05/31'),tz="UTC")
+startdate<-as.POSIXlt('2022/01/01',tz="UTC")
+enddate<-as.POSIXlt('2022/12/31',tz="UTC")
 
-# Bias correction?
+#### Bias correction?
 bias_correct<-TRUE
-bcmodels_file<-file.path(dir_bcmodels,paste0('bias_correct_models_',member,'_2020_2022.Rds')) # will need to be after definition of model member
 
-# Which outputs - graphical, parcel csv, mesoclim grids
-dir_out<-file.path(dir_root,'mesoclim_outputs')
+#### Output directory
+dir_out<-"/Users/jonathanmosedale/Data/mesoclim_outputs"
+
+#### Which outputs - graphical, parcel csv, mesoclim grids
 outputs<-TRUE
 parcel_output<-FALSE
 mesoclim_output<-TRUE
@@ -72,7 +69,7 @@ if(tools::file_ext(parcels_file)=="tif"){
 }
 parcels_v<-terra::project(parcels_v,dtmuk)
 
-# Generate local area and dtm and wider extents
+## Generate local area vector and required dtms
 aoi<-terra::vect(terra::ext(parcels_v))
 terra::crs(aoi)<-terra::crs(parcels_v)
 
@@ -83,9 +80,7 @@ dtmc<-mesoclimAddTrees::get_ukcp_dtm(aoi, ukcpdtm_file)
 dtmf<-terra::mask(terra::crop(terra::crop(dtmuk,aoi),dtmuk),coast_v)
 
 # Generate medium area and resoilution dtm (for coatal/wind effects)
-#dtmm_res <- round(exp((log(terra::res(dtmc)[1]) + log(terra::res(dtmf)[1]))/2))
 dtmm <- terra::mask(terra::crop(terra::crop(dtmuk, dtmc), dtmuk), coast_v)
-#dtmm<-get_dtmm(dtmf,dtmc,dtmuk)
 
 # Plot dtmf and overlay parcels
 if(outputs){
@@ -101,6 +96,7 @@ print(paste("Downscaling for an area of",round(expanse(aoi,"km"),0),"km^2, gener
 
 
 ###### Load bias correction models if required
+bcmodels_file<-file.path(dir_bcmodels,paste0('bias_correct_models_',member,'_2020_2022.Rds')) # will need to be after definition of model member
 if(bias_correct) model_list<-readRDS(bcmodels_file)
 
 ###### Calculate topographical properties - worth it if looping over several downscaling calls (eg multiple years)
@@ -122,7 +118,7 @@ t0<-now()
 # Process climate data from UKCP18 regional files on ceda archive - PROVIDE dtmc AND aoi as ONE
 climdata<-ukcp18toclimarray(dir_ukcp,dtmc,startdate,enddate,collection,domain,member,temp_hgt=2, wind_hgt=2)
 
-# Process sea surface temo data from ceda archive ??CHANGE OUTPUT TO PROJECTION OF DTMC/AOI? COMBINE WITH ABOVE?
+# Process sea surface temp data
 sstdata<-create_ukcpsst_data(dir_sst,startdate,enddate,dtmc,member)
 
 dataprep_time<-now()-t0
@@ -134,16 +130,14 @@ if(outputs){
   plot(aoi,add=TRUE)
 }
 
-# Check data - plot summary figs
+# Check data - plot summary figs if requested
 if(outputs){
-  #climdata<-checkinputs(climdata, tstep = "day")
+  checkinputs(climdata, tstep = "day",plots=outputs)
 }
 print(paste0("Climate data processing = ",now()-t0))
 
 
-############## BIASD CORRECTION AND SPATIAL DOWNSCALE BY YEAR AND MONTH ####################### #######################
-# Option to write yearly .tifs
-# Option to write parcel .csv outputs  - appends new data to parcel file outputs with each loop
+############## BIAS CORRECTION AND SPATIAL DOWNSCALE BY YEAR AND MONTH ####################### #######################
 years<-unique(c(year(startdate):year(enddate)))
 # By YEAR
 for (yr in years){
@@ -159,32 +153,14 @@ for (yr in years){
     print(paste0("Bias correction processing = ",now()-t0))
   }
 
-  # SPATIAL DOWNSCALE BY month and tile
-  out<-list()
-  mnths<-unique(month(climdata_y$tme))
-  for(m in mnths){
-    print(m)
-    sdatetime<-as.POSIXlt(paste0(yr,'/',m,'/01'),tz=tz(climdata$tme))
-    dys<-lubridate::days_in_month(sdatetime)
-    edatetime<-as.POSIXlt(paste0(yr,'/',sprintf("%02d", m),'/',sprintf("%02d", dys)),tz=tz(climdata$tme))
-    climdata_m<-subset_climdata(climdata_y,sdatetime,edatetime)
-    out[[length(out)+1]]<-spatialdownscale(climdata=climdata_m,
+  # SPATIAL DOWNSCALE BY year
+  mesoclimate<-spatialdownscale(climdata=climdata_y,
                                 sst=sstdata,
                                 dtmf=dtmf, dtmm=dtmm, basins = basins, wca=wca, skyview=skyview, horizon=horizon, cad = TRUE,
                                 coastal = TRUE, thgto =2, whgto=2, include_tmean=TRUE,
                                 rhmin = 20, pksealevel = TRUE, patchsim = FALSE,
                                 terrainshade = TRUE, precipmethod = "Elev", fast = TRUE, noraincut = 0.01)
-  }
 
-  # Create whole year rasters for each var from list of months
-  mesoclimate<-list()
-  mesoclimate$dtm<-out[[1]]$dtm
-  mesoclimate$windheight_m<-out[[1]]$windheight_m
-  mesoclimate$tempheight_m<-out[[1]]$tempheight_m
-  mesoclimate$tme<-do.call(c,(lapply(out,"[[","tme")))
-  append_vars<-names(out[[1]])[c(5:length(out[[1]]))]
-  for(v in append_vars) mesoclimate[[v]]<-rast(unlist(lapply(out,"[",v)))
-  for(v in append_vars) names(mesoclimate[[v]])<-terra::time(mesoclimate[[v]])
 
   downscale_time<-now()-t0
   print(paste("Time for downscaling single year =", format(downscale_time)))
@@ -200,7 +176,7 @@ for (yr in years){
     }
   }
 
-  # Write grids or parcels
+  # Write yearly grids or parcel csvs
   if(mesoclim_output){
     mesoclim_file<-file.path(dir_out,paste0('mesoclimate_',res(dtmf)[1],'m_',arealabel,'_',yr,'.Rds'))
     print(paste("Writing mesoclimate file:",mesoclim_file))
@@ -208,13 +184,6 @@ for (yr in years){
   }
   if(parcel_output){
     tp<-now()
-    tmean<-(mesoclimate$tmax+mesoclimate$tmin)/2
-    # Convert from relative to specific humidity
-    spechum<-converthumidity(h=mesoclim:::.is(mesoclimate$relhum),
-                             intype='relative',outtype='specific',
-                             tc=mesoclim:::.is(tmean),
-                             pk=mesoclim:::.is(mesoclimate$pres) )
-
     # Calculate and write parcel values -
     parcel_list<- create_parcel_list(mesoclimate,parcels_v,id='gid',output_spechum=TRUE)
     if(yr==years[1]) ov<-"replace" else ov<-"append"
