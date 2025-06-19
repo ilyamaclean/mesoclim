@@ -4,7 +4,18 @@
 \alias{.tempcoastal}
 \title{Coastal temperature effects}
 \usage{
-.tempcoastal(tc, sstf, u2, wdir, dtmf, dtmm, dtmc)
+.tempcoastal(
+  tc,
+  sstf,
+  u2,
+  wdir,
+  dtmf,
+  dtmm,
+  dtmc,
+  ndir = 32,
+  smooth = 5,
+  correct = TRUE
+)
 }
 \arguments{
 \item{tc}{\itemize{
@@ -12,11 +23,11 @@
 }}
 
 \item{sstf}{\itemize{
-\item downscaled sea surface temperature to dtmf resolution and extent - no NA and timeseries matches tc
+\item downscaled sea surface temperature to dtmf resolution and extent - no NA and timeseries must match tc
 }}
 
 \item{u2}{\itemize{
-\item downscaled windspeed at 2m height
+\item downscaled windspeed at temprature height
 }}
 
 \item{wdir}{\itemize{
@@ -28,11 +39,23 @@
 }}
 
 \item{dtmm}{\itemize{
-\item medium dtm spatraster
+\item fine-scale dtm covering wider area than dtmf (but same resolution!!)
 }}
 
 \item{dtmc}{\itemize{
-\item coarse dtm spatraster
+\item coarse dtm spatraster matching resolution and extent of wdir
+}}
+
+\item{ndir}{\itemize{
+\item number of directions to calculate for wind exposure
+}}
+
+\item{smooth}{\itemize{
+\item number of cells to use for smoothing matrix
+}}
+
+\item{correct}{\itemize{
+\item corrects each timestep  so that output mean temp of area matches input area mean temp
 }}
 }
 \value{

@@ -6,11 +6,12 @@
 \usage{
 swdownscale(
   swrad,
-  tme,
+  tme = NA,
   dtmf,
   dtmc,
   patchsim = FALSE,
   nsim = dim(swrad)[3],
+  hor = NA,
   terrainshade = FALSE
 )
 }
@@ -30,6 +31,8 @@ patchiness during downscaling. More realistically captures variation, but slower
 
 \item{nsim}{optionally the number of independent cloud cover patchiness simulations to perform. Outputs
 are temporally interpolated (see details).}
+
+\item{hor}{optional 3D array or spatRaster of horizone angles}
 
 \item{terrainshade}{optional logical indicating whether to adjust incoming radiation
 for terrain shading. If TRUE, total downward shortwave radiation is partioned into its
@@ -59,7 +62,8 @@ simulating the trajectory of cloud as they move across the landscape.
 }
 \examples{
 climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
-swradf<-swdownscale(climdata$swrad, climdata$tme,  rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')), ukcpinput$dtm)
-plot_q_layers(swradf)
+sw<-swdownscale(climdata$swrad,dtmf=rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')), dtmc=climdata$dtm,terrainshade = TRUE)
+sw<-sw$swf
+panel(c(sw[[1]],sw[[5]],sw[[10]],sw[[20]]),main=paste0("SW down ",c(1,5,10,20),"/05/2018"))
 }
 \keyword{spatial}

@@ -20,14 +20,9 @@
 #' @keywords preprocess ukcp18
 #' @examples
 #'  \dontrun{
-#'  cedausr<-"your_user_name"
-#'  cedapwd <- "your_password"
-#'  startdate<-as.POSIXlt('2017/12/31')
-#'  enddate<-as.POSIXlt('2018/12/31')
-#'  member<-c('01')
-#'  dir_out<-tempdir()
-#'  download_ukcpsst(dir_out,startdate,enddate,member, cedausr,cedapwd)
-#'  sst<-create_ukcpsst_data(dir_out,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),member=member)
+#'  dir_sst<-system.file("extdata/sst", package = "mesoclim")
+#'  sst<-create_ukcpsst_data(dir_sst,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),dtmc=ukcpinput$dtm, member="01")
+#'  plot(c(sst,ukcpinput$dtm))
 #'  }
 create_ukcpsst_data<-function(
     dir_data,
@@ -41,7 +36,6 @@ create_ukcpsst_data<-function(
   member<-match.arg(member)
   if(!dir.exists(dir_data))(stop(paste("Directory",dir_data,"does not exist!!!")))
   if(class(startdate)[1]!="POSIXlt" | class(enddate)[1]!="POSIXlt") stop("Date parameters NOT POSIXlt class!!")
-
 
   # Derive months of data required - will output month before and after start and end dates for interpolation
   start<-startdate %m-% months(1)
@@ -60,13 +54,6 @@ create_ukcpsst_data<-function(
   not_present<-which(!file.exists(ncfiles))
   if (length(not_present)>0) stop(paste("Input .nc files required are NOT present: ",ncfiles[not_present]," ") )
 
-  # Get extent of aoi and project to same as ukcp data (lat lon)
-  #if(!class(aoi)=='logical'){
-  #  if(!class(aoi)[1] %in% c("SpatRaster","SpatVector","sf")) stop("Parameter aoi NOT of suitable spatial class ")
-  #  if(class(aoi)[1]=="sf") aoi<-vect(aoi)
-  #  target_crs<-terra::crs(rast(ncfiles[1]))
-  #  aoi_e<-ext( project(aoi,target_crs) )
-  #}
   # Get spatrast stack
   var_r<-terra::rast()
   for(f in ncfiles){
@@ -81,7 +68,11 @@ create_ukcpsst_data<-function(
   tme<-terra::time(var_r)
   var_r<-var_r[[which(terra::time(var_r) %within%  interval(start-month(1), end+month(1)) ) ]]
   names(var_r)<-terra::time(var_r)
-
+  # If no valid sea temperatures (eg all land area) return NA
+  if(all(is.na(values(var_r[[1]])))){
+    message("No valid sea cells found in area requested!!")
+    var_r<-NA
+  }
   return(var_r)
 }
 
@@ -417,7 +408,7 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
                                            'degC','degC','m/s','m/s'),
                               output_units=c('%','%','mm/day','kPa','watt/m^2','watt/m^2',
                                              'degC','degC','m/s','m/s'),
-                              temp_hgt=2, wind_hgt=2,
+                              temp_hgt=1.5, wind_hgt=10, # heights in UKCP data
                               toArrays=TRUE, sampleplot=FALSE){
   # Parameter check
   collection<-match.arg(collection)
@@ -446,16 +437,17 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
   not_present<-which(!file.exists(ncfiles))
   if (length(not_present)>0) stop(paste("File NOT present in ukcp directory: ",ncfiles[not_present]," ") )
 
-  # Get res, crs from sample nc raster as can vary between collections and domains - lat/lon or uk OS
+  # If dtm provided of different crs or resolution resample to that of UKCP data
   sample_ukcp18<-terra::rast(ncfiles[1], subds=strsplit(basename(ncfiles[1]),'_')[[1]][1])[[1]]
-  ukcp_crs<-terra::crs(sample_ukcp18)
-  ukcp_res<-terra::res(sample_ukcp18)
-  ukcp_e<-terra::ext(sample_ukcp18)
-
-  # Create coarse-resolution dtm to use as template for resampling - weighted !!!
-  dtmc<-terra::crop(.resample(dtm,sample_ukcp18),dtm)
+  if(collection=="land-rcm" & domain=="uk") crs(sample_ukcp18)<-"EPSG:27700"
+  if(!compareGeom(dtm,sample_ukcp18, crs=TRUE, ext=FALSE,rowcol=FALSE, res=TRUE, stopOnError=FALSE)){
+    dtmc<-terra::crop(.resample(dtm,sample_ukcp18),dtm)
+  } else dtmc<-dtm
   units(dtmc)<-'m'
   names(dtmc)<-'Elevation'
+
+  # Function to restrict to dates requested
+  filter_times<-function(x,startdate,enddate) x[[which(date(time(x)) >= startdate & date(time(x))  <= enddate)]]
 
   # Load spatrasters from ukcp.nc file, crop to dtmc, convert to normal calendar and add to output list
   clim_list<-list()
@@ -471,6 +463,7 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
 
       # Load and crop data in native crs then project to dtmc crs and recrop
       r <- terra::rast(ncfile, subds=v)
+      if(collection=="land-rcm" & domain=="uk") crs(r)<-"EPSG:27700"
       r<-terra::crop(r,dtmc)
 
       # If requested then convert to real calendar dates and fill missing dates
@@ -489,15 +482,17 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
       # Join if multiple decades of data
       terra::add(var_r)<-r
     }
+    # Filter times
+    var_r<-filter_times(var_r,startdate,enddate)
     # Check & convert units, check all rasters geoms are same
     if(ukcp_u!=out_u) var_r<-.change_rast_units(var_r, out_u)
     if(!terra::compareGeom(dtmc,var_r)) warning(paste(v,"Spatrast NOT comparable to DTM!!") )
     clim_list[[v]]<-var_r
   }
 
-  # Calculate derived variables: wind
+  # Calculate derived variables: wind - option to adjust height above ground
   windspeed<-sqrt(as.array(clim_list$uas)^2+as.array(clim_list$vas)^2)
-  windspeed<-.windhgt(windspeed,zi=10,zo=wind_hgt) # convert to 2m above ground
+  windspeed<-.windhgt(windspeed,zi=10,zo=wind_hgt)
   clim_list$windspeed<-.rast(windspeed,dtmc) # Wind speed (m/s)
   clim_list$winddir<-.rast(as.array((terra::atan2(clim_list$uas,clim_list$vas)*180/pi+180)%%360),dtmc) # Wind direction (deg from N - from)
   units(clim_list$windspeed)<-'m/s'
@@ -507,8 +502,11 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
   names(clim_list$windspeed)<-terra::time(clim_list$windspeed)
   names(clim_list$winddir)<-terra::time(clim_list$winddir)
 
-  # Calculate derived variables: longwave downward
-  tmean<-(clim_list$tasmax+clim_list$tasmin)/2
+  # Option to adjust temperature height above ground by lapse rate???
+
+  # Calculate derived variables: longwave downward from tmean (calculated from hourly estimate of temp)
+  tme<-as.POSIXlt(time(clim_list$tasmax),tz="UTC")
+  tmean<-.hourtoday(temp_dailytohourly(clim_list$tasmin, clim_list$tasmax, tme),mean) # required for relhum downscaling
   lwup<-terra::app(tmean, fun=.lwup)
   clim_list$lwdown<-clim_list$rls+lwup
 
@@ -519,20 +517,15 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
   clim_list<-clim_list[c("clt","hurs","pr","psl","lwdown","swdown","tasmax","tasmin", "windspeed","winddir")]
   names(clim_list)<-c('cloud','relhum','prec','pres','lwrad','swrad','tmax','tmin','windspeed','winddir')
 
-  # Restrict to dates requested
-  filter_times<-function(x,startdate,enddate) x[[which(time(x) >= startdate & time(x) <= enddate)]]
-  for(v in names(clim_list)) clim_list[[v]]<-filter_times(clim_list[[v]],startdate,enddate)
-
   ### Create output list
   output_list<-list()
   output_list$dtm<-dtmc
-  output_list$tme<-as.POSIXlt(time(clim_list$tmax),tz="UTC")
-  output_list$windheight_m<-10 # ukcp windspeed at 10 metres height
-  output_list$tempheight_m<-1.5 # ukcp air temp at 1.5 metres height
+  output_list$tme<-tme
+  output_list$windheight_m<-wind_hgt # output windspeed  height
+  output_list$tempheight_m<-1.5 # output air temp  height
 
   # Convert climate data to arrays if required
   if(toArrays) clim_list<-lapply(clim_list,as.array)
 
-  output_list<-c(output_list,clim_list)
-  return(output_list)
+  return(c(output_list,clim_list))
 }

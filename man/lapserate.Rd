@@ -2,20 +2,25 @@
 % Please edit documentation in R/climatefunctions.R
 \name{lapserate}
 \alias{lapserate}
-\title{Calculate Lapse rates}
+\title{Calculate Lapse rates via vapour pressure}
 \usage{
-lapserate(tc, ea, pk)
+lapserate(tc, rh = NA, pk = NA)
 }
 \arguments{
-\item{ea}{= vapour pressure (kPa)}
+\item{tc}{= temperature (deg C) as vector, array or spatraster}
 
-\item{pk}{= atmospheric pressure (kPa)}
+\item{pk}{= atmospheric pressure (kPa) as vector, array or spatraster}
+
+\item{ea}{= vapour pressure (kPa) as vector, array or spatraster}
 }
 \value{
-lapes rate
+lapse rates in same format as tc
 }
 \description{
-Calculate Lapse rates
+Calculate Lapse rates via vapour pressure
+}
+\details{
+Alternatively a value of 0.005 can be used if lacking pk or relhum data
 }
 \examples{
 climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))

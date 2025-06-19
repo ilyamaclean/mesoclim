@@ -11,13 +11,16 @@ spatialdownscale(
   dtmm = NA,
   basins = NA,
   wca = NA,
+  skyview = NA,
+  horizon = NA,
   cad = TRUE,
   coastal = TRUE,
   thgto = 2,
   whgto = 2,
+  include_tmean = FALSE,
   rhmin = 20,
   pksealevel = TRUE,
-  patchsim = TRUE,
+  patchsim = FALSE,
   terrainshade = TRUE,
   precipmethod = "Elev",
   fast = TRUE,
@@ -26,14 +29,14 @@ spatialdownscale(
 )
 }
 \arguments{
-\item{climdata}{a \code{climdata} model object containing climate data of the same format as \code{era5climdata}}
+\item{climdata}{a \code{climdata} model object containing climate data of the same format as \code{ukcp18toclimarray}}
 
 \item{sst}{a SpatRast of sea-surface temperature data (deg C) that overlaps with climdata$tme}
 
 \item{dtmf}{a high-resolution SpatRast of elevations}
 
 \item{dtmm}{a medium-resolution SpatRast of elevations covering a larger area
-than dtmf (only needed for coastal effects - see details under \code{\link[=tempdownscale]{tempdownscale()}}).}
+than dtmf (only needed for coastal effects - see details under \code{\link[=temphrly_downscale]{temphrly_downscale()}}).}
 
 \item{basins}{optionally, a fine-resolution SpatRast of basins as returned by \code{\link[=basindelin]{basindelin()}}
 matching the coordinate reference system and extent of \code{dtmf}. Calculated if
@@ -50,6 +53,8 @@ not supplied.}
 \item{thgto}{height above ground of temperature output.}
 
 \item{whgto}{height above ground of wind speed output.}
+
+\item{include_tmean}{if TRUE and daily data will output mean daily temperature based on hourly downsccaling}
 
 \item{rhmin}{minimum relative humidity (set to avoid relative humidity dropping too low
 during down-scaling). Default 20 (percent).}
@@ -85,7 +90,7 @@ a list of multi-layer SpatRast or 3D arrays of downscaled climate variables and 
 \item{tme}{POSIXlt object of times corresponding to climate observations}
 \item{windheight_m}{Height of windspeed data in metres above ground (as numeric)}
 \item{tempheight_m}{Height of temperature data in metres above ground (as numeric)}
-\item{temp}{Temperature (deg C) - is replaced with \code{tmax} and \code{tmin} if input data is daily.}
+\item{temp}{Temperature (deg C) - is replaced with \code{tmax} and \code{tmin} if input data is daily and \code{tmean} if \code{include_tmean}=TRUE.}
 \item{relhum}{Relative humidity (Percentage)}
 \item{pres}{Sea-level atmospheric pressure (kPa)}
 \item{swrad}{Total downward shortwave radiation (W/m^2)}
@@ -100,12 +105,11 @@ a list of multi-layer SpatRast or 3D arrays of downscaled climate variables and 
 Spatially downscales coarse-resolution climate data
 }
 \examples{
- dir_data<-system.file('extdata/ukcp18sst',package='mesoclim')
- sst<-create_ukcpsst_data(dir_data,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),members='01')
  dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
  dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
- climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
- dailymesodat<-spatialdownscale(climdata, sst, dtmf, dtmm, noraincut=0.01)
- plot_q_layers(dailymesodat$tmin)
+ climdata<-read_climdata(mesoclim::ukcpinput)
+ sst<-unwrap(mesoclim::ukcp18sst)
+ mesodat<-spatialdownscale(climdata, sst, dtmf, dtmm, include_tmean=TRUE,noraincut=0.01)
+ for(n in 5:length(mesodat)) plot(mesodat[[n]][[12]],main=paste(names(mesodat)[n],mesodat$tme[n]))
 }
 \keyword{spatial}

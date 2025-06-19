@@ -29,8 +29,10 @@ Calculates clear sky radiation
 }
 \examples{
 jd <- 2459752 #"2022-06-21" as julian day
+jd<-2459215 # 01/01/2021
 tme<-seq(0,23,1)
-csr<-clearskyrad(jd,tme,50,-2.5)
+csr<-clearskyrad(jd,tme,60,0)
 plot(csr ~ tme, type = "l", lwd = 2, xlab = expression(paste("Hour")), ylab = "Clearsky radiation")
+print(sum(csr))
 }
 \keyword{climate}

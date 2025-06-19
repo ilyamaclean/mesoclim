@@ -7,7 +7,7 @@
 coastalexposure(landsea, e, wdir)
 }
 \arguments{
-\item{landsea}{A SpatRast with NAs (representing sea) or any non-NA value (representing land).
+\item{landsea}{A SpatRast with NAs (representing sea) and any non-NA value (representing land).
 The object should have a larger extent than that for which land-sea ratio values are needed,
 as the calculation requires land / sea coverage to be assessed upwind outside the target area.}
 

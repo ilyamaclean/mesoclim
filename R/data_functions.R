@@ -1,3 +1,101 @@
+#' @title Plot timeseries plots of spatial mean, min and max values by various timesteps
+#'
+#' @param r stack of spatrasters with time values
+#' @param var variable name used in plot titles
+#' @param idx time index indicating whether summary plots by year, month, week, day of year etc
+#' @param lgd whether to include legend
+#'
+#' @return NA plots series of timeploat
+#' @export
+#' @import magrittr
+#' @importFrom graphics legend matplot
+#' @keywords graph
+plot_timestats_r<-function(r,v,idx=c('years', 'months', 'week',  'doy', 'yearmonths', 'yearweeks', '7days','hour'),lgd=FALSE){
+  if(idx=='hour'){
+    time_mean<- global(r,"mean", na.rm=TRUE)
+    time_max<-global(r, "max", na.rm=TRUE)
+    time_min<-global(r, "min", na.rm=TRUE)
+    plot_df<-as.data.frame(cbind(tstep=terra::time(r),mean=time_mean$mean,max=time_max$max,min=time_min$min))
+    plot_df<-plot_df[order(plot_df$tstep),]
+  } else{
+    time_mean<-tapp(r,index=idx,fun=mean) %>% global("mean", na.rm=TRUE)
+    time_max<-tapp(r,index=idx,fun=max) %>% global("max", na.rm=TRUE)
+    time_min<-tapp(r,index=idx,fun=min) %>% global("min", na.rm=TRUE)
+    plot_df<-as.data.frame(cbind(tstep=as.numeric(sapply(strsplit(rownames(time_mean),'_'),tail,1)),mean=time_mean$mean,max=time_max$max,min=time_min$min))
+    plot_df<-plot_df[order(plot_df$tstep),]
+  }
+  matplot(as_datetime(plot_df$tstep), plot_df[,2:4], type = "l", lty = 1,
+          col = c("green", "red", "blue"), xlab = idx, ylab = v, font.main = 1,
+          tck = 0.02, cex.main=1, cex.axis=0.7, main = paste(v,'by',idx), cex.main=1)
+  if(lgd==TRUE) legend("topright", legend = c("Mean", "Max", "Min"), cex=0.5,
+                       col = c("green", "red", "blue"),
+                       lty = 1)
+}
+
+#' @title direction to cardinal label
+#' @noRd
+.dir_to_cardinal <- function(x) {
+  upper <- seq(from = 11.25, by = 22.5, length.out = 17)
+  cardinals <- c('N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW', 'N')
+  ifelse(x>360 | x<0,NA,cardinals[findInterval(x,upper,rightmost.closed = T)+1])
+}
+
+#' @title Plot star or radar chart of wind cardinal directions
+#' @param winddir wind direction 3D Spatraster
+#' @param windspeed windspeed 3D Spatraster of same geometry as `winddir`
+#' @return plots star charts showing frequency of wind directions and of
+#' average and maximum windspeeds by direction
+#' @export
+#' @import fmsb
+#' @importFrom graphics legend par
+#' @keywords graph
+#' @examples
+#' wdir<-c(357,5,20,45,100,185,265,275,290)
+#' wspeed<-seq(3,27,3)
+#' plot_wind(wdir,wspeed)
+plot_wind<-function(winddir,windspeed){
+  # Classify by cardinal group
+  dgrp<- .dir_to_cardinal(c(winddir))
+  dgrp_mean<-tapply(c(windspeed),dgrp,mean)
+  dgrp_max<-tapply(c(windspeed),dgrp,max)
+  dgrp_freq<-as.array(table(dgrp))
+
+  # Mean/Max windspeed plot by dir
+  cardorder<- c('N', 'NNW', 'NW', 'WNW', 'W', 'WSW', 'SW', 'SSW', 'S', 'SSE', 'SE', 'ESE', 'E', 'ENE', 'NE', 'NNE')
+  df<-as.data.frame(matrix(0, 4, 16) )
+  names(df)<-cardorder
+  rownames(df)<-c('Max','Min','Mean windspeed','Max windspeed')
+  df[1,]<-rep(max(dgrp_max),length(cardorder)) # max speed across  all directions
+  df[2,]<-rep(0,length(cardorder)) # min speed across all dir
+  df[3,names(dgrp_mean)]<-dgrp_mean
+  df[4,names(dgrp_max)]<-dgrp_max
+
+  par(mar=c(1,1,1,1))
+  par(mfrow=c(1,2))
+  fmsb::radarchart(df, title='Mean and max windspeeds', cex=0.75)
+  legend(
+    x = "bottomleft", legend = c('Mean','Maximum'), horiz = TRUE,
+    bty = "n", pch = 20 , col = c("black", "red"),
+    text.col = "black", cex = 1, pt.cex = 1
+  )
+
+  # Freq plot by dir
+  df<-as.data.frame(matrix(0, 3, 16) )
+  names(df)<-cardorder
+  rownames(df)<-c('Max','Min','Frequency')
+  df[1,]<-rep(max(dgrp_freq),length(cardorder)) # max speed across  all directions
+  df[2,]<-rep(0,length(cardorder)) # min speed across all dir
+  df[3,names(dgrp_freq)]<-dgrp_freq
+
+  fmsb::radarchart(df, title='Wind direction frequency',pcol=c('green'), cex=0.75)
+
+  legend(
+    x = "bottomleft", legend = c('Frequency'), horiz = TRUE,
+    bty = "n", pch = 20 , col = c("green"),
+    text.col = "black", cex = 1, pt.cex = 1
+  )
+}
+
 #' @title Check and summarise coarse resolution climate data inputs
 #' @param input_list list of climate and associated variables as output by functions like 'ukcp18toclimarray'
 #' @param tstep string decribing whether input data is by hour or day
@@ -13,7 +111,7 @@
 #' @examples
 #' climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 #' chk_climdata<- checkinputs(climdata, tstep = "day")
-checkinputs <- function(input_list, tstep = c("hour","day")){
+checkinputs <- function(input_list, tstep = c("hour","day"),plots=TRUE){
   tstep<-match.arg(tstep)
 
   check.names<-function(nms,char) {
@@ -129,9 +227,12 @@ checkinputs <- function(input_list, tstep = c("hour","day")){
   data_months<-round(time_length(int, "months"),2)
   data_yrs<-round(time_length(int, "years"),2)
   print(paste('Weather observations =',length(input_list$tme)))
-  print(paste('Timesteps=',mean(obs_int)/3600, 'hrs, max=',max(obs_int)/3600,'hrs, min=', min(obs_int)/3600,'hrs'))
-  print(paste('Observations over',data_yrs,'years, or',data_months,'months, or',data_days,'days.'))
-
+  min_timestep<-min(obs_int)/3600
+  max_timestep<-max(obs_int)/3600
+  if(min_timestep==max_timestep) print(paste('Timesteps=',min_timestep,'hours for whole timeseries.')) else warning(paste("Different timesteps varying from",min_teimstep,"to",max_timestep,"- CHECK DATA !!!"))
+  print(paste('Observations from',input_list$tme[1], 'to',input_list$tme[length(input_list$tme)]))
+  print(paste('Temperature values are at',input_list$tempheight_m,'metres above ground level.'))
+  print(paste('Wind speeds are at',input_list$windheight_m,'metres above ground level.'))
   # Check other variables
   if (tstep == "hour") {
     if(length(input_list$tme)%%24 != 0) stop ("Hourly weather data needs to include data for entire days (24 hours)")
@@ -146,47 +247,48 @@ checkinputs <- function(input_list, tstep = c("hour","day")){
   print(stats_df)
 
   # Plot spatial variation by different time steps using min, max, mean
-  if(tstep=='day') vars<-c('relhum','pres','prec','lwrad','swrad','tmax','tmin','windspeed','winddir')
-  if(tstep=='hour') vars<-c('relhum','pres','prec','lwrad','swrad','temp','windspeed','winddir')
-  if('cloud' %in% nms) vars<-c('cloud',vars)
-  if(data_yrs>=6) {
-    print('Plotting spatial variation by year: red=max, green=mean, blue=min')
-    ncol<-floor(sqrt(length(vars)))
-    if(length(vars)%%ncol!=0) nrow<-ncol+1 else nrow<-ncol
-    par(mar=c(1,1,1,1))
-    par(mfrow=c(nrow,ncol))
-    for(v in vars){
-      r<-.rast(input_list[[v]],input_list$dtm)
-      terra::time(r)<-input_list$tme
-      plot_timestats_r(r,v,idx='years')
-    }  }
-  if(data_months>=6) {
-    print('Plotting spatial variation by month: red=max, green=mean, blue=min')
-    ncol<-floor(sqrt(length(vars)))
-    if(length(vars)%%ncol!=0) nrow<-ncol+1 else nrow<-ncol
-    par(mar=c(1,1,1,1))
-    par(mfrow=c(nrow,ncol))
-    for(v in vars){
-      r<-.rast(input_list[[v]],input_list$dtm)
-      terra::time(r)<-input_list$tme
-      plot_timestats_r(r,v,idx='months')
-    }  }
-  if(data_months<6) {
-    print('Plotting spatial variation by day of year: red=max, green=mean, blue=min')
-    ncol<-floor(sqrt(length(vars)))
-    if(length(vars)%%ncol!=0) nrow<-ncol+1 else nrow<-ncol
-    par(mar=c(1,1,1,1))
-    par(mfrow=c(nrow,ncol))
-    for(v in vars){
-      r<-.rast(input_list[[v]],input_list$dtm)
-      terra::time(r)<-input_list$tme
-      plot_timestats_r(r,v,idx='doy')
-    }  }
+  if(plots){
+    if(tstep=='day') vars<-c('relhum','pres','prec','lwrad','swrad','tmax','tmin','windspeed','winddir')
+    if(tstep=='hour') vars<-c('relhum','pres','prec','lwrad','swrad','temp','windspeed','winddir')
+    if('cloud' %in% nms) vars<-c('cloud',vars)
+    if(data_yrs>=6) {
+      print('Plotting spatial variation by year: red=max, green=mean, blue=min')
+      ncol<-floor(sqrt(length(vars)))
+      if(length(vars)%%ncol!=0) nrow<-ncol+1 else nrow<-ncol
+      par(mar=c(1,1,1,1))
+      par(mfrow=c(nrow,ncol))
+      for(v in vars){
+        r<-.rast(input_list[[v]],input_list$dtm)
+        terra::time(r)<-input_list$tme
+        plot_timestats_r(r,v,idx='years')
+      }  }
+    if(data_months>=6) {
+      print('Plotting spatial variation by month: red=max, green=mean, blue=min')
+      ncol<-floor(sqrt(length(vars)))
+      if(length(vars)%%ncol!=0) nrow<-ncol+1 else nrow<-ncol
+      par(mar=c(1,1,1,1))
+      par(mfrow=c(nrow,ncol))
+      for(v in vars){
+        r<-.rast(input_list[[v]],input_list$dtm)
+        terra::time(r)<-input_list$tme
+        plot_timestats_r(r,v,idx='months')
+      }  }
+    if(data_months<6) {
+      print('Plotting spatial variation by day of year: red=max, green=mean, blue=min')
+      ncol<-floor(sqrt(length(vars)))
+      if(length(vars)%%ncol!=0) nrow<-ncol+1 else nrow<-ncol
+      par(mar=c(1,1,1,1))
+      par(mfrow=c(nrow,ncol))
+      for(v in vars){
+        r<-.rast(input_list[[v]],input_list$dtm)
+        terra::time(r)<-input_list$tme
+        plot_timestats_r(r,v,idx='doy')
+      }  }
 
-  # Plot wind direction
-  print('Plotting wind direction figures')
-  plot_wind(input_list$winddir,input_list$windspeed)
-
+    # Plot wind direction
+    print('Plotting wind direction figures')
+    plot_wind(input_list$winddir,input_list$windspeed)
+  }
   return(input_list)
 }
 
@@ -195,15 +297,16 @@ checkinputs <- function(input_list, tstep = c("hour","day")){
 #' Reads a climate dataset as output by for example `ukcp18toclimdata()` and written by `write_climdata()`
 #' Unwraps any PackedSpatRasters to Spatrasters
 #' @param filepath - either a pre-loaded list or filepath to a list of prepared climate data as written by `write_climdata()`
-#'
+#' @param toSpatRast - if TRUE converts all arrays to spatrasters with time dimension from tme
 #' @return R list of climate data
 #' @export
 #' @keywords preprocess data
 #' @examples
 #' climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 #' climdata<-read_climdata(ukcpinput)
-read_climdata<-function(filepath){
+read_climdata<-function(filepath,toSpatRast=TRUE){
   if(class(filepath)=="list") climdata<-lapply(filepath,function(x) if(class(x)[1]=='PackedSpatRaster') terra::unwrap(x) else x)
+
   if(class(filepath)=="character"){
     if(file.exists(filepath)!=TRUE) stop('Filepath provided does NOT exist!!')
     typ<-substr(filepath,(nchar(filepath)-3),nchar(filepath))
@@ -213,8 +316,15 @@ read_climdata<-function(filepath){
       varname<-substr(filename,1,nchar(filename)-4)
       climdata<-mget(varname)[[1]]
     }  else climdata<-readRDS(filepath)
+    # Unwrap
     climdata<-lapply(climdata,function(x) if(class(x)[1]=='PackedSpatRaster') terra::unwrap(x) else x)
   }
+  if(toSpatRast){
+    climdata<-lapply( climdata,function(x) if(inherits(x,'array')) .rast(x,climdata$dtm) else x )
+    sel<-which(unlist(lapply(climdata,function(x) inherits(x,"SpatRaster"))))
+    for(n in sel) if(nlyr(climdata[[n]])>1) terra::time(climdata[[n]])<-climdata$tme
+  }
+
   return(climdata)
 }
 
@@ -242,4 +352,36 @@ write_climdata<-function(climdata,filepath,overwrite=FALSE){
   return()
 }
 
-
+subset_climdata<-function (climdata, sdatetime, edatetime) {
+  if (class(climdata)[1] == "SpatRaster") {
+    if (all(any(!is.na(values(climdata))))) {
+      sel <- which(time(climdata) >= sdatetime %m-% months(1) &
+                     time(climdata) <= edatetime %m+% months(1))
+      sel <- ifelse(sel < 1, 1, sel)
+      sel <- ifelse(sel > nlyr(climdata), nlyr(climdata),
+                    sel)
+      newdata <- subset(climdata, sel)
+    }
+    else {
+      newdata <- NA
+    }
+  }
+  if (class(climdata)[1] == "list") {
+    sel <- which(climdata$tme >= sdatetime & climdata$tme <=
+                   edatetime)
+    newdata <- list()
+    newdata$dtm <- climdata$dtm
+    newdata$tme <- climdata$tme[sel]
+    newdata$windheight_m <- climdata$windheight_m
+    newdata$tempheight_m <- climdata$tempheight_m
+    vars <- names(climdata)[which(!names(climdata) %in% c("dtm",
+                                                          "tme", "windheight_m", "tempheight_m"))]
+    for (v in vars) {
+      if (class(climdata[[v]])[1] == "SpatRaster")
+        newdata[[v]] <- subset(climdata[[v]], sel)
+      if (class(climdata[[v]])[1] == "array")
+        newdata[[v]] <- climdata[[v]][, , sel]
+    }
+  }
+  return(newdata)
+}

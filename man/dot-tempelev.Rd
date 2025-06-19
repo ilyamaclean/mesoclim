@@ -4,7 +4,7 @@
 \alias{.tempelev}
 \title{Downscales temperature for elevation effects}
 \usage{
-.tempelev(tc, dtmf, dtmc = NA, rh = NA, pk = NA)
+.tempelev(tc, lrf, lrc, dtmf, dtmc = NA)
 }
 \description{
 Downscales temperature for elevation effects

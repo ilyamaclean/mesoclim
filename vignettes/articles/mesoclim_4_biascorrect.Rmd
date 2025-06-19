@@ -1,0 +1,164 @@
+---
+title: "Bias Correction"
+output:
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+    toc_depth: 3
+---
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup, include=FALSE}
+#library(mesoclim)
+devtools::load_all(quiet=TRUE)
+```
+
+# Introduction
+
+Bias correction compares modeled historic data with observational data for the same period to either directly correct modelled data or provide bias-correction models for correction of modelled data. This requires comparable  stacks of observed and modeled data for the same historic period and geographical area. 
+
+Once bias-correction models have been calculated by comparison of modelled and observed data for the same historic period, these models can then be applied to correct UKCP modelled data for the same geographical area but modelling future time periods.
+
+
+# Historic UKCP model data at 12km
+
+Firstly direct comparison of ukcp18rcm 12km data for 2018 and HadUK  gridded data from weather station observations. Grid is identical for these two sources of data. Haduk 12km data is only available for the same land/sea mask as UKCP18rcm. 
+
+Many of the 'sea' cells not covered by HadUK 12km also contain land cells.
+
+A landsea mask derived from Terrain 50m was caluclated for the UKCP18 12km grid to provide a proportion of land in each cell.
+
+Derived climate data from 1km HadUK - aggregate to 12km grid - compare with existing 12km 
+
+
+```{r cf_obs_ukcp_12km}
+yr<-2018
+modeldata<-read_climdata(mesoclim::ukcpinput)
+dtmc<-modeldata$dtm
+
+# Proportion of land/sea in ukcp 1km and 12km grid - proportion derived from Terrain 50m resolution dtm
+lsm12km.r<-crop(terra::rast(system.file('extdata/biascorrect/uk_seamask_12km.tif',package='mesoclim')),dtmc)
+#lsm1km.r<-crop(terra::rast(system.file('extdata/biascorrect/uk_seamask_1km.tif',package='mesoclim')),dtmc)
+
+plot(lsm12km.r,main='12km land/sea')
+#plot(lsm1km.r,main='1km land/sea')
+
+```
+
+## Observational historic data at 12km
+
+To illustrate the use of bias correction we consider only a few of the UKCP variables. 
+
+For observed data we make use of the HadUK historic 1km gridded data covering the same time period (May 2018). These datasets, derived from weather station records, provide observational data for daily maximum and minimum temperatures and daily rainfall.
+
+Among the likely sources of observational data for other variables, observational is ERA reanalysis data that provides hourly data that that can be used to compare with all UKCP variables.
+
+```{r get-obsdata}
+# Get 1km HadUK daily data 
+tmin1km<-rast(system.file("extdata/haduk/tasmin1km.tif",package="mesoclim"))
+tmax1km<-rast(system.file("extdata/haduk/tasmax1km.tif",package="mesoclim"))
+rain1km<-rast(system.file("extdata/haduk/rainfall1km.tif",package="mesoclim"))
+
+# Aggregate to all 12km UKCP grid cells that contain land cells 
+tmin1km<-crop(extend(tmin1km,ext(lsm12km.r)),ext(lsm12km.r))
+tmin12km<-terra::aggregate(tmin1km,12,fun="mean",na.rm=TRUE)
+tmin12km<-mask( .spatinterp(tmin12km),lsm12km.r, maskvalue=0 )
+
+tmax1km<-crop(extend(tmax1km,ext(lsm12km.r)),ext(lsm12km.r))
+tmax12km<-terra::aggregate(tmax1km,12,fun="mean",na.rm=TRUE)
+tmax12km<-mask( .spatinterp(tmax12km),lsm12km.r, maskvalue=0 )
+
+rain1km<-crop(extend(rain1km,ext(lsm12km.r)),ext(lsm12km.r))
+rain12km<-terra::aggregate(rain1km,12,fun="mean",na.rm=TRUE)
+rain12km<-mask( .spatinterp(rain12km),lsm12km.r, maskvalue=0 )
+
+plot(c(tmin12km[[1]],tmax12km[[1]],rain12km[[1]]),main=paste(c('Tmin','Tmax','Rain'),'1 May 2018'))
+
+# Create list of observational data
+obsdata<-list()
+obsdata$prec<-rain12km
+obsdata$tmax<-tmax12km
+obsdata$tmin<-tmin12km
+```
+
+
+## Calculation of bias correction models
+
+Bias correction models can be calculated from the comparison of observational and model data - these can then be applied to other model datasets (such as modelled future conditions) for the same area.
+
+```{r calc_bc_models}
+# Define area that can be corrected - all UKCP cells that possess land cells from Terrain50 (lsmask12km.r)
+msk<-ifel(lsm12km.r==0,NA,lsm12km.r)
+
+# Check same names and layers (times) found in observational and model data
+vars<-c("tmax","tmin","prec")
+vars %in% names(obsdata)
+vars %in% names(modeldata)
+days<-nlyr(obsdata$tmax)
+days==nlyr(modeldata$tmax)
+
+# Calculate models
+model_list<-list()
+for (v in vars) {
+  print(v)
+  if(v!="prec") model_list[[v]]<-biascorrect(mask(obsdata[[v]],msk), hist_mod=mask(modeldata[[v]],msk), fut_mod = NA,mod_out = TRUE, rangelims = NA, samplenum=days) else model_list[[v]]<-precipcorrect(mask(obsdata[[v]],msk), hist_mod=mask(modeldata[[v]],msk), mod_out = TRUE)
+}
+
+```
+
+
+## Explore bias correction models
+
+Application to historic data
+
+Effect of rangelims -  fractional amount above or below the range of values in observed data by which values in a corrected dataset can vary. For example, if set to 1.1, values in any given grid cell of the corrected dataset cannot exceed 1.1 times the range of values in the corresponding grid cell in the observed data.
+
+Bias correction models for precipitation contain SpatRasters representing the amount by which to adjust rainfall totals and rainfall days, which are used as a basis for adjusting individual rainfall events.
+
+```{r explore_bcmodels}
+plot(unwrap(model_list$prec$mu_tot),main='Total rainfall')
+plot(unwrap(model_list$prec$mu_frac ),main='Proportion of rainy days')
+
+```
+
+## Apply bias correction models to future UKCP model data
+
+Applying bias correction to future data 
+
+Will only be applied to grid cells from which the bias correction models were calculated. SpatRaster output may therefore be cropped when model climate inputs  exceeds the extent over which bias correction
+models were developed.
+
+```{r future_data}
+futuredata<-read_climdata(mesoclim::ukcpfuture)
+msk<-ifel(lsm12km.r==0,NA,lsm12km.r)
+
+bcdata<-list()
+for (v in c("tmax","tmin")) {
+  bcdata[[v]]<-biascorrect_apply(fut_mod=mask(futuredata[[v]],msk), biasmods=model_list[[v]], rangelims = NA)
+
+  dif<-mask(futuredata[[v]],msk)-bcdata[[v]]
+  stats<-c(app(dif,mean),app(dif,sd),(app(mask(futuredata[[v]],msk),max)-app(mask(futuredata[[v]],msk),min))-(app(bcdata[[v]],max)-app(bcdata[[v]],min)),mean(bcdata[[v]]))
+  names(stats)<-c("Mean obs-bc_model","sd obs-bc_model","obs range - bc_model range","Mean bc")
+  plot(stats)
+}
+
+# Apply bc model to precipitation - bit more exploration - decide on prec_threhold =0.01
+v<-"prec"
+bcdata[[v]]<-precipcorrect_apply(fut_mod=mask(futuredata[[v]],msk), biasmods=model_list[[v]])
+dif<-mask(futuredata[[v]],msk)-bcdata[[v]]
+stats<-c(app(dif,mean),app(dif,sd),(app(mask(futuredata[[v]],msk),max)-app(mask(futuredata[[v]],msk),min))-(app(bcdata[[v]],max)-app(bcdata[[v]],min)),mean(bcdata[[v]]))
+names(stats)<-c("Mean obs-bc_model","sd obs-bc_model","obs range - bc_model range","Mean bc")
+plot(stats)
+
+```
+
+
+
+

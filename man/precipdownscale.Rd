@@ -68,11 +68,9 @@ events within each hour retain a degree of inter-dependence more realistically
 simulating the trajectory of low pressure systems.
 }
 \examples{
-\dontrun{
-climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
 dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+climdata<-read_climdata(mesoclim::ukcpinput)
 prcf<-precipdownscale(climdata$prec, dtmf, climdata$dtm, method="Elev", noraincut=0.01)
-terra::plot(prcf[[1]])
-}
+panel(c(prcf[[1]],prcf[[5]],prcf[[12]],prcf[[26]]),main=paste0("Precipitation (mm) ",c(1,5,12,26),"/05/2018"))
 }
 \keyword{spatial}

@@ -4,7 +4,7 @@
 \alias{pres_dailytohourly}
 \title{Daily to hourly atmospheric pressure}
 \usage{
-pres_dailytohourly(pres, tme, adjust = TRUE)
+pres_dailytohourly(pres, tme = NA, adjust = TRUE)
 }
 \arguments{
 \item{pres}{\itemize{
@@ -34,8 +34,23 @@ conversion to millbars is mb = 10 kPa. The conversion to sea-level pressure (Psl
 derived by reversing the equation Psl = pres*((293-0.0065z)/293)**5.26
 }
 \examples{
-climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
-presh<-pres_dailytohourly(climdata$pres,climdata$tme)
-plot_q_layers(terra::rast(presh,crs=terra::crs(climdata$dtm),extent=terra::ext(climdata$dtm))
+# ========================================================================= #
+# ~~~~~~~~~~~~~~~~~~~~ input provided as vector =========================== #
+# ========================================================================= #
+# Derive daily tmx and tmn from hourly era5 data
+pres <- c(99,96,94,92,100)
+tme <- as.POSIXlt(c(0:4) * 3600 * 24, origin = "2018-05-01", tz = "UTC")
+hrpres <- pres_dailytohourly(pres,tme)
+hr_tme<-as.POSIXlt(unlist(lapply(tme,FUN=function(x) x+(60*60*c(0:23)) )))
+# Plot results to compare
+matplot(x=as.numeric(hr_tme),y=hrpres, type = "l", lty = 1)
+# ========================================================================= #
+# ~~~~~~~~~~~~~~~~~~~~ input provided as SpatRaster ======================= #
+# ========================================================================= #
+climdaily<- read_climdata(mesoclim::ukcpinput)
+hrpres<-pres_dailytohourly(climdaily$pres)
+# Plot results for one cell
+cell_pres<-t(extract(hrpres,matrix(c(175000,40000),ncol=2)))
+matplot(as_datetime(time(cell_pres)),cell_pres, type = "l", lty = 1)
 }
 \keyword{temporal}

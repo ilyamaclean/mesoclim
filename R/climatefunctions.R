@@ -7,6 +7,10 @@
 #' @return wca2 - array of wind coeeficients for each of 8 wind directions
 #' @export
 calculate_windcoeffs<-function(dtmc,dtmm,dtmf,zo){
+  if(all(res(dtmm)==res(dtmf))){
+    dtmm_res<-round(exp( ( log(terra::res(dtmc)[1]) + log(terra::res(dtmf)[1]) ) / 2 ))
+    dtmm<-terra::aggregate(dtmm,dtmm_res / res(dtmf),  na.rm=TRUE)
+  }
   # Calculate terrain adjustment coefs in each of 8 directions for output wind height zo
   wca<-array(NA,dim=c(dim(dtmf)[1:2],8))
   for (i in 0:7) wca[,,i+1]<-.is(windelev(dtmf,dtmm,dtmc,i*45,zo))
@@ -157,7 +161,7 @@ windelev <- function(dtmf, dtmm, dtmc, wdir, uz = 2) {
 #' @description The function `coastalexposure` is used to calculate an inverse
 #' distance^2 weighted ratio of land to sea in a specified upwind direction.
 #'
-#' @param landsea A SpatRast with NAs (representing sea) or any non-NA value (representing land).
+#' @param landsea A SpatRast with NAs (representing sea) and any non-NA value (representing land).
 #' The object should have a larger extent than that for which land-sea ratio values are needed,
 #' as the calculation requires land / sea coverage to be assessed upwind outside the target area.
 #' @param e a terra::ext object indicating the region for which land-sea ratios are required.
@@ -193,7 +197,7 @@ coastalexposure <- function(landsea, e, wdir) {
   s<-c(0,(8:1000)/8)^2*reso
   s<-s[s<=maxdist]
   if (e2 != e) {
-    lss<-crop(slr,e,snap='out')
+    lss<-crop(slr,e)
   } else lss<-slr
   lsm<-.is(lss)
   es<-ext(slr)
@@ -426,9 +430,11 @@ converthumidity <- function (h, intype = "relative", outtype = "vapour pressure"
 #' @keywords climate
 #' @examples
 #' jd <- 2459752 #"2022-06-21" as julian day
+#' jd<-2459215 # 01/01/2021
 #' tme<-seq(0,23,1)
-#' csr<-clearskyrad(jd,tme,50,-2.5)
+#' csr<-clearskyrad(jd,tme,60,0)
 #' plot(csr ~ tme, type = "l", lwd = 2, xlab = expression(paste("Hour")), ylab = "Clearsky radiation")
+#' print(sum(csr))
 clearskyrad <- function(jd, lt, lat, long, tc = 15, rh = 80, pk = 101.3) {
   sa<-.solalt(lt,lat,long,jd)*pi/180
   m<-35*sin(sa)*((1224*sin(sa)^2+1)^(-0.5))
@@ -473,11 +479,12 @@ daylength <- function(julian, lat) {
   dl[sel] <- 0
   return(dl)
 }
-#' @title Calculate Lapse rates
-#' @param ea = temperature (deg C)
-#' @param ea = vapour pressure (kPa)
-#' @param pk = atmospheric pressure (kPa)
-#' @returns lapes rate
+#' @title Calculate Lapse rates via vapour pressure
+#' @param tc = temperature (deg C) as vector, array or spatraster
+#' @param ea = vapour pressure (kPa) as vector, array or spatraster
+#' @param pk = atmospheric pressure (kPa) as vector, array or spatraster
+#' @returns lapse rates in same format as tc
+#' @details Alternatively a value of 0.005 can be used if lacking pk or relhum data
 #' @export
 #' @keywords climate spatial
 #' @examples
@@ -485,10 +492,107 @@ daylength <- function(julian, lat) {
 #' ea<-converthumidity(climdata$relhum,tc=climdata$temp , pk=climdata$pres)
 #' lr<-lapserate(climdata$temp,ea,climdata$pres)
 #' terra::plot(mesoclim:::.rast(lr,climdata$dtm)[[1]])
-lapserate <- function(tc, ea, pk) {
+lapserate <- function(tc, rh=NA, pk=NA) {
+  if(class(tc)[1]=="Spatraster"){
+    asArrays<-FALSE
+    r<-tc[[1]]
+    tc<-.is(tc)
+    rh<-.is(rh)
+    pk<-.is(pk)
+  } else asArrays<-TRUE
+  ea<-.satvap(tc)*(rh/100)
   rv<-0.622*ea/(pk-ea)
   lr<-9.8076*(1+(2501000*rv)/(287*(tc+273.15)))/
     (1003.5+(0.622*2501000^2*rv)/(287*(tc+273.15)^2))
+  if(!asArrays) lr<-.rast(lr,r)
   lr
 }
+
+#' Convert sea to atmospheric pressure
+#'
+#' @param psl - numeric or spatraster sea level pressure
+#' @param dtm - numeric or spatraster elevation
+#'
+#' @return numeric or spatraster of sea level pressures matching dtm
+#' @export
+#'
+#' @examples
+#'
+sea_to_atmos_pressure<-function(psl,dtm){
+  if(inherits(psl,"SpatRaster")){
+    toArrays<-FALSE
+    tem<-psl[[1]]
+  } else toArrays<-TRUE
+  psl<-.is(psl)
+  dtm<-.is(dtm)
+  dtm<-ifelse(is.na(dtm),0,dtm)
+  if(inherits(psl,"numeric")) arraylength<-length(psl) else arraylength<-dim(psl)[3]
+  pres<-psl * (((293-0.0065*.mta(dtm,arraylength))/293)^5.26)
+  if(!toArrays) pres<-.rast(pres,tem)
+  if(inherits(psl,"numeric")) pres<-as.vector(pres)
+  return(pres)
+}
+
+#' Convert atmospheric to sea level pressure
+#'
+#' @param pres - vector or 3Darray or spatraster of atmospheric pressure - if array expects format[x,y,time]
+#' @param dtm - vector or matrix or spatraster of elevations - if matrix or spatraster expected to match pres
+#'
+#' @return numeric or spatraster of atmospheric pressures matching dtm
+#' @export
+#'
+#' @examples
+#' atmos_to_sea_pressure(ukcpinput$pres,ukcpinput$dtm)
+atmos_to_sea_pressure<-function(pres,dtm){
+  if(inherits(pres,"SpatRaster")){
+    toArrays<-FALSE
+    tem<-pres[[1]]
+  } else toArrays<-TRUE
+  pres<-.is(pres)
+  dtm<-.is(dtm)
+  dtm<-ifelse(is.na(dtm),0,dtm)
+  if(inherits(pres,"numeric")) arraylength<-length(pres) else arraylength<-dim(pres)[3]
+  psl<-pres / (((293-0.0065*.mta(dtm,arraylength))/293)^5.26)
+  if(!toArrays) psl<-.rast(psl,tem)
+  if(inherits(pres,"numeric")) psl<-as.vector(psl)
+  return(psl)
+}
+
+#' Calculate horizon for different solar azimuths and total skyview
+#' @details Skyview places equal importance on each sector of sky
+#' @param dtmf
+#' @param sv_steps
+#' @param hor_steps
+#' @param toArrays
+#'
+#' @return list (length=2) of `skyview` and `horizon` arrays or SpatRasters
+#' @export
+#'
+#' @examples
+#' results<-calculate_terrain_shading(dtmf)
+#' plot(results$skyview)
+#' plot(results$horizon[[c(1,6,12,18)]])
+calculate_terrain_shading<-function(dtm,steps=24,toArrays=FALSE){
+  r<-dtm
+  dtm<-ifel(is.na(dtm),0,dtm)
+  # Calculate horizon angle lookup
+  hor<-array(NA,dim=c(dim(dtm)[1:2],steps))
+  sv<- array(0, dim(dtm)[1:2])
+  for (i in 1:steps){
+    hor[,,i]<-.horizon(dtm,(i-1)*(360/steps))
+    sv<-sv+atan(hor[,,i])
+  }
+  sv<-sv/steps
+  sv<-tan(sv)
+  sv<-0.5*cos(2*sv)+0.5
+
+  if(!toArrays){
+    sv<-.rast(sv,dtm)
+    sv<-mask(sv,r)
+    hor<-.rast(hor,dtm)
+    hor<-mask(hor,r)
+  }
+  return(list(skyview=sv,horizon=hor))
+}
+
 

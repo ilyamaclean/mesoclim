@@ -11,7 +11,7 @@ hum_dailytohourly(
   temph,
   psl,
   presh,
-  tme,
+  tme = NA,
   relmin = 2,
   adjust = TRUE
 )
@@ -34,7 +34,7 @@ hum_dailytohourly(
 }}
 
 \item{psl}{\itemize{
-\item an array of daily surface-level pressure values(kPa)
+\item an array of daily sea-level pressure values(kPa)
 }}
 
 \item{presh}{\itemize{
@@ -69,17 +69,31 @@ the data are back-converted to relative humidity, using temph and presh.
 Derives an array of hourly relative humidity values from daily values.
 }
 \examples{
-\dontrun{
-climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
-# Get hourly variables required for rel hum downscaling
-dtmc<-climdata$dtm
-temph<-as.array(hourlytemp(mesoclim:::.rast(climdata$tmin,dtmc), mesoclim:::.rast(climdata$tmax,dtmc), climdata$tme, 50, -2.5))
-presh<-pres_dailytohourly(climdata$pres,climdata$tme)
-# Get sea level pressure - MAKE THIS A FUNCTION!!
-psl_r<-mesoclim:::.rast(climdata$pres,dtmc) / (((293-0.0065*ifel(is.na(dtmc),0,dtmc))/293)^5.26)
-psl<-mesoclim:::.rta(psl_r,length(climdata$tme))
-humh<-hum_dailytohourly(climdata$relhum, climdata$tmin, climdata$tmax, temph, psl, presh, climdata$tme)
-plot_q_layers(mesoclim:::.rast(humh,dtmc))
-}
+# ========================================================================= #
+# ~~~~~~~~~~~~~~~~~~~~ input provided as vector =========================== #
+# ========================================================================= #
+# Derive daily tmx and tmn from hourly era5 data
+rh<-c(80,80,70,90,80)
+tmx <- c(15,15,18,20,12)
+tmn <- c(10,9,12,12,6)
+tme <- as.POSIXlt(c(0:4) * 3600 * 24, origin = "2018-05-01", tz = "UTC")
+pres<-c(96,97,98,99,100)
+hr_temp <- temp_dailytohourly(tmn, tmx, tme, 50, -5)
+hr_pres<-pres_dailytohourly(pres,tme)
+# Use interpolation function
+hrrh <- hum_dailytohourly(rh, tmn, tmx,hr_temp,pres,hr_pres,relmin = 10)
+hr_tme<-as.POSIXlt(unlist(lapply(tme,FUN=function(x) x+(60*60*c(0:23)) )))
+# Plot results to compare
+matplot(x=as.numeric(hr_tme),y=hrrh, type = "l", lty = 1)
+# ========================================================================= #
+# ~~~~~~~~~~~~~~~~~~~~ input provided as SpatRaster ======================= #
+# ========================================================================= #
+climdaily<- read_climdata(mesoclim::ukcpinput)
+hr_temp<-temp_dailytohourly(climdaily$tmin, climdaily$tmax, srte = 0.09)
+hr_pres<-pres_dailytohourly(climdaily$pres)
+hrrh <- hum_dailytohourly(climdaily$relhum, climdaily$tmin, climdaily$tmax,hr_temp,climdaily$pres, hr_pres,relmin = 10)
+# Plot results for one cell
+cell_rh<-t(extract(hrrh,matrix(c(175000,40000),ncol=2)))
+matplot(as_datetime(time(hrrh)),cell_rh, type = "l", lty = 1)#'
 }
 \keyword{temporal}
