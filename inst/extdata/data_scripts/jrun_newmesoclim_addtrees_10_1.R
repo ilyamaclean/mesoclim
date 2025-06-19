@@ -66,11 +66,12 @@ print(paste("Model run:",member))
 print(paste("Start date:",ftr_sdate))
 print(paste("End date:",ftr_edate))
 
-############## Define Other Options  ####################### #######################
+############## Define Other PARAMETERS Check these  ####################### #######################
 # Print/Plot outputs
 outputs<-FALSE
 # Parcel climate data output (one file per parcel)
 parcel_output<-TRUE
+parcel_id<-"gid" # for ceh parcels
 # Yearly .tif files of climate rasters
 mesoclim_output<-FALSE
 
@@ -78,7 +79,7 @@ mesoclim_output<-FALSE
 bias_correct<-TRUE
 
 ############## LIBRARIES ####################### #######################
-dir_lib<-"/gws/nopw/j04/uknetzero/mesoclim/mesoclim_lib"
+dir_lib<-"/gws/nopw/j04/uknetzero/mesoclim/mesoclim_newlib"
 library(terra)
 library(sf)
 library(lubridate)
@@ -139,6 +140,7 @@ if(tools::file_ext(parcels_file)=="tif"){
   parcels_sf<-st_make_valid(parcels_sf)
   num_invalid<-length(which(!st_is_valid(parcels_sf)))
   if(num_invalid>0) warning(paste("There remain ",num_invalid,"invalid geometries after correction!!!"))
+  if(output_parcels & !parcel_id %in% names(parcels_sf)) stop(paste("Cannot find parcel ID variable,",parcel_id,"among variables of",parcels_file))
   parcels_v<-terra::vect(parcels_sf)
 }
 parcels_v<-terra::project(parcels_v,dtmuk)
@@ -261,7 +263,7 @@ for(start_year in yr10seq){
     ##  Calculate and write parcel outputs
     if(parcel_output){
       # Calculate and write parcel values -
-      parcel_list<- create_parcel_list(mesoclimate,parcels_v,id='gid',output_tmean=TRUE,output_spechum=TRUE)
+      parcel_list<- create_parcel_list(mesoclimate,parcels_v,id=parcel_id,output_tmean=TRUE,output_spechum=TRUE)
       if(yr==years[1]) ov<-"replace" else ov<-"append"
       write_parcels(parcel_list, dir_out, overwrite=ov)
       print(paste("Time for parcel calculation and writing =", format(now()-tp)))

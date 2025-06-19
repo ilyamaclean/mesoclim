@@ -1,20 +1,76 @@
-############## Code executable on LOCAL machine with downloaded inputs #######################
 # Set up libraries files and directories for mac/jasmin
-setup_file<-"inst/extdata/data_scripts/setup_mesoclim_mac.R"
-source(setup_file)
+#  setup_file<-"inst/extdata/data_scripts/setup_mesoclim_mac.R"
+#  source(setup_file)
+#  devtools::load_all()
+############## LIBRARIES ####################### #######################
+library(devtools)
+library(Rcpp)
+library(ncdf4)
+library(terra)
+library(sf)
+library(lubridate)
+library(mesoclim)
+library(mesoclimAddTrees)
 tstart<-now()
 
-############## RUN PARAMETERS ####################### #######################
-#### Parcel file and label for outputs - can be a tif in which case parcel made of whole extent
-# parcels_file<-file.path(dir_root,'CEH_Exmoor.shp') # exmoor
-parcels_file<-file.path(dir_root,'mesoclim_inputs','killerton','land_parcels.shp') # killerton
-# parcels_file<-file.path(dir_root,'mesoclim_inputs','focal_parcels.shp') # s devon
-# parcels_file<-file.path(dir_root,'mesoclim_inputs','land_parcels.shp') # porthleven
-# parcels_file<-file.path(dir_root,'mesoclim_inputs','wscotlandext.shp') # west scotland high elev dif & coast
+##############  DIRECTORIES - UPDATE THESE ####################### #######################
+# Root directory relative to these data inputs
+# dir_od<-"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data"
+dir_root<-"/Users/jonathanmosedale/Data"
+dir_in<-file.path(dir_root,'mesoclim_inputs')
+
+### UKCP input data directory
+dir_ukcp<-dir_in
+dir.exists(dir_ukcp)
+
+### Sea temperature input data directory
+dir_sst<-dir_in
+dir.exists(dir_sst)
+
+# Directory holding bias correction models
+dir_bcmodels<-"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data/bias_correct_models"
+dir.exists(dir_bcmodels)
+
+#### Output directory
+dir_out<-"/Users/jonathanmosedale/Data/mesoclim_outputs"
+
+##############  FILEPATHS - UPDATE THESE ####################### #######################
+# Coastal mask
+coast_file<-file.path(dir_in,'CTRY_DEC_2023_UK_BGC.shp') # MHW line generalised to 20m
+file.exists(coast_file)
+
+# Fine resolution DTM for UK = Terrain50
+ukdtm_file<-file.path(dir_in,"uk_dtm.tif") # 50m dtm  raster
+file.exists(ukdtm_file)
+
+# UKCP 12km dtm
+ukcpdtm_file<-file.path(dir_root,"mesoclim_inputs","orog_land-rcm_uk_12km_osgb.nc")
+file.exists(ukcpdtm_file)
+
+###### Parcel file and label for outputs - can be a tif in which case parcel made of whole extent #######
+dir_parcels<-file.path(dir_root,'mesoclim_inputs','land_parcels')
+
+#parcels_file<-file.path(dir_parcels,'porthleven_parcels') # usual test area in Cornwall - coast effect
+#parcels_file<-file.path(dir_parcels,'killerton_parcels.shp') # low elev variation
+parcels_file<-file.path(dir_parcels,'cairngorm_parcels.shp') # inland & high elev variation
+#parcels_file<-file.path(dir_parcels,'exmoor_parcels.shp')  # Large area - high coast and elev effects
+#parcels_file<-file.path(dir_parcels,'skye_parcels.shp')  # coast and high elev effect
+#parcels_file<-file.path(dir_parcels,'southdevon_parcels.shp') # LARGE AREA
 # parcels_file<-file.path(system.file("extdata/dtms/dtmf_inland.tif",package="mesoclim")) # inland tif example
 
+print(paste("Parcels input file:",parcels_file))
+file.exists(parcels_file)
+print(paste("Output directory:",dir_out))
+dir.exists(dir_out)
+
+############## RUN PARAMETERS - UPDATE THESE ####################### #######################
+
 #### Label for outputs
-arealabel<-"killerton"
+arealabel<-"cairngorm"
+
+#### Parcel identifier field
+parcel_id<-"gid" # CEH parcels
+#parcel_id<-"OBJECTID_1" # Scortland Nat Forest parcels
 
 #### UKCP options and time period
 member<-"01"
@@ -24,18 +80,11 @@ enddate<-as.POSIXlt('2018/05/31',tz="UTC")
 #### Bias correction?
 bias_correct<-TRUE
 
-#### Output directory
-dir_out<-"/Users/jonathanmosedale/Data/mesoclim_outputs"
-
 #### Which outputs - graphical, parcel csv, mesoclim grids
 outputs<-TRUE
 parcel_output<-FALSE
 mesoclim_output<-TRUE
 
-print(paste("Parcels input file:",parcels_file))
-file.exists(parcels_file)
-print(paste("Output directory:",dir_out))
-dir.exists(dir_out)
 print(paste("Model run:",member))
 print(paste("Start date:",startdate))
 print(paste("End date:",enddate))
@@ -66,6 +115,7 @@ if(tools::file_ext(parcels_file)=="tif"){
   num_invalid<-length(which(!st_is_valid(parcels_sf)))
   if(num_invalid>0) warning(paste("There remain ",num_invalid,"invalid geometries after correction!!!"))
   parcels_v<-terra::vect(parcels_sf)
+  if(parcel_output & !parcel_id %in% names(parcels_sf)) stop(paste("Cannot find parcel ID variable,",parcel_id,"among variables of",parcels_file))
 }
 parcels_v<-terra::project(parcels_v,dtmuk)
 
@@ -125,7 +175,7 @@ dataprep_time<-now()-t0
 print(paste("Time for preparing data =", format(dataprep_time)))
 
 if(outputs){
-  plot(project(sstdata[[1]],crs(dtmc)))
+  if(!is.na(sstdata)) plot(project(sstdata[[1]],crs(dtmc)))
   plot(dtmm,add=T)
   plot(aoi,add=TRUE)
 }
@@ -185,7 +235,7 @@ for (yr in years){
   if(parcel_output){
     tp<-now()
     # Calculate and write parcel values -
-    parcel_list<- create_parcel_list(mesoclimate,parcels_v,id='gid',output_spechum=TRUE)
+    parcel_list<- create_parcel_list(mesoclimate,parcels_v,id=parcel_id,output_spechum=TRUE)
     if(yr==years[1]) ov<-"replace" else ov<-"append"
     write_parcels(parcel_list, dir_out, overwrite=ov)
     print(paste("Time for parcel calculation and writing =", format(now()-tp)))
