@@ -26,7 +26,7 @@ Resamples sst data to same extent, resolution and projection as aoi
 Interpolates from mean of adjacent sea cells
 }
 \examples{
-sst.r<-rast(system.file("extdata/sst/NWSClim_NWSPPE_r001i1p00000_2018_gridT.nc",pkg="mesoclim"),"SST")[[1]]
-aoi.r<-rast(system.file("extdata/dtms/dtmm.tif",pkg="mesoclim"))
+sst.r<-rast(system.file("extdata/sst/NWSClim_NWSPPE_r001i1p00000_2018_gridT.nc",package="mesoclim"),"SST")[[1]]
+aoi.r<-unwrap(mesoclim::ukcpinput$dtm)
 plot(.sea_to_coast(sst.r,aoi.r))
 }

@@ -7,13 +7,13 @@
 tempdaily_downscale(
   climdata,
   tmean = NA,
-  sst,
+  sst = NA,
   dtmf,
   dtmm,
   basins,
   uzf,
-  cad,
-  coastal,
+  cad = TRUE,
+  coastal = TRUE,
   thgto = 2,
   whgto = 2
 )
