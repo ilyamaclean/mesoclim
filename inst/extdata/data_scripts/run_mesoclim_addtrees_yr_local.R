@@ -18,8 +18,8 @@ arealabel<-"killerton"
 
 #### UKCP options and time period
 member<-"01"
-startdate<-as.POSIXlt('2022/01/01',tz="UTC")
-enddate<-as.POSIXlt('2022/12/31',tz="UTC")
+startdate<-as.POSIXlt('2018/05/01',tz="UTC")
+enddate<-as.POSIXlt('2018/05/31',tz="UTC")
 
 #### Bias correction?
 bias_correct<-TRUE
