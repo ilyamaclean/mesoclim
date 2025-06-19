@@ -231,6 +231,7 @@ temphrly_downscale<-function(climhrly, sst, dtmf, dtmm = NA, basins = NA, uzf = 
     tcad<-.apply_cad(lrf,mu,st)
     tcf<-tcf+tcad
   }
+
   # Coastal effects - checks if non NA values in sst AND resamples to res/extent of dtmf
   if (coastal) {
     # Interpolate sst to all landcells and across full timeseries so no NA
