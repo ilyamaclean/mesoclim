@@ -356,6 +356,16 @@ write_climdata<-function(climdata,filepath,overwrite=FALSE){
   return()
 }
 
+#' Subset climate data by date
+#'
+#' @param climdata - list of spatraster/arrays and associated climate data
+#' @param sdatetime - start date time as POSIXlt
+#' @param edatetime - end date time as POSIXlt
+#'
+#' @return
+#' @export
+#'
+#' @examples
 subset_climdata<-function (climdata, sdatetime, edatetime) {
   if (class(climdata)[1] == "SpatRaster") {
     if (all(any(!is.na(values(climdata))))) {
