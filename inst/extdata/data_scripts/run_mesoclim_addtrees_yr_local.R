@@ -175,7 +175,7 @@ dataprep_time<-now()-t0
 print(paste("Time for preparing data =", format(dataprep_time)))
 
 if(outputs){
-  if(!is.na(sstdata)) plot(project(sstdata[[1]],crs(dtmc)))
+  if(!inherits(sstdata,"logical")) plot(project(sstdata[[1]],crs(dtmc)))
   plot(dtmm,add=T)
   plot(aoi,add=TRUE)
 }
