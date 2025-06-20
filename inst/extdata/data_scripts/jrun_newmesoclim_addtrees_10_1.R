@@ -187,7 +187,7 @@ basins<-basindelin(dtmf, boundary = 2)
 results<-calculate_terrain_shading(dtmf,steps=24,toArrays=FALSE)
 skyview<-results$skyview
 horizon<-results$horizon
-print(paste0("Topographical processing = ",now()-t0))
+print(paste0("Topographical processing = ",now()-tstart))
 
 ###### Load bias correction models if required  ####################### #######################
 if(bias_correct){

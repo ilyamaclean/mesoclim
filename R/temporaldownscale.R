@@ -74,7 +74,7 @@ temp_dailytohourly <- function(tmn, tmx, tme = NA, lat = NA, long = NA, srte = 0
 
   if(!toArrays){
     th<-.rast(th,tem)
-    terra::time(th)<-newtme # for some reason must be stored as seconds for date-times!!
+    terra::time(th)<-as.POSIXct(newtme) # for some reason must be stored as seconds for date-times!!
   }
   return(th)
 }

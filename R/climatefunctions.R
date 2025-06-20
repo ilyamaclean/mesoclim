@@ -7,14 +7,14 @@
 #' @return wca2 - array of wind coeeficients for each of 8 wind directions
 #' @export
 calculate_windcoeffs<-function(dtmc,dtmm,dtmf,zo){
-  if(all(res(dtmm)==res(dtmf))){
+  if(all(terra::res(dtmm)==terra::res(dtmf))){
     dtmm_res<-round(exp( ( log(terra::res(dtmc)[1]) + log(terra::res(dtmf)[1]) ) / 2 ))
-    dtmm<-terra::aggregate(dtmm,dtmm_res / res(dtmf),  na.rm=TRUE)
-  }
-  #print(res(dtmm));plot(dtmm)
+    dtmw<-terra::aggregate(dtmm,dtmm_res / res(dtmf),  na.rm=TRUE)
+  } else dtmw<-dtmm
+  print(terra::res(dtmw))
   # Calculate terrain adjustment coefs in each of 8 directions for output wind height zo
   wca<-array(NA,dim=c(dim(dtmf)[1:2],8))
-  for (i in 0:7) wca[,,i+1]<-.is(windelev(dtmf,dtmm,dtmc,i*45,zo))
+  for (i in 0:7) wca[,,i+1]<-.is(windelev(dtmf,dtmw,dtmc,i*45,zo))
   # smooth results
   wca2<-wca
   for (i in 0:7) wca2[,,i+1]<-0.25*wca[,,(i-1)%%8+1]+0.5*wca[,,i%%8+1]+0.25*wca[,,(i+1)%%8+1]
