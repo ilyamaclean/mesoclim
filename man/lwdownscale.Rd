@@ -52,6 +52,5 @@ tmean_c<-(climdata$tmin+climdata$tmax)/2
 wsf<-winddownscale(climdata$windspeed, climdata$winddir, dtmf, dtmm, climdata$dtm, zi=climdata$windheight_m)
 dailytemps<-tempdaily_downscale(climdata,NA,unwrap(mesoclim::ukcp18sst),dtmf,dtmm,NA,wsf,cad = FALSE,coastal = FALSE,2,2)
 lw<-lwdownscale(climdata$lwrad,tmean_c,dailytemps$tmean, climdata$tme, dtmf=dtmf, dtmc=climdata$dtm)
-lw <- lwdownscale(climdata$lwrad,climdata$ terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')), climdata$dtm)
 panel(c(lw[[1]],lw[[5]],lw[[10]],lw[[20]]),main=paste0("LW down ",c(1,5,10,15),"/05/2018"))
 }
