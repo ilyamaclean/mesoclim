@@ -93,7 +93,7 @@ hr_temp<-temp_dailytohourly(climdaily$tmin, climdaily$tmax, srte = 0.09)
 hr_pres<-pres_dailytohourly(climdaily$pres)
 hrrh <- hum_dailytohourly(climdaily$relhum, climdaily$tmin, climdaily$tmax,hr_temp,climdaily$pres, hr_pres,relmin = 10)
 # Plot results for one cell
-cell_rh<-t(extract(hrrh,matrix(c(175000,40000),ncol=2)))
-matplot(as_datetime(time(hrrh)),cell_rh, type = "l", lty = 1)#'
+cell_rh<-t(terra::extract(hrrh,matrix(c(175000,40000),ncol=2)))
+matplot(x=as.numeric(terra::time(hrrh)),y=cell_rh[,1], type = "l", lty = 1)
 }
 \keyword{temporal}

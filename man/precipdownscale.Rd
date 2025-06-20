@@ -71,6 +71,6 @@ simulating the trajectory of low pressure systems.
 dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
 climdata<-read_climdata(mesoclim::ukcpinput)
 prcf<-precipdownscale(climdata$prec, dtmf, climdata$dtm, method="Elev", noraincut=0.01)
-panel(c(prcf[[1]],prcf[[5]],prcf[[12]],prcf[[26]]),main=paste0("Precipitation (mm) ",c(1,5,12,26),"/05/2018"))
+terra::panel(c(prcf[[1]],prcf[[5]],prcf[[12]],prcf[[26]]),main=paste0("Precipitation (mm) ",c(1,5,12,26),"/05/2018"))
 }
 \keyword{spatial}

@@ -30,10 +30,10 @@ The function \code{relhumdownscale} is used to spatially downscale relative
 \examples{
 dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
 climdata<-read_climdata(mesoclim::ukcpinput)
-tmean_c<-.hourtoday(temp_dailytohourly(climdata$tmin, climdata$tmax, climdata$tme),mean)
+tmean_c<-mesoclim:::.hourtoday(temp_dailytohourly(climdata$tmin, climdata$tmax, climdata$tme),mean)
 tcf<-tempdaily_downscale(climdata,sst=NA,dtmf=dtmf,dtmm=NA,cad=FALSE,coastal=FALSE)$tmean
 rhf<-relhumdownscale(climdata$relhum,tcc=tmean_c,tcf=tcf,dtmc=climdata$dtm,rhmin=20)
-panel(c(rhf[[1]],rhf[[5]],rhf[[10]],rhf[[20]]),main=paste0("Rel humidity ",c(1,5,10,20),"/05/2018"))
+terra::panel(c(rhf[[1]],rhf[[5]],rhf[[10]],rhf[[20]]),main=paste0("Rel humidity ",c(1,5,10,20),"/05/2018"))
 }
 \seealso{
 \code{\link[=temphrly_downscale]{temphrly_downscale()}} and \code{\link[=tempdaily_downscale]{tempdaily_downscale()}}

@@ -23,7 +23,7 @@ Calculate Lapse rates via vapour pressure
 Alternatively a value of 0.005 can be used if lacking pk or relhum data
 }
 \examples{
-climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
+climdata<-read_climdata(mesoclim::ukcpinput)
 ea<-converthumidity(climdata$relhum,tc=climdata$temp , pk=climdata$pres)
 lr<-lapserate(climdata$temp,ea,climdata$pres)
 terra::plot(mesoclim:::.rast(lr,climdata$dtm)[[1]])

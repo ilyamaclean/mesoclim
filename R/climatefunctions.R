@@ -64,8 +64,8 @@ basindelin<-function(dtm, boundary = 0) {
 #' @rdname flowacc
 #' @keywords spatial
 #' @examples
-#' r<-rast(matrix(c(25,24,21,24,25,15,14,11,14,15,5,4,1,4,5,15,14,11,14,15,25,24,21,24,25),nrow=5, ncol=5))
-#' plot(log(flowacc(r)))
+#' r<-terra::rast(matrix(c(25,24,21,24,25,15,14,11,14,15,5,4,1,4,5,15,14,11,14,15,25,24,21,24,25),nrow=5, ncol=5))
+#' terra::plot(log(flowacc(r)))
 flowacc<-function (dtm, basins = NA) {
   dm <- .is(dtm)
   fd <- .flowdir(dm)
@@ -124,11 +124,11 @@ flowacc<-function (dtm, basins = NA) {
 #' @rdname windelev
 #' @keywords spatial
 #' @examples
-#' dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
-#' dtmm<-rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
-#' climdata<-read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+#' dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+#' dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
+#' climdata<-read_climdata(mesoclim::ukcpinput)
 #' wc <- windelev(dtmf, dtmm, climdata$dtm, wdir = 270)
-#' plot(wc)
+#' terra::plot(wc)
 windelev <- function(dtmf, dtmm, dtmc, wdir, uz = 2) {
   # Reproject if necessary
   if (crs(dtmm) != crs(dtmf)) dtmm<-project(dtmm,crs(dtmf))
@@ -179,7 +179,7 @@ windelev <- function(dtmf, dtmm, dtmc, wdir, uz = 2) {
 #' @useDynLib mesoclim, .registration = TRUE
 #' @export
 #' @examples
-#' climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
+#' climdata<-read_climdata(mesoclim::ukcpinput)
 #' dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
 #' dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
 #' landsea<- terra::mask(terra::resample(dtmm,dtmf),dtmf)
@@ -227,12 +227,14 @@ coastalexposure <- function(landsea, e, wdir) {
 #' @export
 #' @keywords spatial
 #' @examples
-#' climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
+#'  \dontrun{
+#' climdata<-read_climdata(mesoclim::ukcpinput)
 #' dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
-#' rain<-terra::rast(climdata$prec,crs=terra::crs(climdata$dtm),extent=terra::ext(climdata$dtm))[[1]]
+#' rain<-climdata$prec
 #' try(rainf<-Tpsdownscale(rain, climdata$dtm, dtmf, method = "normal", fast = TRUE))
 #' terra::plot(rain,main='Input rain')
 #' terra::plot(rainf,main='Downscaled rain')
+#' }
 Tpsdownscale<-function(r, dtmc, dtmf, method = "normal", fast = TRUE) {
   # Extract values data.frame
   if (crs(dtmc) != crs(dtmf)) dtmc<-project(dtmc,crs(dtmf))
@@ -406,7 +408,7 @@ converthumidity <- function (h, intype = "relative", outtype = "vapour pressure"
   }
   if (intype == "relative")  hr <- h
 
-  if (max(hr, na.rm = T) > 100)
+  if (max(.is(hr), na.rm = T) > 100)
     warning(paste("Some relative humidity values > 100%",
                   max(hr, na.rm = T)))
   if (outtype == "specific") h <- (hr / 100) * ws
@@ -489,7 +491,7 @@ daylength <- function(julian, lat) {
 #' @export
 #' @keywords climate spatial
 #' @examples
-#' climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
+#' climdata<-read_climdata(mesoclim::ukcpinput)
 #' ea<-converthumidity(climdata$relhum,tc=climdata$temp , pk=climdata$pres)
 #' lr<-lapserate(climdata$temp,ea,climdata$pres)
 #' terra::plot(mesoclim:::.rast(lr,climdata$dtm)[[1]])
@@ -570,9 +572,10 @@ atmos_to_sea_pressure<-function(pres,dtm){
 #' @export
 #'
 #' @examples
+#' dtmf<-terra::rast(system.file("extdata/dtms/dtmf.tif",package="mesoclim"))
 #' results<-calculate_terrain_shading(dtmf)
-#' plot(results$skyview)
-#' plot(results$horizon[[c(1,6,12,18)]])
+#' #plot(results$skyview)
+#' #plot(results$horizon[[c(1,6,12,18)]])
 calculate_terrain_shading<-function(dtm,steps=24,toArrays=FALSE){
   r<-dtm
   dtm<-ifel(is.na(dtm),0,dtm)

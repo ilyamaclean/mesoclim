@@ -30,7 +30,7 @@ SpatRast, weighted using an inverse distance squared function,
 such that nearby pixels have a greater influence on the coefficient.
 }
 \examples{
-climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
+climdata<-read_climdata(mesoclim::ukcpinput)
 dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
 dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
 landsea<- terra::mask(terra::resample(dtmm,dtmf),dtmf)

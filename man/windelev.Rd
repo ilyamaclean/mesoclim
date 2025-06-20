@@ -40,11 +40,11 @@ The coordinate reference system of \code{dtmf} must be such that x and y are als
 \code{dtmm} and \code{dtmc} are reprojected to match the coordinate reference system of \code{dtmf}.
 }
 \examples{
-dtmf<-rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
-dtmm<-rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
-climdata<-read_climdata(system.file('data/ukcpinput.rds',package='mesoclim'))
+dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
+climdata<-read_climdata(mesoclim::ukcpinput)
 wc <- windelev(dtmf, dtmm, climdata$dtm, wdir = 270)
-plot(wc)
+terra::plot(wc)
 }
 \seealso{
 \code{\link[=winddownscale]{winddownscale()}}

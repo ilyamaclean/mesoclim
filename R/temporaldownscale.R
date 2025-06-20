@@ -41,8 +41,8 @@
 #' climdaily<- read_climdata(mesoclim::ukcpinput)
 #' hrtemps<-temp_dailytohourly(climdaily$tmin, climdaily$tmax, srte = 0.09)
 #' # Plot results for one cell
-#' cell_temp<-t(extract(hrtemps,matrix(c(175000,40000),ncol=2)))
-#' matplot(as_datetime(time(hrtemps)),cell_temp, type = "l", lty = 1)
+#' cell_temp<-t(terra::extract(hrtemps,matrix(c(175000,40000),ncol=2)))
+#' matplot(lubridate::as_datetime(terra::time(hrtemps)),cell_temp, type = "l", lty = 1)
 temp_dailytohourly <- function(tmn, tmx, tme = NA, lat = NA, long = NA, srte = 0.09) {
   if (inherits(tmn, "SpatRaster")) {
     if(inherits(tme,"logical")) tme<-as.POSIXlt(terra::time(tmn))
@@ -161,8 +161,8 @@ blendtemp_hadukera5<-function(tasmin,tasmax,era5t2m) {
 #' hr_pres<-pres_dailytohourly(climdaily$pres)
 #' hrrh <- hum_dailytohourly(climdaily$relhum, climdaily$tmin, climdaily$tmax,hr_temp,climdaily$pres, hr_pres,relmin = 10)
 #' # Plot results for one cell
-#' cell_rh<-t(extract(hrrh,matrix(c(175000,40000),ncol=2)))
-#' matplot(as_datetime(time(hrrh)),cell_rh, type = "l", lty = 1)#'
+#' cell_rh<-t(terra::extract(hrrh,matrix(c(175000,40000),ncol=2)))
+#' matplot(x=as.numeric(terra::time(hrrh)),y=cell_rh[,1], type = "l", lty = 1)
 hum_dailytohourly <- function(relhum, tasmin, tasmax, temph, psl, presh, tme=NA, relmin = 2, adjust = TRUE) {
   # Determine outputs from inputs
   if(inherits(relhum, "SpatRaster")){
@@ -240,8 +240,8 @@ hum_dailytohourly <- function(relhum, tasmin, tasmax, temph, psl, presh, tme=NA,
 #' climdaily<- read_climdata(mesoclim::ukcpinput)
 #' hrpres<-pres_dailytohourly(climdaily$pres)
 #' # Plot results for one cell
-#' cell_pres<-t(extract(hrpres,matrix(c(175000,40000),ncol=2)))
-#' matplot(as_datetime(time(cell_pres)),cell_pres, type = "l", lty = 1)
+#' cell_pres<-t(terra::extract(hrpres,matrix(c(175000,40000),ncol=2)))
+#' matplot(lubridate::as_datetime(terra::time(cell_pres)),cell_pres, type = "l", lty = 1)
 pres_dailytohourly <- function(pres, tme=NA, adjust = TRUE) {
   # Determine outputs from inputs
   if(inherits(pres, "SpatRaster")){
@@ -316,12 +316,12 @@ pres_dailytohourly <- function(pres, tme=NA, adjust = TRUE) {
 #' climdaily<- read_climdata(mesoclim::ukcpinput)
 #' hrsw <- swrad_dailytohourly(climdaily$swrad)
 #' # Plot results for one cell
-#' cell_sw<-t(extract(hrsw,matrix(c(175000,40000),ncol=2)))
-#' matplot(as_datetime(time(hrsw)),cell_sw, type = "l", lty = 1)
+#' cell_sw<-t(terra::extract(hrsw,matrix(c(175000,40000),ncol=2)))
+#' matplot(lubridate::as_datetime(terra::time(hrsw)),cell_sw, type = "l", lty = 1)
 #' # ========================================================================= #
 #' # ~~~~~~~~~~~~~~~~~~~~ input provided as 3D array ======================= #
 #' # ========================================================================= #
-#' hrsw <- swrad_dailytohourly(.is(climdaily$swrad),tme=climdaily$tme,r=climdaily$dtm)
+#' hrsw <- swrad_dailytohourly(mesoclim:::.is(climdaily$swrad),tme=climdaily$tme,r=climdaily$dtm)
 #' cell_sw<-hrsw[3,4,]
 #' hr_tme<-as.POSIXlt(unlist(lapply(climdaily$tme,FUN=function(x) x+(60*60*c(0:23)) )))
 #' matplot(x=as.numeric(hr_tme),y=cell_sw, type = "l", lty = 1)
@@ -336,7 +336,7 @@ pres_dailytohourly <- function(pres, tme=NA, adjust = TRUE) {
 #' # Plot results to compare
 #' matplot(x=as.numeric(hr_tme),y=hrsw, type = "l", lty = 1)
 #'
-#' radsw<-unlist(global(climdaily$swrad,mean))
+#' radsw<-unlist(terra::global(climdaily$swrad,mean))
 #' tme<-as.POSIXlt(terra::time(climdaily$swrad))
 #' r<-c(50,-5)
 #' hrsw <- swrad_dailytohourly(radsw,tme,r)
@@ -450,43 +450,28 @@ swrad_dailytohourly <- function(radsw, tme=NA, r = NA, clearsky = NA,  adjust = 
 #' @keywords temporal
 #' @examples
 #' # ========================================================================= #
-#' # ~~~~~~~~~~~~~~~~~~~~ input provided as vector =========================== #
-#' # ========================================================================= #
-#' climdaily<-read_climdata(ukcpinput)
-#' lw<-unlist(global(climdaily$lwrad,mean))
-#' lw<-unlist(global(climdaily$lwrad,mean))
-#' lw<-unlist(global(climdaily$lwrad,mean))
-#' lw<-unlist(global(climdaily$lwrad,mean))
-#' tme<-as.POSIXlt(terra::time(climdaily$swrad))
-#' r<-c(50,-5)
-#' hrsw <- lwrad_dailytohourly(radsw,tme,r)
-#' hr_tme<-as.POSIXlt(unlist(lapply(tme,FUN=function(x) x+(60*60*c(0:23)) )))
-#' # Plot results to compare
-#' matplot(x=as.numeric(hr_tme),y=hrsw, type = "l", lty = 1)
-#' # ========================================================================= #
 #' # ~~~~~~~~~~~~~~~~~~~~ input provided as SpatRaster ======================= #
 #' # ========================================================================= #
 #' hrtemps<-temp_dailytohourly(climdaily$tmin, climdaily$tmax, srte = 0.09)
 #' hrpres<-pres_dailytohourly(climdaily$pres)
 #' hrrh <- hum_dailytohourly(climdaily$relhum, climdaily$tmin, climdaily$tmax,hr_temp,climdaily$pres, hr_pres,relmin = 10)
 #' lwdhr<-lw_dailytohourly(lw=climdaily$lwrad, hrtemps=hrtemps, hrrh=hrrh, hrpres=hrpres, adjust = TRUE)
-#' # Plot results for one cell
-#' cell_lw<-t(extract(lwdhr,matrix(c(175000,40000),ncol=2)))
-#' matplot(as_datetime(time(lwdhr)),cell_lw, type = "l", lty = 1)
+#' cell_lw<-t(terra::extract(lwdhr,matrix(c(175000,40000),ncol=2)))
+#' matplot(x=lubridate::as_datetime(terra::time(lwdhr)),y=cell_lw, type = "l", lty = 1)
 #' # ========================================================================= #
 #' # ~~~~~~~~~~~~~~~~~~~~ input provided as 3D array ======================= #
 #' # ========================================================================= #
-#' hrlw <- lw_dailytohourly(lw=.is(climdaily$lwrad), hrtemps=.is(hrtemps), hrrh=.is(hrrh), hrpres=.is(hrpres), tme=climdaily$tme,adjust = TRUE)
+#' hrlw <- lw_dailytohourly(lw=mesoclim:::.is(climdaily$lwrad), hrtemps=mesoclim:::.is(hrtemps), hrrh=mesoclim:::.is(hrrh), hrpres=mesoclim:::.is(hrpres), tme=climdaily$tme,adjust = TRUE)
 #' cell_lw<-hrlw[3,4,]
 #' hr_tme<-as.POSIXlt(unlist(lapply(climdaily$tme,FUN=function(x) x+(60*60*c(0:23)) )))
 #' matplot(x=as.numeric(hr_tme),y=cell_lw, type = "l", lty = 1)
 #' # ========================================================================= #
 #' # ~~~~~~~~~~~~~~~~~~~~ input provided as vector =========================== #
 #' # ========================================================================= #
-#' lw<-unlist(global(climdaily$lwrad,mean))
-#' hrt<-unlist(global(hrtemps,mean))
-#' hrp<-unlist(global(hrpres,mean))
-#' hrh<-unlist(global(hrrh,mean))
+#' lw<-unlist(terra::global(climdaily$lwrad,mean))
+#' hrt<-unlist(terra::global(hrtemps,mean))
+#' hrp<-unlist(terra::global(hrpres,mean))
+#' hrh<-unlist(terra::global(hrrh,mean))
 #' tme<-as.POSIXlt(terra::time(climdaily$swrad))
 #' hrlw <- lw_dailytohourly(lw=lw, hrtemps=hrt, hrrh=hrh, hrpres=hrp, tme=tme, adjust = TRUE)
 #' hr_tme<-as.POSIXlt(unlist(lapply(tme,FUN=function(x) x+(60*60*c(0:23)) )))
@@ -497,7 +482,7 @@ lw_dailytohourly <- function(lw, hrtemps, hrrh, hrpres, tme=NA,  adjust = TRUE) 
     if(inherits(tme,"logical")) tme<-as.POSIXlt(terra::time(lw))
     out<-'SpatRaster'
     tem<-lw[[1]]
-  } else if(inherits(lw, "array")) out<-'TRUE' else if(inherits(lw, c("integer","numeric"))) out<-"vector"
+  } else if(inherits(lw, "array")) out<-'array' else if(inherits(lw, c("integer","numeric"))) out<-"vector"
 
   # Calculate LW up
   lwup<-.lwup(.is(hrtemps)) #= .lwup function 0.97*5.67*10**-8*(tc+273.15)# where tc = average surface temperature approximated by tair (hrly or daily)
@@ -568,13 +553,13 @@ lw_dailytohourly <- function(lw, hrtemps, hrrh, hrpres, tme=NA,  adjust = TRUE) 
 #' wd<-climdaily$winddir
 #' hrwind<-wind_dailytohourly(ws, wd, tme=NA, adjust = TRUE)
 #' # Plot results for one cell
-#' cell_ws<-t(extract(hrwind$wsh,matrix(c(175000,40000),ncol=2)))
-#' matplot(time(hrwind$wsh),cell_ws, type = "l", lty = 1)
+#' cell_ws<-t(terra::extract(hrwind$wsh,matrix(c(175000,40000),ncol=2)))
+#' matplot(terra::time(hrwind$wsh),cell_ws, type = "l", lty = 1)
 #' # ========================================================================= #
 #' # ~~~~~~~~~~~~~~~~~~~~ input provided as vector =========================== #
 #' # ========================================================================= #
-#' ws<-unlist(global(climdaily$windspeed,mean))
-#' wd<-unlist(global(climdaily$winddir,mean))
+#' ws<-unlist(terra::global(climdaily$windspeed,mean))
+#' wd<-unlist(terra::global(climdaily$winddir,mean))
 #' tme<-as.POSIXlt(terra::time(climdaily$windspeed))
 #' hrwind<-wind_dailytohourly(ws, wd, tme=tme, adjust = TRUE)
 #' hr_tme<-as.POSIXlt(unlist(lapply(tme,FUN=function(x) x+(60*60*c(0:23)) )))
@@ -768,6 +753,7 @@ wind_dailytohourly <- function(ws, wd, tme=NA, adjust = TRUE) {
 #' developments. Proc. R. Soc. Lond., A 417: 283-298.
 #'
 #' @examples
+#' \dontrun{
 #' # =========================================== #
 #' # ~~~ Generate hourly data for May 2018 ~~~ #
 #' # =========================================== #
@@ -789,7 +775,7 @@ wind_dailytohourly <- function(ws, wd, tme=NA, adjust = TRUE) {
 #' par(new = T)
 #' plot(marchhfd ~ dd, type = "l", ylim = c(0, max(hourlyv)),
 #'      xlab = "", ylab = "", col = "blue", lwd = 2)
-#'
+#'}
 subdailyrain <- function(rain, BLest, dailyvals = 24, dlim = 0.2, maxiter = 1000, splitthreshold = 0.2, trace = TRUE) {
   rain[is.na(rain)] <- 0
   srain <- matrix(0, ncol = dailyvals, nrow = length(rain))
@@ -856,7 +842,7 @@ plotrain <- function(daily, subdaily) {
 #' @examples
 #' climdaily<-read_climdata(mesoclim::ukcpinput)
 #' allhrly<-temporaldownscale(climdaily, adjust = TRUE, clearsky=NA, srte = 0.09, relmin = 10, noraincut = 0)
-#' for(n in 5:length(allhrly)) plot(allhrly[[n]][[12]],main=names(allhrly)[n])
+#' for(n in 5:length(allhrly)) terra::plot(allhrly[[n]][[12]],main=names(allhrly)[n])
 temporaldownscale<-function(climdaily, adjust = TRUE, clearsky=NA, srte = 0.09, relmin = 10, noraincut = 0, toArrays=FALSE){
   # Check input data is daily
   tme<-as.POSIXlt(climdaily$tme,tz="UTC")

@@ -108,8 +108,8 @@ Spatially downscales coarse-resolution climate data
  dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
  dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
  climdata<-read_climdata(mesoclim::ukcpinput)
- sst<-unwrap(mesoclim::ukcp18sst)
+ sst<-terra::unwrap(mesoclim::ukcp18sst)
  mesodat<-spatialdownscale(climdata, sst, dtmf, dtmm, include_tmean=TRUE,noraincut=0.01)
- for(n in 5:length(mesodat)) plot(mesodat[[n]][[12]],main=paste(names(mesodat)[n],mesodat$tme[n]))
+ for(n in 5:length(mesodat)) terra::plot(mesodat[[n]][[12]],main=paste(names(mesodat)[n],mesodat$tme[n]))
 }
 \keyword{spatial}

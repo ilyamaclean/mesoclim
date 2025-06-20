@@ -12,14 +12,13 @@ checkinputs(input_list, tstep = c("hour", "day"), plots = TRUE)
 \item{tstep}{string decribing whether input data is by hour or day}
 }
 \value{
-where possible returns inputs suitable for downsclaing and/or warning messages if input data has unexpected values
-Also prints summary statistics and graphs of each variable
+NO VALUE RETURN but may print warnings and summary stats and plots of each variable if requested
 }
 \description{
 Check and summarise coarse resolution climate data inputs
 }
 \examples{
-climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
-chk_climdata<- checkinputs(climdata, tstep = "day")
+climdata<- read_climdata(mesoclim::ukcpinput)
+checkinputs(climdata, tstep = "day")
 }
 \keyword{preprocess}

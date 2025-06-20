@@ -35,12 +35,12 @@
 #' @keywords spatial
 #' @examples
 #' climdata<-read_climdata(mesoclim::ukcpinput)
-#' dtmf<-rast(system.file("extdata/dtms/dtmf.tif",package="mesoclim"))
-#' dtmm<-rast(system.file("extdata/dtms/dtmm.tif",package="mesoclim"))
+#' dtmf<-terra::rast(system.file("extdata/dtms/dtmf.tif",package="mesoclim"))
+#' dtmm<-terra::rast(system.file("extdata/dtms/dtmm.tif",package="mesoclim"))
 #' basins<-basindelin(dtmf, boundary = 2)
 #' wsf<-winddownscale(climdata$windspeed, climdata$winddir, dtmf, dtmm, climdata$dtm, zi=climdata$windheight_m)
-#' dailytemps<-tempdaily_downscale(climdata,NA,unwrap(mesoclim::ukcp18sst),dtmf,dtmm,basins,wsf,cad = TRUE,coastal = TRUE,2,2)
-#' panel(c(dailytemps$tmin[[13]],dailytemps$tmax[[13]],dailytemps$tmean[[13]]),main=paste(c("Tmin","Tmax","Tmean"),"13/05/2018"))
+#' dailytemps<-tempdaily_downscale(climdata,NA,terra::unwrap(mesoclim::ukcp18sst),dtmf,dtmm,basins,wsf,cad = TRUE,coastal = TRUE,2,2)
+#' terra::panel(c(dailytemps$tmin[[13]],dailytemps$tmax[[13]],dailytemps$tmean[[13]]),main=paste(c("Tmin","Tmax","Tmean"),"13/05/2018"))
 tempdaily_downscale<-function(climdata,tmean=NA,sst=NA,dtmf,dtmm,basins,uzf,cad=TRUE,coastal=TRUE,thgto=2,whgto=2){
   # Convert variables - unpack any wrapped spatRasters and convert arrays to spatraster
   input_class<-lapply(lapply(climdata,class),"[",1)
@@ -177,14 +177,14 @@ tempdaily_downscale<-function(climdata,tmean=NA,sst=NA,dtmf,dtmm,basins,uzf,cad=
 #' @examples
 #' climdata<- read_climdata(mesoclim::ukcpinput)
 #' climhrly<-temporaldownscale(climdaily, adjust = TRUE, clearsky=NA, srte = 0.09, relmin = 10, noraincut = 0)
-#' dtmf<-rast(system.file("extdata/dtms/dtmf.tif",package="mesoclim"))
-#' dtmm<-rast(system.file("extdata/dtms/dtmm.tif",package="mesoclim"))
+#' dtmf<-terra::rast(system.file("extdata/dtms/dtmf.tif",package="mesoclim"))
+#' dtmm<-terra::rast(system.file("extdata/dtms/dtmm.tif",package="mesoclim"))
 #' basins<-basindelin(dtmf, boundary = 2)
 #' wsfhr<-winddownscale(climhrly$windspeed, climhrly$winddir, dtmf, dtmm, climhrly$dtm, zi=climhrly$windheight_m)
-#' sst<-unwrap(ukcp18sst)
+#' sst<-terra::unwrap(ukcp18sst)
 #' tempf<-temphrly_downscale(climhrly, sst, dtmf, dtmm, basins, uzf = wsfhr,tempvar="temp")
-#' panel(tempf[[c(1,6,12,18)]],main=paste('Temperature',c('00:00', '06:00', '12:00', '18:00'),' on 1 May 2018'))
-#' matplot(time(tempf),unlist(global(tempf,mean,na.rm=TRUE)), type = "l", lty = 1, main='Mean hourly temperature of whole area')
+#' terra::panel(tempf[[c(1,6,12,18)]],main=paste('Temperature',c('00:00', '06:00', '12:00', '18:00'),' on 1 May 2018'))
+#' matplot(terra::time(tempf),unlist(terra::global(tempf,mean,na.rm=TRUE)), type = "l", lty = 1, main='Mean hourly temperature of whole area')
 temphrly_downscale<-function(climhrly, sst, dtmf, dtmm = NA, basins = NA, uzf = NA,
                         cad = TRUE, coastal = TRUE,thgto=2, whgto=2, tempvar='temp') {
   # Convert variables - unpack any wrapped spatRasters and convert arrays to spatraster
@@ -266,7 +266,7 @@ temphrly_downscale<-function(climhrly, sst, dtmf, dtmm = NA, basins = NA, uzf = 
 #' @examples
 #' climdata<- read_climdata(mesoclim::ukcpinput)
 #' pk <- presdownscale(climdata$pres, terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')), climdata$dtm)
-#' panel(c(pk[[1]],pk[[5]],pk[[10]],pk[[20]]),main=paste0("Atmospheric pressure ",c(1,5,10,15),"/05/2018"))
+#' terra::panel(c(pk[[1]],pk[[5]],pk[[10]],pk[[20]]),main=paste0("Atmospheric pressure ",c(1,5,10,15),"/05/2018"))
 presdownscale<-function(pk, dtmf, dtmc, sealevel = TRUE) {
   if (class(pk)[1] == "array"){
     pk<-.rast(pk,dtmc)
@@ -303,16 +303,17 @@ presdownscale<-function(pk, dtmf, dtmc, sealevel = TRUE) {
 #' @details radiation is downscaled by computing from temperature the difference in upward
 #' longwave radiation at fine and coarse resolutions. Corrected LW down is then
 #' corrected for terrain shading of skyview if requested.
-#'
+#' @export
 #' @examples
 #' climdata<- read_climdata(mesoclim::ukcpinput)
 #' dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
 #' dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
 #' tmean_c<-(climdata$tmin+climdata$tmax)/2
 #' wsf<-winddownscale(climdata$windspeed, climdata$winddir, dtmf, dtmm, climdata$dtm, zi=climdata$windheight_m)
-#' dailytemps<-tempdaily_downscale(climdata,NA,unwrap(mesoclim::ukcp18sst),dtmf,dtmm,NA,wsf,cad = FALSE,coastal = FALSE,2,2)
+#' dailytemps<-tempdaily_downscale(climdata,NA,terra::unwrap(mesoclim::ukcp18sst),dtmf,dtmm,NA,wsf,cad = FALSE,coastal = FALSE,2,2)
 #' lw<-lwdownscale(climdata$lwrad,tmean_c,dailytemps$tmean, climdata$tme, dtmf=dtmf, dtmc=climdata$dtm)
-#' panel(c(lw[[1]],lw[[5]],lw[[10]],lw[[20]]),main=paste0("LW down ",c(1,5,10,15),"/05/2018"))
+#' terra::panel(c(lw[[1]],lw[[5]],lw[[10]],lw[[20]]),main=paste0("LW down ",c(1,5,10,15),"/05/2018"))
+#'
 lwdownscale<-function(lwrad, tc, tcf, tme, dtmf, dtmc, skyview=NA, terrainshade = TRUE) {
   if(class(lwrad)[1]=="array") lwrad<-.rast(lwrad,dtmc)
   lwf<-.resample(lwrad,dtmf, msk=TRUE)
@@ -371,10 +372,10 @@ lwdownscale<-function(lwrad, tc, tcf, tme, dtmf, dtmc, skyview=NA, terrainshade 
 #'
 #' @keywords spatial
 #' @examples
-#' climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
-#' sw<-swdownscale(climdata$swrad,dtmf=rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')), dtmc=climdata$dtm,terrainshade = TRUE)
+#' climdata<- read_climdata(mesoclim::ukcpinput)
+#' sw<-swdownscale(climdata$swrad,dtmf=terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')), dtmc=climdata$dtm,terrainshade = TRUE)
 #' sw<-sw$swf
-#' panel(c(sw[[1]],sw[[5]],sw[[10]],sw[[20]]),main=paste0("SW down ",c(1,5,10,20),"/05/2018"))
+#' terra::panel(c(sw[[1]],sw[[5]],sw[[10]],sw[[20]]),main=paste0("SW down ",c(1,5,10,20),"/05/2018"))
 swdownscale<-function(swrad, tme=NA, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)[3],
                       hor=NA, terrainshade = FALSE) {
   if(inherits(swrad,'SpatRaster') & inherits(tme,"logical")) tme<-as.POSIXlt(terra::time(swrad))
@@ -532,7 +533,7 @@ swdownscale<-function(swrad, tme=NA, dtmf, dtmc, patchsim = FALSE, nsim= dim(swr
 #' dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
 #' dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
 #' wsf <- winddownscale(climdata$windspeed, climdata$winddir, dtmf, dtmm, climdata$dtm, zi=climdata$windheight_m)
-#' panel(c(wsf[[1]],wsf[[5]],wsf[[10]],wsf[[20]]),main=paste0("Windspeed down ",c(1,5,10,20),"/05/2018"))
+#' terra::panel(c(wsf[[1]],wsf[[5]],wsf[[10]],wsf[[20]]),main=paste0("Windspeed down ",c(1,5,10,20),"/05/2018"))
 winddownscale <- function(wspeed, wdir, dtmf, dtmm, dtmc, wca=NA, zi=10, zo = 2) {
   # Coarsen dtmm resolution if currently same as dtmf
   if(all(res(dtmm)==res(dtmf))){
@@ -585,10 +586,10 @@ winddownscale <- function(wspeed, wdir, dtmf, dtmm, dtmc, wca=NA, zi=10, zo = 2)
 #' @examples
 #' dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
 #' climdata<-read_climdata(mesoclim::ukcpinput)
-#' tmean_c<-.hourtoday(temp_dailytohourly(climdata$tmin, climdata$tmax, climdata$tme),mean)
+#' tmean_c<-mesoclim:::.hourtoday(temp_dailytohourly(climdata$tmin, climdata$tmax, climdata$tme),mean)
 #' tcf<-tempdaily_downscale(climdata,sst=NA,dtmf=dtmf,dtmm=NA,cad=FALSE,coastal=FALSE)$tmean
 #' rhf<-relhumdownscale(climdata$relhum,tcc=tmean_c,tcf=tcf,dtmc=climdata$dtm,rhmin=20)
-#' panel(c(rhf[[1]],rhf[[5]],rhf[[10]],rhf[[20]]),main=paste0("Rel humidity ",c(1,5,10,20),"/05/2018"))
+#' terra::panel(c(rhf[[1]],rhf[[5]],rhf[[10]],rhf[[20]]),main=paste0("Rel humidity ",c(1,5,10,20),"/05/2018"))
 relhumdownscale<-function(rh, tcc, tcf, dtmc, rhmin = 20) {
   eac<-.satvap(tcc)*rh/100
   if(!inherits(eac,"SpatRaster")) eac<-.rast(eac,dtmc)
@@ -649,7 +650,7 @@ relhumdownscale<-function(rh, tcc, tcf, dtmc, rhmin = 20) {
 #' dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
 #' climdata<-read_climdata(mesoclim::ukcpinput)
 #' prcf<-precipdownscale(climdata$prec, dtmf, climdata$dtm, method="Elev", noraincut=0.01)
-#' panel(c(prcf[[1]],prcf[[5]],prcf[[12]],prcf[[26]]),main=paste0("Precipitation (mm) ",c(1,5,12,26),"/05/2018"))
+#' terra::panel(c(prcf[[1]],prcf[[5]],prcf[[12]],prcf[[26]]),main=paste0("Precipitation (mm) ",c(1,5,12,26),"/05/2018"))
 precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, noraincut = 0, patchsim = FALSE, nsim = dim(prec)[3]){
   if(!inherits(prec,"SpatRaster")) prec<-.rast(prec,dtmc)
 
@@ -807,9 +808,9 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
 #'  dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
 #'  dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
 #'  climdata<-read_climdata(mesoclim::ukcpinput)
-#'  sst<-unwrap(mesoclim::ukcp18sst)
+#'  sst<-terra::unwrap(mesoclim::ukcp18sst)
 #'  mesodat<-spatialdownscale(climdata, sst, dtmf, dtmm, include_tmean=TRUE,noraincut=0.01)
-#'  for(n in 5:length(mesodat)) plot(mesodat[[n]][[12]],main=paste(names(mesodat)[n],mesodat$tme[n]))
+#'  for(n in 5:length(mesodat)) terra::plot(mesodat[[n]][[12]],main=paste(names(mesodat)[n],mesodat$tme[n]))
 spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, skyview=NA, horizon=NA,
                               cad = TRUE,coastal = TRUE, thgto =2, whgto=2,include_tmean=FALSE,
                                rhmin = 20, pksealevel = TRUE, patchsim = FALSE, terrainshade = TRUE,

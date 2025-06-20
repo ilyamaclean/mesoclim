@@ -166,10 +166,10 @@ spatialdownscale_tiles<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wc
 #' @export
 #'
 #' @examples
-#' r<-rast(extent=ext(246700, 276700, 35500, 65400),res=c(50,50))
-#' testtiles<-create_overlapping_tiles(r,overlap=500,sz=10000)
-#' plot(vect(ext(dtmf)))
-#' for(t in testtiles$tile_extents) plot(vect(ext(t)),add=TRUE)
+#' r<-terra::rast(system.file("extdata/dtms/dtmf.tif",package="mesoclim"))
+#' testtiles<-create_overlapping_tiles(r,overlap=200,sz=1000)
+#' terra::plot(dtmf)
+#' for(t in testtiles$tile_extents) terra::plot(terra::vect(terra::ext(t)),add=TRUE)
 create_overlapping_tiles<-function(template.r,overlap=1000,sz=10000){
   xmax<-ext(template.r)[2]
   xmin<-ext(template.r)[1]

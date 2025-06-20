@@ -51,43 +51,28 @@ TO DO - Option of providing cloud cover data to correct sky emissivity values??
 }
 \examples{
 # ========================================================================= #
-# ~~~~~~~~~~~~~~~~~~~~ input provided as vector =========================== #
-# ========================================================================= #
-climdaily<-read_climdata(ukcpinput)
-lw<-unlist(global(climdaily$lwrad,mean))
-lw<-unlist(global(climdaily$lwrad,mean))
-lw<-unlist(global(climdaily$lwrad,mean))
-lw<-unlist(global(climdaily$lwrad,mean))
-tme<-as.POSIXlt(terra::time(climdaily$swrad))
-r<-c(50,-5)
-hrsw <- lwrad_dailytohourly(radsw,tme,r)
-hr_tme<-as.POSIXlt(unlist(lapply(tme,FUN=function(x) x+(60*60*c(0:23)) )))
-# Plot results to compare
-matplot(x=as.numeric(hr_tme),y=hrsw, type = "l", lty = 1)
-# ========================================================================= #
 # ~~~~~~~~~~~~~~~~~~~~ input provided as SpatRaster ======================= #
 # ========================================================================= #
 hrtemps<-temp_dailytohourly(climdaily$tmin, climdaily$tmax, srte = 0.09)
 hrpres<-pres_dailytohourly(climdaily$pres)
 hrrh <- hum_dailytohourly(climdaily$relhum, climdaily$tmin, climdaily$tmax,hr_temp,climdaily$pres, hr_pres,relmin = 10)
 lwdhr<-lw_dailytohourly(lw=climdaily$lwrad, hrtemps=hrtemps, hrrh=hrrh, hrpres=hrpres, adjust = TRUE)
-# Plot results for one cell
-cell_lw<-t(extract(lwdhr,matrix(c(175000,40000),ncol=2)))
-matplot(as_datetime(time(lwdhr)),cell_lw, type = "l", lty = 1)
+cell_lw<-t(terra::extract(lwdhr,matrix(c(175000,40000),ncol=2)))
+matplot(x=lubridate::as_datetime(terra::time(lwdhr)),y=cell_lw, type = "l", lty = 1)
 # ========================================================================= #
 # ~~~~~~~~~~~~~~~~~~~~ input provided as 3D array ======================= #
 # ========================================================================= #
-hrlw <- lw_dailytohourly(lw=.is(climdaily$lwrad), hrtemps=.is(hrtemps), hrrh=.is(hrrh), hrpres=.is(hrpres), tme=climdaily$tme,adjust = TRUE)
+hrlw <- lw_dailytohourly(lw=mesoclim:::.is(climdaily$lwrad), hrtemps=mesoclim:::.is(hrtemps), hrrh=mesoclim:::.is(hrrh), hrpres=mesoclim:::.is(hrpres), tme=climdaily$tme,adjust = TRUE)
 cell_lw<-hrlw[3,4,]
 hr_tme<-as.POSIXlt(unlist(lapply(climdaily$tme,FUN=function(x) x+(60*60*c(0:23)) )))
 matplot(x=as.numeric(hr_tme),y=cell_lw, type = "l", lty = 1)
 # ========================================================================= #
 # ~~~~~~~~~~~~~~~~~~~~ input provided as vector =========================== #
 # ========================================================================= #
-lw<-unlist(global(climdaily$lwrad,mean))
-hrt<-unlist(global(hrtemps,mean))
-hrp<-unlist(global(hrpres,mean))
-hrh<-unlist(global(hrrh,mean))
+lw<-unlist(terra::global(climdaily$lwrad,mean))
+hrt<-unlist(terra::global(hrtemps,mean))
+hrp<-unlist(terra::global(hrpres,mean))
+hrh<-unlist(terra::global(hrrh,mean))
 tme<-as.POSIXlt(terra::time(climdaily$swrad))
 hrlw <- lw_dailytohourly(lw=lw, hrtemps=hrt, hrrh=hrh, hrpres=hrp, tme=tme, adjust = TRUE)
 hr_tme<-as.POSIXlt(unlist(lapply(tme,FUN=function(x) x+(60*60*c(0:23)) )))

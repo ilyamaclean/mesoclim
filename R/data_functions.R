@@ -100,8 +100,7 @@ plot_wind<-function(winddir,windspeed){
 #' @param input_list list of climate and associated variables as output by functions like 'ukcp18toclimarray'
 #' @param tstep string decribing whether input data is by hour or day
 
-#' @return where possible returns inputs suitable for downsclaing and/or warning messages if input data has unexpected values
-#' Also prints summary statistics and graphs of each variable
+#' @return NO VALUE RETURN but may print warnings and summary stats and plots of each variable if requested
 #' @import magrittr
 #' @import fmsb
 #' @importFrom graphics par
@@ -109,8 +108,8 @@ plot_wind<-function(winddir,windspeed){
 #' @export
 #' @keywords preprocess
 #' @examples
-#' climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
-#' chk_climdata<- checkinputs(climdata, tstep = "day")
+#' climdata<- read_climdata(mesoclim::ukcpinput)
+#' checkinputs(climdata, tstep = "day")
 checkinputs <- function(input_list, tstep = c("hour","day"),plots=TRUE){
   tstep<-match.arg(tstep)
 
@@ -119,6 +118,7 @@ checkinputs <- function(input_list, tstep = c("hour","day"),plots=TRUE){
     if (length(sel) == 0) stop(paste0("Cannot find ",char," in weather"))
   }
   check.vals<-function(x,mn,mx,char,unit) {
+    x<-.is(x)
     sel<-which(is.na(x))
     if (length(sel)>0) stop(paste0("Missing values in weather$",char))
     sel<-which(x<mn)
@@ -137,6 +137,7 @@ checkinputs <- function(input_list, tstep = c("hour","day"),plots=TRUE){
     if (me<mn | me>mx) stop(paste0("Mean ",char," of ",me," implausible. Units should be ",unit))
   }
   up.lim<-function(x,mx,char) {
+    x<-.is(x)
     mxx<-max(x,na.rm=T)
     x[x>mx]<-mx
     if (mxx>mx) warning(paste0(char," values capped at ",mx))
@@ -203,22 +204,25 @@ checkinputs <- function(input_list, tstep = c("hour","day"),plots=TRUE){
   check.vals(input_list$windspeed,0,100,"wind speed","m/s")
 
   # Wind direction
-  mn<-min(input_list$winddir)
-  mx<-max(input_list$winddir)
+  mn<-min(.is(input_list$winddir))
+  mx<-max(.is(input_list$winddir))
   if (mn<0 | mx>360) {
     input_list$winddir<-input_list$winddir%%360
     warning("wind direction adjusted to range 0-360 using modulo operation")
   }
 
   # Calculate clear-sky radiation to compare with downward SW down
-  #ll<-.latlongfromraster(input_list$dtm)
-  #if(tstep=='day') tmean<-(input_list$tmax+input_list$tmin)/2 else tmean<-input_list$temp
-  #csr<-.clearskyrad(input_list$tme,ll$lat,ll$long,tmean,input_list$relhum,input_list$pres)
-  #csd<-csr+50
-  #sel<-which(input_list$swrad>csd)
-  #if (length(sel)>0) {
-  #  warning("Short wave radiation values significantly higher than expected clear-sky radiation values")
-  #}
+  ll<-.latlongfromrast(input_list$dtm)
+  if(tstep=='day') {
+    tmean<-(input_list$tmax+input_list$tmin)/2
+    if (inherits(tmean,"SpatRaster")) csr<-.clearskyraddaily(input_list$tme,tmean) else csr<-.clearskyraddaily(input_list$tme,.rast(tmean,input_list$dtm))
+  }
+  if(tstep=='hour') csr<-.clearskyrad(input_list$tme,ll$lat,ll$long,.is(input_list$temp),.is(input_list$relhum),.is(input_list$pres))
+  csd<-csr+50
+  sel<-which(.is(input_list$swrad)>csd)
+  if (length(sel)>0) {
+    warning("Short wave radiation values may be significantly higher than expected clear-sky radiation values")
+  }
 
   # Calculate data entries and time period
   obs_int<-lubridate::int_diff(input_list$tme)
@@ -241,7 +245,7 @@ checkinputs <- function(input_list, tstep = c("hour","day"),plots=TRUE){
   # Print summary stats and figures of input variables?
   statvars<-nms[!nms %in% c('dtm','climarray','tme','windheight_m','tempheight_m')]
   elev<-data.frame(elevation=values(input_list$dtm,mat=FALSE))
-  stats_df<-as.data.frame(t(round(sapply(input_list[statvars],summary),3)))[,c('Min.','Mean','Max.')]
+  stats_df<-as.data.frame(t(round(sapply(lapply(input_list[statvars],.is),summary),3)))[,c('Min.','Mean','Max.')]
   elev_stat<-round(summary(elev$elevation),3)[c('Min.','Mean','Max.')]
   stats_df<-rbind(stats_df, 'elevation'=elev_stat)
   print(stats_df)
@@ -280,16 +284,17 @@ checkinputs <- function(input_list, tstep = c("hour","day"),plots=TRUE){
       par(mar=c(1,1,1,1))
       par(mfrow=c(nrow,ncol))
       for(v in vars){
-        r<-.rast(input_list[[v]],input_list$dtm)
+        if(!inherits(input_list[[v]],'SpatRaster'))  r<-.rast(input_list[[v]],input_list$dtm) else r<-input_list[[v]]
         terra::time(r)<-input_list$tme
         plot_timestats_r(r,v,idx='doy')
-      }  }
+      }
+    }
 
     # Plot wind direction
     print('Plotting wind direction figures')
-    plot_wind(input_list$winddir,input_list$windspeed)
+    plot_wind(.is(input_list$winddir),.is(input_list$windspeed))
   }
-  return(input_list)
+  return()
 }
 
 #' @title Read climate data
@@ -302,8 +307,7 @@ checkinputs <- function(input_list, tstep = c("hour","day"),plots=TRUE){
 #' @export
 #' @keywords preprocess data
 #' @examples
-#' climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
-#' climdata<-read_climdata(ukcpinput)
+#' climdata<-read_climdata(mesoclim::ukcpinput)
 read_climdata<-function(filepath,toSpatRast=TRUE){
   if(class(filepath)=="list") climdata<-lapply(filepath,function(x) if(class(x)[1]=='PackedSpatRaster') terra::unwrap(x) else x)
 
@@ -339,7 +343,7 @@ read_climdata<-function(filepath,toSpatRast=TRUE){
 #' @export
 #' @keywords preprocess data
 #' @examples
-#' climdata<-read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
+#' climdata<-read_climdata(mesoclim::ukcpinput)
 #' dir_temp<-tempdir()
 #' write_climdata(climdata,file.path(dir_temp,'filename.rds'))
 write_climdata<-function(climdata,filepath,overwrite=FALSE){

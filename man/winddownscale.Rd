@@ -54,7 +54,7 @@ climdata<-read_climdata(mesoclim::ukcpinput)
 dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
 dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
 wsf <- winddownscale(climdata$windspeed, climdata$winddir, dtmf, dtmm, climdata$dtm, zi=climdata$windheight_m)
-panel(c(wsf[[1]],wsf[[5]],wsf[[10]],wsf[[20]]),main=paste0("Windspeed down ",c(1,5,10,20),"/05/2018"))
+terra::panel(c(wsf[[1]],wsf[[5]],wsf[[10]],wsf[[20]]),main=paste0("Windspeed down ",c(1,5,10,20),"/05/2018"))
 }
 \seealso{
 \code{\link[=windelev]{windelev()}}

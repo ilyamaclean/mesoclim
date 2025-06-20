@@ -19,7 +19,8 @@ Calculate horizon for different solar azimuths and total skyview
 Skyview places equal importance on each sector of sky
 }
 \examples{
+dtmf<-terra::rast(system.file("extdata/dtms/dtmf.tif",package="mesoclim"))
 results<-calculate_terrain_shading(dtmf)
-plot(results$skyview)
-plot(results$horizon[[c(1,6,12,18)]])
+#plot(results$skyview)
+#plot(results$horizon[[c(1,6,12,18)]])
 }

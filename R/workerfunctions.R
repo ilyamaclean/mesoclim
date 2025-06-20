@@ -153,9 +153,9 @@
 #' @export
 #'
 #' @examples
-#' sst.r<-rast(system.file("extdata/sst/NWSClim_NWSPPE_r001i1p00000_2018_gridT.nc",package="mesoclim"),"SST")[[1]]
-#' aoi.r<-unwrap(mesoclim::ukcpinput$dtm)
-#' plot(.sea_to_coast(sst.r,aoi.r))
+#' sst.r<-terra::rast(system.file("extdata/sst/NWSClim_NWSPPE_r001i1p00000_2018_gridT.nc",package="mesoclim"),"SST")[[1]]
+#' aoi.r<-terra::unwrap(mesoclim::ukcpinput$dtm)
+#' terra::plot(.sea_to_coast(sst.r,aoi.r))
 .sea_to_coast<-function(sst.r,aoi.r, ext_cells=8){
   # Extend area to make sure sea surface temperature data matches coastal areas
   aoibuf.r<-terra::extend(aoi.r,c(ext_cells,ext_cells),fill=1)

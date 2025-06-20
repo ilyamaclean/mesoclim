@@ -66,13 +66,13 @@ sea outside the boundaries of the study area.
 \examples{
 climdata<- read_climdata(mesoclim::ukcpinput)
 climhrly<-temporaldownscale(climdaily, adjust = TRUE, clearsky=NA, srte = 0.09, relmin = 10, noraincut = 0)
-dtmf<-rast(system.file("extdata/dtms/dtmf.tif",package="mesoclim"))
-dtmm<-rast(system.file("extdata/dtms/dtmm.tif",package="mesoclim"))
+dtmf<-terra::rast(system.file("extdata/dtms/dtmf.tif",package="mesoclim"))
+dtmm<-terra::rast(system.file("extdata/dtms/dtmm.tif",package="mesoclim"))
 basins<-basindelin(dtmf, boundary = 2)
 wsfhr<-winddownscale(climhrly$windspeed, climhrly$winddir, dtmf, dtmm, climhrly$dtm, zi=climhrly$windheight_m)
-sst<-unwrap(ukcp18sst)
+sst<-terra::unwrap(ukcp18sst)
 tempf<-temphrly_downscale(climhrly, sst, dtmf, dtmm, basins, uzf = wsfhr,tempvar="temp")
-panel(tempf[[c(1,6,12,18)]],main=paste('Temperature',c('00:00', '06:00', '12:00', '18:00'),' on 1 May 2018'))
-matplot(time(tempf),unlist(global(tempf,mean,na.rm=TRUE)), type = "l", lty = 1, main='Mean hourly temperature of whole area')
+terra::panel(tempf[[c(1,6,12,18)]],main=paste('Temperature',c('00:00', '06:00', '12:00', '18:00'),' on 1 May 2018'))
+matplot(terra::time(tempf),unlist(terra::global(tempf,mean,na.rm=TRUE)), type = "l", lty = 1, main='Mean hourly temperature of whole area')
 }
 \keyword{spatial}

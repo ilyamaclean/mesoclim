@@ -61,9 +61,9 @@ clouds within each hour retain a degree of inter-dependence more realistically
 simulating the trajectory of cloud as they move across the landscape.
 }
 \examples{
-climdata<- read_climdata(system.file('extdata/preprepdata/ukcp18rcm.Rds',package='mesoclim'))
-sw<-swdownscale(climdata$swrad,dtmf=rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')), dtmc=climdata$dtm,terrainshade = TRUE)
+climdata<- read_climdata(mesoclim::ukcpinput)
+sw<-swdownscale(climdata$swrad,dtmf=terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')), dtmc=climdata$dtm,terrainshade = TRUE)
 sw<-sw$swf
-panel(c(sw[[1]],sw[[5]],sw[[10]],sw[[20]]),main=paste0("SW down ",c(1,5,10,20),"/05/2018"))
+terra::panel(c(sw[[1]],sw[[5]],sw[[10]],sw[[20]]),main=paste0("SW down ",c(1,5,10,20),"/05/2018"))
 }
 \keyword{spatial}

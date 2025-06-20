@@ -53,5 +53,5 @@ Downscale daily climate data to hourly
 \examples{
 climdaily<-read_climdata(mesoclim::ukcpinput)
 allhrly<-temporaldownscale(climdaily, adjust = TRUE, clearsky=NA, srte = 0.09, relmin = 10, noraincut = 0)
-for(n in 5:length(allhrly)) plot(allhrly[[n]][[12]],main=names(allhrly)[n])
+for(n in 5:length(allhrly)) terra::plot(allhrly[[n]][[12]],main=names(allhrly)[n])
 }

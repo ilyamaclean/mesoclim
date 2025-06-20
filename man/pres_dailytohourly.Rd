@@ -50,7 +50,7 @@ matplot(x=as.numeric(hr_tme),y=hrpres, type = "l", lty = 1)
 climdaily<- read_climdata(mesoclim::ukcpinput)
 hrpres<-pres_dailytohourly(climdaily$pres)
 # Plot results for one cell
-cell_pres<-t(extract(hrpres,matrix(c(175000,40000),ncol=2)))
-matplot(as_datetime(time(cell_pres)),cell_pres, type = "l", lty = 1)
+cell_pres<-t(terra::extract(hrpres,matrix(c(175000,40000),ncol=2)))
+matplot(lubridate::as_datetime(terra::time(cell_pres)),cell_pres, type = "l", lty = 1)
 }
 \keyword{temporal}

@@ -48,13 +48,13 @@ ws<-climdaily$windspeed
 wd<-climdaily$winddir
 hrwind<-wind_dailytohourly(ws, wd, tme=NA, adjust = TRUE)
 # Plot results for one cell
-cell_ws<-t(extract(hrwind$wsh,matrix(c(175000,40000),ncol=2)))
-matplot(time(hrwind$wsh),cell_ws, type = "l", lty = 1)
+cell_ws<-t(terra::extract(hrwind$wsh,matrix(c(175000,40000),ncol=2)))
+matplot(terra::time(hrwind$wsh),cell_ws, type = "l", lty = 1)
 # ========================================================================= #
 # ~~~~~~~~~~~~~~~~~~~~ input provided as vector =========================== #
 # ========================================================================= #
-ws<-unlist(global(climdaily$windspeed,mean))
-wd<-unlist(global(climdaily$winddir,mean))
+ws<-unlist(terra::global(climdaily$windspeed,mean))
+wd<-unlist(terra::global(climdaily$winddir,mean))
 tme<-as.POSIXlt(terra::time(climdaily$windspeed))
 hrwind<-wind_dailytohourly(ws, wd, tme=tme, adjust = TRUE)
 hr_tme<-as.POSIXlt(unlist(lapply(tme,FUN=function(x) x+(60*60*c(0:23)) )))

@@ -58,12 +58,12 @@ mostly by bias correction anyway
 climdaily<- read_climdata(mesoclim::ukcpinput)
 hrsw <- swrad_dailytohourly(climdaily$swrad)
 # Plot results for one cell
-cell_sw<-t(extract(hrsw,matrix(c(175000,40000),ncol=2)))
-matplot(as_datetime(time(hrsw)),cell_sw, type = "l", lty = 1)
+cell_sw<-t(terra::extract(hrsw,matrix(c(175000,40000),ncol=2)))
+matplot(lubridate::as_datetime(terra::time(hrsw)),cell_sw, type = "l", lty = 1)
 # ========================================================================= #
 # ~~~~~~~~~~~~~~~~~~~~ input provided as 3D array ======================= #
 # ========================================================================= #
-hrsw <- swrad_dailytohourly(.is(climdaily$swrad),tme=climdaily$tme,r=climdaily$dtm)
+hrsw <- swrad_dailytohourly(mesoclim:::.is(climdaily$swrad),tme=climdaily$tme,r=climdaily$dtm)
 cell_sw<-hrsw[3,4,]
 hr_tme<-as.POSIXlt(unlist(lapply(climdaily$tme,FUN=function(x) x+(60*60*c(0:23)) )))
 matplot(x=as.numeric(hr_tme),y=cell_sw, type = "l", lty = 1)
@@ -78,7 +78,7 @@ hr_tme<-as.POSIXlt(unlist(lapply(tme,FUN=function(x) x+(60*60*c(0:23)) )))
 # Plot results to compare
 matplot(x=as.numeric(hr_tme),y=hrsw, type = "l", lty = 1)
 
-radsw<-unlist(global(climdaily$swrad,mean))
+radsw<-unlist(terra::global(climdaily$swrad,mean))
 tme<-as.POSIXlt(terra::time(climdaily$swrad))
 r<-c(50,-5)
 hrsw <- swrad_dailytohourly(radsw,tme,r)

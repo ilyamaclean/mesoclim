@@ -22,8 +22,8 @@ Returned list ordered by cols.
 Create overlapping tile set
 }
 \examples{
-r<-rast(extent=ext(246700, 276700, 35500, 65400),res=c(50,50))
+r<-terra::rast(extent=terra::ext(246700, 276700, 35500, 65400),res=c(50,50))
 testtiles<-create_overlapping_tiles(r,overlap=500,sz=10000)
-plot(vect(ext(dtmf)))
-for(t in testtiles$tile_extents) plot(vect(ext(t)),add=TRUE)
+terra::plot(terra::vect(terra::ext(dtmf)))
+for(t in testtiles$tile_extents) terra::plot(terra::vect(terra::ext(t)),add=TRUE)
 }
