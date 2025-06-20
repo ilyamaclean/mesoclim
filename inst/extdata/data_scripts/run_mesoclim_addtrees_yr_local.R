@@ -50,9 +50,9 @@ file.exists(ukcpdtm_file)
 ###### Parcel file and label for outputs - can be a tif in which case parcel made of whole extent #######
 dir_parcels<-file.path(dir_root,'mesoclim_inputs','land_parcels')
 
-#parcels_file<-file.path(dir_parcels,'porthleven_parcels') # usual test area in Cornwall - coast effect
+parcels_file<-file.path(dir_parcels,'porthleven_parcels.shp') # usual test area in Cornwall - coast effect
 #parcels_file<-file.path(dir_parcels,'killerton_parcels.shp') # low elev variation
-parcels_file<-file.path(dir_parcels,'cairngorm_parcels.shp') # inland & high elev variation
+#parcels_file<-file.path(dir_parcels,'cairngorm_parcels.shp') # inland & high elev variation
 #parcels_file<-file.path(dir_parcels,'exmoor_parcels.shp')  # Large area - high coast and elev effects
 #parcels_file<-file.path(dir_parcels,'skye_parcels.shp')  # coast and high elev effect
 #parcels_file<-file.path(dir_parcels,'southdevon_parcels.shp') # LARGE AREA
@@ -66,7 +66,7 @@ dir.exists(dir_out)
 ############## RUN PARAMETERS - UPDATE THESE ####################### #######################
 
 #### Label for outputs
-arealabel<-"cairngorm"
+arealabel<-"test"
 
 #### Parcel identifier field
 parcel_id<-"gid" # CEH parcels

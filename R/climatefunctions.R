@@ -11,6 +11,7 @@ calculate_windcoeffs<-function(dtmc,dtmm,dtmf,zo){
     dtmm_res<-round(exp( ( log(terra::res(dtmc)[1]) + log(terra::res(dtmf)[1]) ) / 2 ))
     dtmm<-terra::aggregate(dtmm,dtmm_res / res(dtmf),  na.rm=TRUE)
   }
+  #print(res(dtmm));plot(dtmm)
   # Calculate terrain adjustment coefs in each of 8 directions for output wind height zo
   wca<-array(NA,dim=c(dim(dtmf)[1:2],8))
   for (i in 0:7) wca[,,i+1]<-.is(windelev(dtmf,dtmm,dtmc,i*45,zo))
