@@ -50,7 +50,7 @@ file.exists(ukcpdtm_file)
 ###### Parcel file and label for outputs - can be a tif in which case parcel made of whole extent #######
 dir_parcels<-file.path(dir_root,'mesoclim_inputs','land_parcels')
 
-parcels_file<-file.path(dir_parcels,'porthleven_parcels.shp') # usual test area in Cornwall - coast effect
+parcels_file<-file.path(dir_parcels,'dartmoor_conifers.shp') # usual test area in Cornwall - coast effect
 #parcels_file<-file.path(dir_parcels,'killerton_parcels.shp') # low elev variation
 #parcels_file<-file.path(dir_parcels,'cairngorm_parcels.shp') # inland & high elev variation
 #parcels_file<-file.path(dir_parcels,'exmoor_parcels.shp')  # Large area - high coast and elev effects
@@ -66,16 +66,16 @@ dir.exists(dir_out)
 ############## RUN PARAMETERS - UPDATE THESE ####################### #######################
 
 #### Label for outputs
-arealabel<-"test"
+arealabel<-"dartmoor"
 
 #### Parcel identifier field
-parcel_id<-"gid" # CEH parcels
-#parcel_id<-"OBJECTID_1" # Scortland Nat Forest parcels
+#parcel_id<-"gid" # CEH parcels
+parcel_id<-"OBJECTID_1" # Scortland Nat Forest parcels
 
 #### UKCP options and time period
 member<-"01"
-startdate<-as.POSIXlt('2018/05/01',tz="UTC")
-enddate<-as.POSIXlt('2018/05/31',tz="UTC")
+startdate<-as.POSIXlt('2019/01/01',tz="UTC")
+enddate<-as.POSIXlt('2019/12/31',tz="UTC")
 
 #### Bias correction?
 bias_correct<-TRUE

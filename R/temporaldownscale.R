@@ -858,7 +858,7 @@ temporaldownscale<-function(climdaily, adjust = TRUE, clearsky=NA, srte = 0.09, 
   }
 
   # Check likely memory use compared with free RAM - even daily requires converting to hourly for some downscaling
-  mmry<-mem_info(climdaily$dtm, n=length(tme)*24*4, print=FALSE)
+  mmry<-mem_info(climdaily$dtm, n=length(tme)*24*4)
   if (mmry["needed"]>(0.5*mmry["available"]) & mmry["needed"]<mmry["available"]) warning("High free memory use predicted - consider running in smaller timesteps!!!")
   if (mmry["needed"]>mmry["available"]) warning("Memory demand predicted to exceed available memory - run in smaller timesteps!!!")
 
