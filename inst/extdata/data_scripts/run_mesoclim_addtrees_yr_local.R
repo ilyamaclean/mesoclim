@@ -24,7 +24,7 @@ dir_ukcp<-dir_in
 dir.exists(dir_ukcp)
 
 ### Sea temperature input data directory
-dir_sst<-dir_in
+dir_sst<-file.path(dir_in,"sst")
 dir.exists(dir_sst)
 
 # Directory holding bias correction models
@@ -32,7 +32,7 @@ dir_bcmodels<-"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-Universityo
 dir.exists(dir_bcmodels)
 
 #### Output directory
-dir_out<-"/Users/jonathanmosedale/Data/mesoclim_outputs"
+dir_out<-"/Users/jonathanmosedale/Data/mesoclim_outputs/exmoor_conifers"
 
 ##############  FILEPATHS - UPDATE THESE ####################### #######################
 # Coastal mask
@@ -50,10 +50,11 @@ file.exists(ukcpdtm_file)
 ###### Parcel file and label for outputs - can be a tif in which case parcel made of whole extent #######
 dir_parcels<-file.path(dir_root,'mesoclim_inputs','land_parcels')
 
-parcels_file<-file.path(dir_parcels,'dartmoor_conifers.shp') # usual test area in Cornwall - coast effect
+#parcels_file<-file.path(dir_parcels,'dartmoor_conifers.shp') # usual test area in Cornwall - coast effect
 #parcels_file<-file.path(dir_parcels,'killerton_parcels.shp') # low elev variation
 #parcels_file<-file.path(dir_parcels,'cairngorm_parcels.shp') # inland & high elev variation
 #parcels_file<-file.path(dir_parcels,'exmoor_parcels.shp')  # Large area - high coast and elev effects
+parcels_file<-file.path(dir_parcels,'exmoor_conifers.shp')  # Large area - high coast and elev effects
 #parcels_file<-file.path(dir_parcels,'skye_parcels.shp')  # coast and high elev effect
 #parcels_file<-file.path(dir_parcels,'southdevon_parcels.shp') # LARGE AREA
 # parcels_file<-file.path(system.file("extdata/dtms/dtmf_inland.tif",package="mesoclim")) # inland tif example
@@ -66,29 +67,29 @@ dir.exists(dir_out)
 ############## RUN PARAMETERS - UPDATE THESE ####################### #######################
 
 #### Label for outputs
-arealabel<-"dartmoor"
+arealabel<-"exmoor_conifers"
 
 #### Parcel identifier field
 #parcel_id<-"gid" # CEH parcels
 parcel_id<-"OBJECTID_1" # Scortland Nat Forest parcels
+#parcel_id<-"id"
 
 #### UKCP options and time period
 member<-"01"
-startdate<-as.POSIXlt('2019/01/01',tz="UTC")
-enddate<-as.POSIXlt('2019/12/31',tz="UTC")
+startdate<-as.POSIXlt('2011/01/01',tz="UTC")
+enddate<-as.POSIXlt('2020/12/31',tz="UTC")
 
 #### Bias correction?
 bias_correct<-TRUE
 
 #### Which outputs - graphical, parcel csv, mesoclim grids
-outputs<-TRUE
-parcel_output<-FALSE
-mesoclim_output<-TRUE
+outputs<-FALSE
+parcel_output<-TRUE
+mesoclim_output<-FALSE
 
 print(paste("Model run:",member))
 print(paste("Start date:",startdate))
 print(paste("End date:",enddate))
-
 ############## FIXED PARAMETERS ####################### #######################
 # These are fixed for ADDTREES analyses - shouldn't need to change
 collection<-'land-rcm'
@@ -191,6 +192,7 @@ print(paste0("Climate data processing = ",now()-t0))
 years<-unique(c(year(startdate):year(enddate)))
 # By YEAR
 for (yr in years){
+  print(yr)
   t0<-now()
   yrstart<-as.POSIXlt(paste0(yr,'/01/01'),tz=tz(climdata$tme))
   yrend<-as.POSIXlt(paste0(yr,'/12/31'),tz=tz(climdata$tme))

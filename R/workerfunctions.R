@@ -1222,32 +1222,36 @@
     # Calculate array land-sea ratios for every hour
     i<-round(wdir/(360/ndir))%%ndir
     lsr<-lsr2[,,i+1]
-    # Calculate sstf weighting upwind
-    # derive power scaling coefficient from wind speed
-    p2<-0.10420*sqrt(.is(u2))-0.47852
-    # calculate logit lsr and lsm
-    llsr<-log(lsr/(1-lsr))
-    llsm<-.rta(log(lsm/(1-lsm)),dim(lsr)[3])
-    # Calculate mins and maxes
-    s<-which(is.na(lsr) == FALSE & lsr > 0 & lsr < 1)
-    llsr[lsr==0]<-log(min(lsr[s])/(1-min(lsr[s])))
-    llsr[lsr==1]<-log(max(lsr[s])/(1-max(lsr[s])))
-    s<-which(is.na(lsm) == FALSE & lsm > 0 & lsm < 1)
-    llsm[lsm==0]<-log(min(lsm[s])/(1-min(lsm[s])))
-    llsm[lsm==1]<-log(max(lsm[s])/(1-max(lsm[s])))
-    # predict logit swgt
-    lswgt<- -0.1095761+p2*(llsr+3.401197)-0.1553487*llsm
-    swgt<-.rast(1/(1+exp(-lswgt)),tc)
-    tcp<-swgt*sstf+(1-swgt)*tc
-    # Correct using area mean via aggreg???? - NOT suitable when tiling
-    # BUT Increases temperature range significantly across while area!!!
-    # Perhaps should only be applied to cells with a coastal effect??
-    if(correct){
-      af<-res(dtmc)[1]/res(dtmf)[1]
-      tcc<-resample(aggregate(tcp,af,na.rm=TRUE),tcp)
-      #tcp<-tc+(tcp-tcc) # original version
-      tcp<-tc+(tcp-tcc)*swgt # new version
-    }
+
+    # ADD CONDITIONAL TEST AS lsr can now all =1 (dependent on i)
+    if(any(lsr<1)){
+      # Calculate sstf weighting upwind
+      # derive power scaling coefficient from wind speed
+      p2<-0.10420*sqrt(.is(u2))-0.47852
+      # calculate logit lsr and lsm
+      llsr<-log(lsr/(1-lsr))
+      llsm<-.rta(log(lsm/(1-lsm)),dim(lsr)[3])
+      # Calculate mins and maxes
+      s<-which(is.na(lsr) == FALSE & lsr > 0 & lsr < 1)
+      llsr[lsr==0]<-log(min(lsr[s])/(1-min(lsr[s])))
+      llsr[lsr==1]<-log(max(lsr[s])/(1-max(lsr[s])))
+      s<-which(is.na(lsm) == FALSE & lsm > 0 & lsm < 1)
+      llsm[lsm==0]<-log(min(lsm[s])/(1-min(lsm[s])))
+      llsm[lsm==1]<-log(max(lsm[s])/(1-max(lsm[s])))
+      # predict logit swgt
+      lswgt<- -0.1095761+p2*(llsr+3.401197)-0.1553487*llsm
+      swgt<-.rast(1/(1+exp(-lswgt)),tc)
+      tcp<-swgt*sstf+(1-swgt)*tc
+      # Correct using area mean via aggreg???? - NOT suitable when tiling
+      # BUT Increases temperature range significantly across while area!!!
+      # Perhaps should only be applied to cells with a coastal effect??
+      if(correct){
+        af<-res(dtmc)[1]/res(dtmf)[1]
+        tcc<-resample(aggregate(tcp,af,na.rm=TRUE),tcp)
+        #tcp<-tc+(tcp-tcc) # original version
+        tcp<-tc+(tcp-tcc)*swgt # new version
+      }
+    } else tcp<-tc
   } else tcp<-tc
   return(tcp)
 }

@@ -517,6 +517,10 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
   clim_list<-clim_list[c("clt","hurs","pr","psl","lwdown","swdown","tasmax","tasmin", "windspeed","winddir")]
   names(clim_list)<-c('cloud','relhum','prec','pres','lwrad','swrad','tmax','tmin','windspeed','winddir')
 
+  # Apply relhum ceiling - resampling can create >100 values
+  if(inherits(clim_list$relhum,"array")) clim_list$relhum<-ifelse(clim_list$relhum>100,100,clim_list$relhum)
+  if(inherits(clim_list$relhum,"SpatRaster")) clim_list$relhum<-ifel(clim_list$relhum>100,100,clim_list$relhum)
+
   ### Create output list
   output_list<-list()
   output_list$dtm<-dtmc
