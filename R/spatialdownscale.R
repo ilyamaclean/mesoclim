@@ -829,9 +829,9 @@ spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, 
   if (abs(tint-86400) < 5) hourly=FALSE
 
   # Check likely memory use compared with free RAM - even daily requires converting to hourly for some downscaling
-   mmry<-mem_info(dtmf, n=length(tme)*24)
-   if (mmry["needed"]>(0.5*mmry["available"]) & mmry["needed"]<mmry["available"]) warning("High free memory use predicted - consider using spatialdownscale_tile option!!!")
-   if (mmry["needed"]>mmry["available"]) warning("Memory demand predicted to exceed available memory - use spatialdownscale_tile option!!!")
+   mmry<-mem_info(dtmf, n=length(tme)*24,print=FALSE)
+   if (mmry["needed"]>(0.5*mmry["available"]) & mmry["needed"]<mmry["available"]) warning("High free memory use predicted - consider using spatialdownscale_tile!!!")
+   if (mmry["needed"]>mmry["available"]) warning("Memory demand predicted to exceed available memory - use spatialdownscale_tile option or reduce time period!!!")
 
   # Extract temp variables - calculate daily means if required
   if (hourly) {
