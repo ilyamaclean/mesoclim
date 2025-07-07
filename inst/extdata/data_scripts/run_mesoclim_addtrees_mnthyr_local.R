@@ -32,8 +32,8 @@ dir_bcmodels<-"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-Universityo
 dir.exists(dir_bcmodels)
 
 #### Output directory
-dir_out<-"/Users/jonathanmosedale/Data/mesoclim_outputs/exmoor_conifers"
-
+dir_out<-"/Users/jonathanmosedale/Data/mesoclim_outputs/kent_2011_2020"
+file.exists(dir_out)
 ##############  FILEPATHS - UPDATE THESE ####################### #######################
 # Coastal mask
 coast_file<-file.path(dir_in,'CTRY_DEC_2023_UK_BGC.shp') # MHW line generalised to 20m
@@ -52,9 +52,10 @@ dir_parcels<-file.path(dir_root,'mesoclim_inputs','land_parcels')
 
 #parcels_file<-file.path(dir_parcels,'dartmoor_conifers.shp') # usual test area in Cornwall - coast effect
 #parcels_file<-file.path(dir_parcels,'killerton_parcels.shp') # low elev variation
+parcels_file<-file.path(dir_parcels,"ashford_NFESC.shp")
 #parcels_file<-file.path(dir_parcels,'cairngorm_parcels.shp') # inland & high elev variation
 #parcels_file<-file.path(dir_parcels,'exmoor_parcels.shp')  # Large area - high coast and elev effects
-parcels_file<-file.path(dir_parcels,'exmoor_conifers.shp')  # Large area - high coast and elev effects
+#parcels_file<-file.path(dir_parcels,'exmoor_conifers.shp')  # Large area - high coast and elev effects
 #parcels_file<-file.path(dir_parcels,'skye_parcels.shp')  # coast and high elev effect
 #parcels_file<-file.path(dir_parcels,'southdevon_parcels.shp') # LARGE AREA
 # parcels_file<-file.path(system.file("extdata/dtms/dtmf_inland.tif",package="mesoclim")) # inland tif example
@@ -67,7 +68,7 @@ dir.exists(dir_out)
 ############## RUN PARAMETERS - UPDATE THESE ####################### #######################
 
 #### Label for outputs
-arealabel<-"exmoor_conifers"
+arealabel<-"kent"
 
 #### Parcel identifier field
 #parcel_id<-"gid" # CEH parcels
@@ -193,7 +194,7 @@ if(inherits(climdata$relhum,"SpatRaster")) climdata$relhum<-ifel(climdata$relhum
 
 ############## BIAS CORRECTION AND SPATIAL DOWNSCALE BY YEAR AND MONTH ####################### #######################
 years<-unique(c(year(startdate):year(enddate)))
-# By YEAR
+
 for (yr in years){
   t0<-now()
   yrstart<-as.POSIXlt(paste0(yr,'/01/01'),tz=tz(climdata$tme))
@@ -256,15 +257,8 @@ for (yr in years){
   }
   if(parcel_output){
     tp<-now()
-    tmean<-(mesoclimate$tmax+mesoclimate$tmin)/2
-    # Convert from relative to specific humidity
-    spechum<-converthumidity(h=mesoclim:::.is(mesoclimate$relhum),
-                             intype='relative',outtype='specific',
-                             tc=mesoclim:::.is(tmean),
-                             pk=mesoclim:::.is(mesoclimate$pres) )
-
     # Calculate and write parcel values -
-    parcel_list<- create_parcel_list(mesoclimate,parcels_v,id='gid',output_spechum=TRUE)
+    parcel_list<- create_parcel_list(mesoclimate,parcels_v,id=parcel_id,output_tmean = TRUE,output_spechum=TRUE)
     if(yr==years[1]) ov<-"replace" else ov<-"append"
     write_parcels(parcel_list, dir_out, overwrite=ov)
     print(paste("Time for parcel calculation and writing =", format(now()-tp)))
@@ -274,6 +268,14 @@ for (yr in years){
 }# end year
 print(paste("Run time =", format(now()-tstart)))
 
+##############  Write a list of parcel ID and OSGB XY coordinates of centroid  #######################
+if(parcel_output){
+  parcels_sf<-st_as_sf(parcels_v)
+  parcel_centroids <- round(st_coordinates(st_centroid(st_make_valid(parcels_sf))),1)
+  parcels_txt<-data.frame("id"=parcels_sf[,parcel_id],"x"=parcel_centroids[,"X"],"y"=parcel_centroids[,"Y"])
+  write.table(parcels_txt, file.path(dir_out,"parcel_ids.csv"), sep = ",", row.names = FALSE,  col.names = TRUE, quote=FALSE)
+}
+print(paste("Run time =", format(now()-tstart)))
 
 
 ############## Get a parcel variable and plot a map of it   ####################### #######################

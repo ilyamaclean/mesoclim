@@ -1,37 +1,90 @@
-############## Code executable on LOCAL machine with downloaded inputs #######################
-# Set up libraries files and directories for mac/jasmin
-setup_file<-"inst/extdata/data_scripts/setup_mesoclim_mac.R"
-source(setup_file)
 
+############## LIBRARIES ####################### #######################
+library(devtools)
+library(Rcpp)
+library(ncdf4)
+library(terra)
+library(sf)
+library(lubridate)
+library(mesoclim)
+library(mesoclimAddTrees)
 tstart<-now()
+
+##############  DIRECTORIES - UPDATE THESE ####################### #######################
+# Root directory relative to these data inputs
+# dir_od<-"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data"
+dir_root<-"/Users/jonathanmosedale/Data"
+dir_in<-file.path(dir_root,'mesoclim_inputs')
+
+### UKCP input data directory
+dir_ukcp<-dir_in
+dir.exists(dir_ukcp)
+
+### Sea temperature input data directory
+dir_sst<-file.path(dir_in,"sst")
+dir.exists(dir_sst)
+
+# Directory holding bias correction models
 dir_bcmodels<-"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data/bias_correct_models"
+dir.exists(dir_bcmodels)
 
-############## RUN PARAMETERS ####################### #######################
-# Parcel file and label for outputs
-parcels_file<-file.path(dir_root,'mesoclim_inputs','focal_parcels.shp') # s devon
-arealabel<-"sdevon"
+#### Output directory
+dir_out<-"/Users/jonathanmosedale/Data/mesoclim_outputs/skye_2011_2020"
+file.exists(dir_out)
+##############  FILEPATHS - UPDATE THESE ####################### #######################
+# Coastal mask
+coast_file<-file.path(dir_in,'CTRY_DEC_2023_UK_BGC.shp') # MHW line generalised to 20m
+file.exists(coast_file)
 
-# UKCP options and time period
-member<-"01"
-startyear<-"2022"
-endyear<-"2022"
-startdate<-as.POSIXlt(paste0(startyear,'/01/01'),tz="UTC")
-enddate<-as.POSIXlt(paste0(endyear,'/12/31'),tz="UTC")
+# Fine resolution DTM for UK = Terrain50
+ukdtm_file<-file.path(dir_in,"uk_dtm.tif") # 50m dtm  raster
+file.exists(ukdtm_file)
 
-# Bias correction?
-bias_correct<-TRUE
-bcmodels_file<-file.path(dir_bcmodels,'bias_correct_models_01_2020_2022.Rds') # will need to be after definition of model member
+# UKCP 12km dtm
+ukcpdtm_file<-file.path(dir_root,"mesoclim_inputs","orog_land-rcm_uk_12km_osgb.nc")
+file.exists(ukcpdtm_file)
 
-# Which outputs - graphical, parcel csv, mesoclim grids
-dir_out<-file.path(dir_root,'mesoclim_outputs')
-outputs<-TRUE
-parcel_output<-TRUE
-mesoclim_output<-TRUE
+###### Parcel file and label for outputs - can be a tif in which case parcel made of whole extent #######
+dir_parcels<-file.path(dir_root,'mesoclim_inputs','land_parcels')
+
+#parcels_file<-file.path(dir_parcels,'dartmoor_conifers.shp') # usual test area in Cornwall - coast effect
+#parcels_file<-file.path(dir_parcels,'killerton_parcels.shp') # low elev variation
+#parcels_file<-file.path(dir_parcels,"ashford_NFESC.shp")
+#parcels_file<-file.path(dir_parcels,'cairngorm_parcels.shp') # inland & high elev variation
+#parcels_file<-file.path(dir_parcels,'exmoor_parcels.shp')  # Large area - high coast and elev effects
+#parcels_file<-file.path(dir_parcels,'exmoor_conifers.shp')  # Large area - high coast and elev effects
+parcels_file<-file.path(dir_parcels,'skye_NFESC.shp')  # coast and high elev effect
+#parcels_file<-file.path(dir_parcels,'southdevon_parcels.shp') # LARGE AREA
+# parcels_file<-file.path(system.file("extdata/dtms/dtmf_inland.tif",package="mesoclim")) # inland tif example
 
 print(paste("Parcels input file:",parcels_file))
 file.exists(parcels_file)
 print(paste("Output directory:",dir_out))
 dir.exists(dir_out)
+
+############## RUN PARAMETERS - UPDATE THESE ####################### #######################
+
+#### Label for outputs
+arealabel<-"dartmoor"
+
+#### Parcel identifier field
+#parcel_id<-"gid" # CEH parcels
+parcel_id<-"OBJECTID_1" # Scortland Nat Forest parcels
+#parcel_id<-"id"
+
+#### UKCP options and time period
+member<-"01"
+startdate<-as.POSIXlt('2011/01/01',tz="UTC")
+enddate<-as.POSIXlt('2020/12/31',tz="UTC")
+
+#### Bias correction?
+bias_correct<-TRUE
+
+#### Which outputs - graphical, parcel csv, mesoclim grids
+outputs<-FALSE
+parcel_output<-TRUE
+mesoclim_output<-FALSE
+
 print(paste("Model run:",member))
 print(paste("Start date:",startdate))
 print(paste("End date:",enddate))
@@ -50,34 +103,38 @@ res="12km"
 dtmuk<-terra::rast(ukdtm_file) # 50m resolution dtm of all UK
 coast_v<-terra::project(terra::vect(coast_file),dtmuk)
 
-# Load parcels file - check geometries and project to crs of output dtm (OS coords)
-parcels_sf<-st_read(parcels_file)
-num_invalid<-length(which(!st_is_valid(parcels_sf)))
-if(num_invalid>0) print(paste("Correcting ",num_invalid,"geometries in parcel file provided:",parcels_file))
-parcels_sf<-st_make_valid(parcels_sf)
-num_invalid<-length(which(!st_is_valid(parcels_sf)))
-if(num_invalid>0) warning(paste("There remain ",num_invalid,"invalid geometries after correction!!!"))
+# Load parcels file - whole area used if raster otherwise checks geometries - converts to terra vect
+if(tools::file_ext(parcels_file)=="tif"){
+  parcels_v<-vect(ext(rast(parcels_file)))
+  crs(parcels_v)<-crs(rast(parcels_file))
+} else{
+  parcels_sf<-st_read(parcels_file)
+  num_invalid<-length(which(!st_is_valid(parcels_sf)))
+  if(num_invalid>0) print(paste("Correcting ",num_invalid,"geometries in parcel file provided:",parcels_file))
+  parcels_sf<-st_make_valid(parcels_sf)
+  num_invalid<-length(which(!st_is_valid(parcels_sf)))
+  if(num_invalid>0) warning(paste("There remain ",num_invalid,"invalid geometries after correction!!!"))
+  parcels_v<-terra::vect(parcels_sf)
+  if(parcel_output & !parcel_id %in% names(parcels_sf)) stop(paste("Cannot find parcel ID variable,",parcel_id,"among variables of",parcels_file))
+}
+parcels_v<-terra::project(parcels_v,dtmuk)
 
-parcels_v<-terra::project(terra::vect(parcels_sf),dtmuk)
-
-# Generate local area and dtm and wider extents
-#. aoi<-vect(ext(c(255000,265000,43000,65000)))
+## Generate local area vector and required dtms
 aoi<-terra::vect(terra::ext(parcels_v))
 terra::crs(aoi)<-terra::crs(parcels_v)
 
-# Load ukcp coarse resolution dtm for aoi
-dtmc<-get_ukcp_dtm(aoi, ukcpdtm_file)
+# Load ukcp coarse resolution dtm for aoi - assumes no coastal etc effects beyond 12km of parcel locations
+dtmc<-mesoclimAddTrees::get_ukcp_dtm(aoi, ukcpdtm_file)
 
 # Create fine resolution dtm of downscaling area  - ensure they fall within extent of loaded dtm & mask to coast_v (sets sea to NA)
 dtmf<-terra::mask(terra::crop(terra::crop(dtmuk,aoi),dtmuk),coast_v)
 
 # Generate medium area and resoilution dtm (for coatal/wind effects)
-#dtmm_res <- round(exp((log(terra::res(dtmc)[1]) + log(terra::res(dtmf)[1]))/2))
 dtmm <- terra::mask(terra::crop(terra::crop(dtmuk, dtmc), dtmuk), coast_v)
-#dtmm<-get_dtmm(dtmf,dtmc,dtmuk)
 
 # Plot dtmf and overlay parcels
 if(outputs){
+  plot(dtmuk);plot(vect(ext(dtmc)),col="red",add=T)
   terra::plot(dtmc,main='DTMs')
   #terra::plot(dtmm,add=TRUE)
   terra::plot(dtmf,add=TRUE)
@@ -89,6 +146,7 @@ print(paste("Downscaling for an area of",round(expanse(aoi,"km"),0),"km^2, gener
 
 
 ###### Load bias correction models if required
+bcmodels_file<-file.path(dir_bcmodels,paste0('bias_correct_models_',member,'_2020_2022.Rds')) # will need to be after definition of model member
 if(bias_correct) model_list<-readRDS(bcmodels_file)
 
 ###### Calculate topographical properties - worth it if looping over several downscaling calls (eg multiple years)
@@ -110,7 +168,7 @@ t0<-now()
 # Process climate data from UKCP18 regional files on ceda archive - PROVIDE dtmc AND aoi as ONE
 climdata<-ukcp18toclimarray(dir_ukcp,dtmc,startdate,enddate,collection,domain,member,temp_hgt=2, wind_hgt=2)
 
-# Process sea surface temo data from ceda archive ??CHANGE OUTPUT TO PROJECTION OF DTMC/AOI? COMBINE WITH ABOVE?
+# Process sea surface temp data
 sstdata<-create_ukcpsst_data(dir_sst,startdate,enddate,dtmc,member)
 
 dataprep_time<-now()-t0
@@ -122,13 +180,14 @@ if(outputs){
   plot(aoi,add=TRUE)
 }
 
-# Check data - plot summary figs
+# Check data - plot summary figs if requested
 if(outputs){
-  #climdata<-checkinputs(climdata, tstep = "day")
+  checkinputs(climdata, tstep = "day",plots=outputs)
 }
 print(paste0("Climate data processing = ",now()-t0))
 
-
+if(inherits(climdata$relhum,"array")) climdata$relhum<-ifelse(climdata$relhum>100,100,climdata$relhum)
+if(inherits(climdata$relhum,"SpatRaster")) climdata$relhum<-ifel(climdata$relhum>100,100,climdata$relhum)
 
 ############## 3 SPATIAL DOWNSCALE WITH TILING ####################### #######################
 # Option to write yearly .tifs
@@ -158,39 +217,52 @@ for (yr in years){
   downscale_time<-now()-t0
   print(paste("Time for downscaling single year =", format(downscale_time)))
 
+  # Plot mean,max and min days for each variable if spatraster
   if(outputs){
-    climvars<-c('tmean','tmin','tmax','relhum','pres','swrad','lwrad','windspeed','winddir','prec')
+    climvars<-names(mesoclimate)[which(unlist(lapply(mesoclimate,inherits,what="SpatRaster")))]
     for(var in climvars){
       print(var)
-      r<-mesomonth[[var]]
+      r<-mesoclimate[[var]]
       names(r)<-rep(var,nlyr(r))
       plot_q_layers(r,vtext=var)
     }
   }
-  #write_climdata(mesoclimate,file.path(dir_out,'mesoclimate_1yr_focal.Rds'))
 
-  ###### Calculate and write parcel outputs with each yearly iteration
+  # Write yearly grids or parcel csvs
+  if(mesoclim_output){
+    mesoclim_file<-file.path(dir_out,paste0('mesoclimate_',res(dtmf)[1],'m_',arealabel,'_',yr,'.Rds'))
+    print(paste("Writing mesoclimate file:",mesoclim_file))
+    write_climdata(mesoclimate,mesoclim_file,overwrite=TRUE)
+  }
+  if(parcel_output){
+    tp<-now()
+    # Calculate and write parcel values -
+    parcel_list<- create_parcel_list(mesoclimate,parcels_v,id=parcel_id,output_tmean = TRUE,output_spechum=TRUE)
+    if(yr==years[1]) ov<-"replace" else ov<-"append"
+    write_parcels(parcel_list, dir_out, overwrite=ov)
+    print(paste("Time for parcel calculation and writing =", format(now()-tp)))
+  }
+  print(paste("Total yearly processing time =", format(now()-t0)))
 
-  # Calculate parcel values
-  t0<-now()
-  parcel_list<- create_parcel_list(mesoclimate,parcels_v,id='gid',output_spechum=TRUE)
-  # Change to append except for first year!!!!!
-  if(yr==year(startdate)) write_parcels(parcel_list, dir_out, overwrite='replace') else  write_parcels(parcel_list, dir_out, overwrite='append')
-
-  parcel_time<-now()-t0
-  print(paste("Time for parcel calculation and writing =", format(parcel_time)))
-  total_time<-now()-t0
-  print(paste("Total parcel writing time =", format(parcel_time)))
-
-} # end year loop
+}# end year
 
 ##############  Write a list of parcel ID and OSGB XY coordinates of centroid  #######################
-parcels_sf<-st_as_sf(parcels_v)
-parcel_centroids <- round(st_coordinates(st_centroid(st_make_valid(parcels_sf))),1)
-parcels_txt<-data.frame("id"=parcels_sf$gid,"x"=parcel_centroids[,"X"],"y"=parcel_centroids[,"Y"])
-write.table(parcels_txt, file.path(dir_out,"parcel_ids.csv"), sep = ",", row.names = FALSE,  col.names = TRUE, quote=FALSE)
+if(parcel_output){
+  parcels_sf<-st_as_sf(parcels_v)
+  parcel_centroids <- round(st_coordinates(st_centroid(st_make_valid(parcels_sf))),1)
+  parcels_txt<-data.frame("id"=parcels_sf[,parcel_id],"x"=parcel_centroids[,"X"],"y"=parcel_centroids[,"Y"])
+  write.table(parcels_txt, file.path(dir_out,"parcel_ids.csv"), sep = ",", row.names = FALSE,  col.names = TRUE, quote=FALSE)
+}
+print(paste("Run time =", format(now()-tstart)))
+
+
+
+############## Get a parcel variable and plot a map of it   ####################### #######################
+#  var_sf<-get_parcel_var(mesoclimate,'tmean', parcels_v,id='gid', stat='mean' )
+#  map_parcel_var(var_sf[which(st_is_valid(var_sf)),], plotvar='tmean', idvar='gid')
+
 
 ############## Get a parcel variable and plot a map of it   #######################
-var_sf<-get_parcel_var(mesoclimate,'swrad', parcels_v,id='gid', stat='mean' )
-map_parcel_var(var_sf, plotvar='swrad', idvar='gid')
+#var_sf<-get_parcel_var(mesoclimate,'swrad', parcels_v,id='gid', stat='mean' )
+#map_parcel_var(var_sf, plotvar='swrad', idvar='gid')
 

@@ -165,7 +165,7 @@
   target<-sum(c(crop(newsst.r[[1]],aoi.r),aoi.r),na.rm=T)
   n<-1
   while(anyNA(values(target)) & n<=5){
-    plot(target,main=n)
+    #plot(target,main=n)
     newsst.r<-focal(newsst.r, w=9, fun=mean, na.policy="only", na.rm=T)
     target<-sum(c(crop(newsst.r[[1]],aoi.r),aoi.r),na.rm=T)
     n<-n+1

@@ -118,11 +118,11 @@ spatialdownscale_tiles<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wc
         sky_tile<-crop(skyview,t)
         hor_tile<-crop(horizon,t)
 
-        mesoclimate<-spatialdownscale(climdata_m, sst, dtmf_tile, dtmm,
+        mesoclimate<-spatialdownscale(climdata=climdata_m, sst=sst, dtmf=dtmf_tile, dtmm=dtmm,
                                       basins = basins_tile, wca=wca_tile, skyview=sky_tile, horizon=hor_tile,
-                                      cad, coastal, thgto, whgto, include_tmean,
-                                      rhmin, pksealevel, patchsim,
-                                      terrainshade, precipmethod, fast, noraincut)
+                                      cad=cad, coastal=coastal, thgto=thgto, whgto=whgto, include_tmean=include_tmean,
+                                      rhmin=rhmin, pksealevel=pksealevel, patchsim=patchsim,
+                                      terrainshade=terrainshade, precipmethod=precipmethod, fast=fast, noraincut=noraincut)
 
         mesoclimate_tiles[[length(mesoclimate_tiles)+1]]<-mesoclimate
       } # downscale tiles

@@ -52,8 +52,8 @@ dir_parcels<-file.path(dir_root,'mesoclim_inputs','land_parcels')
 
 #parcels_file<-file.path(dir_parcels,'dartmoor_conifers.shp') # usual test area in Cornwall - coast effect
 #parcels_file<-file.path(dir_parcels,'killerton_parcels.shp') # low elev variation
-#parcels_file<-file.path(dir_parcels,'cairngorm_parcels.shp') # inland & high elev variation
-#parcels_file<-file.path(dir_parcels,'exmoor_parcels.shp')  # Large area - high coast and elev effects
+# parcels_file<-file.path(dir_parcels,'cairngorm_parcels.shp') # inland & high elev variation
+# parcels_file<-file.path(dir_parcels,'exmoor_parcels.shp')  # Large area - high coast and elev effects
 parcels_file<-file.path(dir_parcels,'exmoor_conifers.shp')  # Large area - high coast and elev effects
 #parcels_file<-file.path(dir_parcels,'skye_parcels.shp')  # coast and high elev effect
 #parcels_file<-file.path(dir_parcels,'southdevon_parcels.shp') # LARGE AREA
@@ -76,8 +76,8 @@ parcel_id<-"OBJECTID_1" # Scortland Nat Forest parcels
 
 #### UKCP options and time period
 member<-"01"
-startdate<-as.POSIXlt('2011/01/01',tz="UTC")
-enddate<-as.POSIXlt('2020/12/31',tz="UTC")
+startdate<-as.POSIXlt('2018/01/01',tz="UTC")
+enddate<-as.POSIXlt('2018/12/31',tz="UTC")
 
 #### Bias correction?
 bias_correct<-TRUE
@@ -194,8 +194,8 @@ years<-unique(c(year(startdate):year(enddate)))
 for (yr in years){
   print(yr)
   t0<-now()
-  yrstart<-as.POSIXlt(paste0(yr,'/01/01'),tz=tz(climdata$tme))
-  yrend<-as.POSIXlt(paste0(yr,'/12/31'),tz=tz(climdata$tme))
+  yrstart<-as.POSIXlt(paste0(yr,'/05/01'),tz=tz(climdata$tme))
+  yrend<-as.POSIXlt(paste0(yr,'/05/31'),tz=tz(climdata$tme))
   climdata_y<-subset_climdata(climdata,yrstart,yrend)
 
   ### BIAS CORRECTION of year's data if requested
@@ -237,7 +237,7 @@ for (yr in years){
   if(parcel_output){
     tp<-now()
     # Calculate and write parcel values -
-    parcel_list<- create_parcel_list(mesoclimate,parcels_v,id=parcel_id,output_spechum=TRUE)
+    parcel_list<- create_parcel_list(mesoclimate,parcels_v,id=parcel_id,output_tmean = TRUE,output_spechum=TRUE)
     if(yr==years[1]) ov<-"replace" else ov<-"append"
     write_parcels(parcel_list, dir_out, overwrite=ov)
     print(paste("Time for parcel calculation and writing =", format(now()-tp)))
@@ -245,7 +245,16 @@ for (yr in years){
   print(paste("Total yearly processing time =", format(now()-t0)))
 
 }# end year
+
+##############  Write a list of parcel ID and OSGB XY coordinates of centroid  #######################
+if(parcel_output){
+  parcels_sf<-st_as_sf(parcels_v)
+  parcel_centroids <- round(st_coordinates(st_centroid(st_make_valid(parcels_sf))),1)
+  parcels_txt<-data.frame("id"=parcels_sf[,parcel_id],"x"=parcel_centroids[,"X"],"y"=parcel_centroids[,"Y"])
+  write.table(parcels_txt, file.path(dir_out,"parcel_ids.csv"), sep = ",", row.names = FALSE,  col.names = TRUE, quote=FALSE)
+}
 print(paste("Run time =", format(now()-tstart)))
+
 
 
 
