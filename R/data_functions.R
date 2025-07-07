@@ -99,8 +99,7 @@ plot_wind<-function(winddir,windspeed){
 #' @title Check and summarise coarse resolution climate data inputs
 #' @param input_list list of climate and associated variables as output by functions like 'ukcp18toclimarray'
 #' @param tstep string decribing whether input data is by hour or day
-
-#' @return NO VALUE RETURN but may print warnings and summary stats and plots of each variable if requested
+#' @return UNMODIFIED input_list - but may print warnings and summary stats and plots of each variable if requested
 #' @import magrittr
 #' @import fmsb
 #' @importFrom graphics par
@@ -294,7 +293,7 @@ checkinputs <- function(input_list, tstep = c("hour","day"),plots=TRUE){
     print('Plotting wind direction figures')
     plot_wind(.is(input_list$winddir),.is(input_list$windspeed))
   }
-  return()
+  return(input_list)
 }
 
 #' @title Read climate data
