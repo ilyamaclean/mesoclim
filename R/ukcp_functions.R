@@ -378,6 +378,7 @@ create_ukcpsst_data<-function(
 #' Returned climate data will be at the extent, corrdinate reference system of the UKCP18 data requested, which can vary between domains and collections.
 #' The extent will be provided by the `dtm` which, if necessary, will be re-projected and resampled to the CRS and resolution of UKCP18 data requested.
 #' For regional UKCP18 data, it is recommended that 'dtm' is derived from the original orography data available for download.
+#' The dtm may also be used to estimate albedo on the basis of whether land or sea.
 #' @keywords preprocess ukcp18
 #' @examples
 #'  \dontrun{
@@ -506,9 +507,10 @@ ukcp18toclimarray <- function(dir_ukcp, dtm,  startdate, enddate,
 
   # Calculate derived variables: longwave downward from tmean (calculated from hourly estimate of temp)
   tme<-as.POSIXlt(time(clim_list$tasmax),tz="UTC")
-  tmean<-.hourtoday(temp_dailytohourly(clim_list$tasmin, clim_list$tasmax, tme),mean) # required for relhum downscaling
+  tmean<-.hourtoday(temp_dailytohourly(clim_list$tasmin, clim_list$tasmax, tme),mean) # also required for relhum downscaling
   lwup<-terra::app(tmean, fun=.lwup)
   clim_list$lwdown<-clim_list$rls+lwup
+  # skyem<-clim_list$lwdown/lwup
 
   # Calculate derived variables: shortwave downward from white & black sky albedo as rast timeseries or fixed land and sea values
   clim_list$swdown<-.swdown(clim_list$rss, clim_list$clt, dtmc, wsalbedo, bsalbedo)

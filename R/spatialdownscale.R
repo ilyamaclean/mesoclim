@@ -5,7 +5,7 @@
 #' Expects variables to include a `tmin` and `tmax`
 #' @param tmean a coarse resolution array or spatRaster of daily mean temperatures identical to climdata inputs.
 #' If NA will calculate from hourluy downscaling of tmin and tmax in `climdata`
-#' @param sst a SpatRast of sea-surface temperature data (deg C) timeseries that overlaps climdata$tme
+#' @param sst a vector or SpatRast of sea-surface temperature data (deg C) timeseries of same length or layer number as timesteps in climdata
 #' @param dtmf a high-resolution SpatRast of elevations
 #' @param dtmm a medium-resolution SpatRast of elevations covering a larger area
 #' than dtmf (only needed for coastal effects - see details).
@@ -41,24 +41,15 @@
 #' wsf<-winddownscale(climdata$windspeed, climdata$winddir, dtmf, dtmm, climdata$dtm, zi=climdata$windheight_m)
 #' dailytemps<-tempdaily_downscale(climdata,NA,terra::unwrap(mesoclim::ukcp18sst),dtmf,dtmm,basins,wsf,cad = TRUE,coastal = TRUE,2,2)
 #' terra::panel(c(dailytemps$tmin[[13]],dailytemps$tmax[[13]],dailytemps$tmean[[13]]),main=paste(c("Tmin","Tmax","Tmean"),"13/05/2018"))
+#' # With sea temperature as a vector
+#' sst<-seq(10,13.1,length=31)
+#' dailytemps<-tempdaily_downscale(climdata,NA,sst,dtmf,dtmm,basins,wsf,cad = TRUE,coastal = TRUE,2,2)
 tempdaily_downscale<-function(climdata,tmean=NA,sst=NA,dtmf,dtmm,basins,uzf,cad=TRUE,coastal=TRUE,thgto=2,whgto=2){
   # Convert variables - unpack any wrapped spatRasters and convert arrays to spatraster
   input_class<-lapply(lapply(climdata,class),"[",1)
   if(any(input_class=="PackedSpatRaster")) climdata[which(input_class=="PackedSpatRaster")]<-lapply(climdata[which(input_class=="PackedSpatRaster")],unwrap)
   if(any(input_class=="array")) climdata[which(input_class=="array")]<-lapply(climdata[which(input_class=="array")],.rast,tem=climdata$dtm)
   if(inherits(sst,"PackedSpatRaster")) sst<-unwrap(sst)
-
-  # Test to see if any valid sst data provided to estimate coastal effects
-  if(inherits(sst,"SpatRaster")) if(all(is.na(values(sst[[1]])))) sst<-NA
-  if(is.logical(sst)){
-    if(coastal==TRUE) message("Ignoring coastal effects as no valid sea surface temperature data provided - assuming inland area!!")
-    coastal<-FALSE
-  }
-
-  # Check tmin and tmax among climdata variables
-  if(!any(c("tmin","tmax") %in% names(climdata))) stop("Cannot find daily min/max temperature variables for tempdaily_downscale!!!")
-  if (class(dtmm) == "logical" & coastal) stop("dtmm needed for calculating coastal effects")
-  dtmc<-climdata$dtm
 
   # Get variables
   rh<-climdata$relhum
@@ -72,6 +63,29 @@ tempdaily_downscale<-function(climdata,tmean=NA,sst=NA,dtmf,dtmm,basins,uzf,cad=
   swrad<-climdata$swrad
   lwrad<-climdata$lwrad
   dtmc<-climdata$dtm
+
+  # Test to see if any valid sst data provided to estimate coastal effects
+  if(inherits(sst,"SpatRaster")) if(all(is.na(values(sst[[1]])))) sst<-NA
+  if(is.logical(sst)){
+    if(coastal==TRUE) message("Ignoring coastal effects as no valid sea surface temperature data provided - assuming inland area!!")
+    coastal<-FALSE
+  }
+
+  # Check tmin and tmax among climdata variables
+  if(!any(c("tmin","tmax") %in% names(climdata))) stop("Cannot find daily min/max temperature variables for tempdaily_downscale!!!")
+  if (class(dtmm) == "logical" & coastal) stop("dtmm needed for calculating coastal effects")
+
+  # If sst supplied as vector - check length and convert to spatraster
+  if(is.numeric(sst)){
+    if(length(sst)!=length(tme)){
+      warning("SST provided as vector is NOT the same length as timesteps/layers in temperature data - ignoring coastal effects!!!")
+      coastal<-FALSE
+    } else{ # convert to fine resolution spatraster of constant sea temp values
+      sstvals<-rep(sst,each=ncell(dtmc))
+      sst<-rast(crs=crs(dtmc),extent=ext(dtmc),resolution=res(dtmc),nlyr=length(tme),vals=sstvals)
+      terra::time(sst)<-tme
+    }
+  }
 
   # Get temp independent params
   if (cad) mu<-.cad_multiplier(dtmf, basins, refhgt=thgti)
@@ -175,7 +189,7 @@ tempdaily_downscale<-function(climdata,tmean=NA,sst=NA,dtmf,dtmm,basins,uzf,cad=
 #' @export
 #' @keywords spatial
 #' @examples
-#' climdata<- read_climdata(mesoclim::ukcpinput)
+#' climdaily<- read_climdata(mesoclim::ukcpinput)
 #' climhrly<-temporaldownscale(climdaily, adjust = TRUE, clearsky=NA, srte = 0.09, relmin = 10, noraincut = 0)
 #' dtmf<-terra::rast(system.file("extdata/dtms/dtmf.tif",package="mesoclim"))
 #' dtmm<-terra::rast(system.file("extdata/dtms/dtmm.tif",package="mesoclim"))
@@ -185,6 +199,9 @@ tempdaily_downscale<-function(climdata,tmean=NA,sst=NA,dtmf,dtmm,basins,uzf,cad=
 #' tempf<-temphrly_downscale(climhrly, sst, dtmf, dtmm, basins, uzf = wsfhr,tempvar="temp")
 #' terra::panel(tempf[[c(1,6,12,18)]],main=paste('Temperature',c('00:00', '06:00', '12:00', '18:00'),' on 1 May 2018'))
 #' matplot(terra::time(tempf),unlist(terra::global(tempf,mean,na.rm=TRUE)), type = "l", lty = 1, main='Mean hourly temperature of whole area')
+#' # With sea temperature as a vector
+#' sst<-seq(10,18,length=length(climhrly$tme))
+#' tempf<-temphrly_downscale(climhrly, sst, dtmf, dtmm, basins, uzf = wsfhr,tempvar="temp")
 temphrly_downscale<-function(climhrly, sst, dtmf, dtmm = NA, basins = NA, uzf = NA,
                         cad = TRUE, coastal = TRUE,thgto=2, whgto=2, tempvar='temp') {
   # Convert variables - unpack any wrapped spatRasters and convert arrays to spatraster
@@ -193,15 +210,7 @@ temphrly_downscale<-function(climhrly, sst, dtmf, dtmm = NA, basins = NA, uzf = 
   if(any(input_class=="array")) climhrly[which(input_class=="array")]<-lapply(climhrly[which(input_class=="array")],.rast,tem=climhrly$dtm)
   if(inherits(sst,"PackedSpatRaster")) sst<-unwrap(sst)
 
-  # Test to see if any valid sst data provided to estimate coastal effects
-  if(inherits(sst,"SpatRaster")) if(all(is.na(values(sst[[1]])))) sst<-NA
-  if(is.logical(sst)){
-    if(coastal==TRUE) message("Ignoring coastal effects as no valid sea surface temperature data provided - assuming inland area!!")
-    coastal<-FALSE
-  }
-
-  dtmc<-climhrly$dtm
-  if(is.logical(sst)) coastal<-FALSE else if(all(!is.na(values(sst[[1]])))) coastal<-FALSE
+  # get variables
   rh<-climhrly$relhum
   pk<-climhrly$pres
   tc<-climhrly[[tempvar]]
@@ -212,6 +221,25 @@ temphrly_downscale<-function(climhrly, sst, dtmf, dtmm = NA, basins = NA, uzf = 
   swrad<-climhrly$swrad
   lwrad<-climhrly$lwrad
   dtmc<-climhrly$dtm
+
+  # Test to see if any valid sst data provided to estimate coastal effects
+  if(inherits(sst,"SpatRaster")) if(all(is.na(values(sst[[1]])))) sst<-NA
+  if(is.logical(sst)){
+    if(coastal==TRUE) message("Ignoring coastal effects as no valid sea surface temperature data provided - assuming inland area!!")
+    coastal<-FALSE
+  }
+
+  # If sst supplied as vector - check length and convert to spatraster
+  if(is.numeric(sst)){
+    if(length(sst)!=length(tme)){
+      warning("SST provided as vector is NOT the same length as timesteps/layers in temperature data - ignoring coastal effects!!!")
+      coastal<-FALSE
+    } else{ # convert to fine resolution spatraster of constant sea temp values
+      sstvals<-rep(sst,each=ncell(dtmc))
+      sst<-rast(crs=crs(dtmc),extent=ext(dtmc),resolution=res(dtmc),nlyr=length(tme),vals=sstvals)
+      terra::time(sst)<-tme
+    }
+  }
 
   # Calculate lapse rates (coarse and fine scale)
   lrc<-lapserate(.is(tc), .is(rh), .is(pk))
@@ -243,8 +271,7 @@ temphrly_downscale<-function(climhrly, sst, dtmf, dtmm = NA, basins = NA, uzf = 
     if(class(uzf)[1] == "logical") uzf<-winddownscale(climhrly$windspeed,climhrly$winddir,dtmf,dtmm,dtmc,whgti,thgto)
     tcf<-.tempcoastal(tc=tcf,sst=sstf,u2=uzf,wdir=climhrly$winddir,dtmf,dtmm,dtmc)
   }
-  hr_tme<-as.POSIXlt(unlist(lapply(tme,FUN=function(x) x+(60*60*c(0:23)) )))
-  terra::time(tcf)<-hr_tme
+  terra::time(tcf)<-tme
   return(tcf)
 }
 #' @title Downscale pressure with elevation effects

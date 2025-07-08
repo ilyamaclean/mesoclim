@@ -858,7 +858,7 @@ temporaldownscale<-function(climdaily, adjust = TRUE, clearsky=NA, srte = 0.09, 
   }
 
   # Check likely memory use compared with free RAM - even daily requires converting to hourly for some downscaling
-  mmry<-mem_info(climdaily$dtm, n=length(tme)*24*4)
+  mmry<-mem_info(climdaily$dtm, n=length(tme)*24*4,print=FALSE)
   if (mmry["needed"]>(0.5*mmry["available"]) & mmry["needed"]<mmry["available"]) warning("High free memory use predicted - consider running in smaller timesteps!!!")
   if (mmry["needed"]>mmry["available"]) warning("Memory demand predicted to exceed available memory - run in smaller timesteps!!!")
 
@@ -886,6 +886,7 @@ temporaldownscale<-function(climdaily, adjust = TRUE, clearsky=NA, srte = 0.09, 
   # Format outputs
   if(!toArrays){
     climhourly<-climdaily[c("dtm","tme","windheight_m","tempheight_m")]
+    climhourly$tme<-as.POSIXlt(terra::time(hrtemps))
     climhourly$temp<-hrtemps
     climhourly$relhum<-hrrh
     climhourly$pres<-hrpres
@@ -896,6 +897,7 @@ temporaldownscale<-function(climdaily, adjust = TRUE, clearsky=NA, srte = 0.09, 
     # climhourly$prec<-hrprec
   } else{
     climhourly<-climdaily[c("dtm","tme","windheight_m","tempheight_m")]
+    climhourly$tme<-as.POSIXlt(terra::time(hrtemps))
     climhourly$temp<-.is(hrtemps)
     climhourly$relhum<-.is(hrrh)
     climhourly$pres<-.is(hrpres)

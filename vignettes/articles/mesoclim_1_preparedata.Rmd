@@ -1,5 +1,14 @@
 ---
 title: "1. Data pre-processing"
+output:
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+    toc_depth: 3
+    number_sections: true
+
 ---
 
 ```{r, include = FALSE}
@@ -17,19 +26,62 @@ library(terra)
 devtools::load_all()
 ```
 
+# Introduction
+
+Uses of future downscaled climate data - future climate equivalent of weather data that captures mesoclimatic effects.
+
+Permit further downscaling such as to microclimate / beneath canopy conditions.
+
+
+## Climate data 
+
+Climate data is available at many different spatial and temporal resolutions, the extent of which may vary from global to sub-national. Typically, future climate predictions derived from global and regional climate models will have a spatial extent of the order of tens of kilometres and either a daily or hourly resolution. In certain cases, model outputs may conform to a time sequence that does not match future calendar dates.For example, UKCP18 data uses twelve 30-day months for every year.
+
+The variables (and their units) provided by different climate models also vary. Long and shorwave radiation variables, in particular, can vary widely in terms of their meaning and units. UKCP18, for example, only provides net downward longwave and shortwave radiation fluxes, whereas many applications may require absolute downward values. 
+
+Variables such as windspeed and temperature may also be referenced to different heights above ground, whereas the pressure can be referenced to local elevation or sea-level. 
+
+Some common sources of historic and future climate data are:
+
+* UKCP18 - global, regional and national (UK) daily data available at a spatial resolution of 60 to 12 km^2 (some national data at 2.5km^2) - link
+
+Historical only sources include:
+
+* ERA5 - global historical re-analysis hourly data at a spatial resolution of ??? - link
+
+
+## Other downscaling data requirements
+
+The spatial and temporal downscaling of climate data to finer resolutions requires additional data of the area to be downscaled, including fine resolution elevation data and a land/sea mask and sea surface temperature timeseries if close to the coast. 
+
+Sources of future and historic sea surface temperature include:
+
+* North Atlantic ???? - derived from the same models and model runs that generate UKCP18 predictions - link
+
+* ERA5 - historic reanalysis data includes hourly sea surface temperature at a spatial resolution of ??? - link
+
+Elevation and land/sea masks matching the climate input data are also required, ideally sourced from the models generating these climate inputs. Examples include:
+
+* UKCP orography data (that can be converted to elevation using the `mesoclim` function `????`)
+
+* ERA5 dtm??
+
+The sea mask used to generate climate model data is of particular importance. MORE
+
+
 # 2 Preprocessing coarse resolution climate data
 
-UKCP18 climate files are LARGE!! Downloadable from the CEDA archive they cover 10 years of data for the whole of the UK (Europe or world depending on the domain), each variable file is therefore typically > 100MB. Therefore it is important to define the area of interest and timespan for which downsclaed data is required.
+For the purposes of illustrating the data perepataion of historic and future climate data we will consider the UKCP18 regional data (daily at 12 km^2) covering the United Kingdom. This data requires many pre-processing steps due to the format and variables provided.
+
+UKCP18 climate files are LARGE!! Downloadable from the CEDA archive (ref) they cover 10 years of data for the whole of the UK (Europe or world depending on the domain), each variable file is therefore typically > 100MB. Therefore it is important to define the area of interest and timespan for which downscale data is required.
 
 ## Defining area of interest
 
-Spatial downscaling requires data covering not only for the immediate area of interest for which we require downscaled outputs, but also a wider area to ensure effects such as wind and coastal downscaling effects are captured.  
-
-Digital elevation maps are required covering both the immediate and wider areas of interest. `mesoclim` makes use of three different extents and resolutions of dtm to inform its spatial downscaling:
+Spatial downscaling requires digital terrain models covering not only for the immediate area of interest for which we require downscaled outputs, but also a wider area to ensure effects such as wind and coastal downscaling effects are captured.  `mesoclim` makes use of two key extents and resolutions of dtm to inform its spatial downscaling:
 
 * `dtmf` - a fine resolution digital terrrain map at covering the area and resolution at which downsclaed climate outputs are required.
 
-* `dtmm` - a medium resolution digital terrain map used to calculate coastal effects.
+* `dtmm` - a digital terrain map of the same extent as the dtmc and at the resoution of the dtmf used to calculate coastal effects.
 
 * `dtmc` - a coarse resolution digital terrain map at the same resolution and projection as the original climate data. Typically this should be sourced from the providers of climate data so it matches the information used in climate modelling.The area covered should be the same of greater than that of the `dtmm`
 
@@ -46,7 +98,7 @@ dir_sst<-system.file('extdata/sst',package='mesoclim')
 ukdtmc<-terra::rast(system.file('extdata/ukcp18rcm/orog_land-rcm_uk_12km_osgb.nc',package='mesoclim'))
 
 # Define coarse resolution DTM of the widest area of interest from ukcp18 dtm
-dtmc<-terra::crop(ukdtmc,ext(24000, 336000, -60000, 204000))
+dtmc<-terra::crop(ukdtmc,ext(120000, 200000, 10000, 70000))
 
 # Load medium resolution DTM (including wider area for capturing wind/coastal effects)
 dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
@@ -55,23 +107,93 @@ dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
 dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
 
 # Show local downscale area within wider dtmm
-aoif<-vect(ext(dtmf))
-aoim<-vect(ext(dtmm))
+# Show local downscale area within wider dtmm
+aoi<-vect(ext(dtmf))
 plot.new()
-plot(dtmc,main='Medium and fine-resolution dtm extents on 12km coarse-resolution dtm')
-plot(aoim, add=T)
-plot(aoif,add=TRUE)
+plot(dtmc,main='Downscale area of interest on backdrop of 1km dtmm & 12km ukcp18 dtm')
+plot(dtmm, add=T)
+plot(aoi,add=TRUE,col="red")
 ```
 
 ## Creation of standard inputs for downscaling
 
-Different sources of climate and ancillary data can provide different variables using different SI units, in  varying formats and using different file naming conventions. Therefore, `mesoclim` provides several functions to convert and check common sources of climate data into standard inputs for subsequent downscaling. Here we look at UKCP18 regional data as an example.
+Different sources of climate and ancillary data provide different variables using different SI units, in  varying formats and using different file naming conventions. Therefore, `mesoclim` provides several functions to convert and check common sources of climate data into standard inputs for subsequent downscaling. Here we look at UKCP18 regional data as an example.
+
+To download climate directly directly from source, we utilise functions within the `microclimdata` package which we install from github. This package interfaces with a number of geospatial data repositories. While data are free, you will need to register to download the data and provide your user credentials to the functions. For simplicity, all functions requiring user credential take as an input a single data.frame in which all credentials are stored. This should be saved on a secure location on your local drive. The inbuilt dataset `credentials` provides a template to which your own usernames and passwords should be added. It also contains weblinks for registering to use the services.
+
+To access ERA5 data from the European Centre for Medium-Range Weather Forecasts climate data store (CDS):
+
+(i) Register for an ECMWF account [here](https://accounts.ecmwf.int/auth/realms/ecmwf/login-actions/registration?client_id=cds&tab_id=IA1LKqgLVc0). Upon registering you will need to accept all of the Terms and Conditions listed at the bottom of the form.
+
+(ii) Then, navigate to the CDS site [here](https://cds-beta.climate.copernicus.eu/) and login using the button in the top right. Once logged in, hover your mouse over your name in the top right, and click on the option "Your profile" that appears (this should bring you to [this page](https://cds-beta.climate.copernicus.eu/profile). Here you will 
+find the email address used to access the site and and Personal Access Token, both which are required for you to remotely download data from the CDS. Copy these into your credentials file - the email address goes under username and the personal access token in place of password.
+
+(iii) Each CDS dataset has its own unique Terms of Use. You will need to accept these Terms for ERA5-reanalysis at [this page](https://cds-beta.climate.copernicus.eu/datasets/reanalysis-era5-single-levels?tab=download) (scroll down to "Terms of use" and accept). This same set of terms also applies for other Copernicus products, including ERA5-land.
+
+(5) Access to the Centre for Environmental Data Analysis (CEDA) Archive for downloading daily UKCP18 Historic and Future climate data (global coverage). To access UKCP18 data, after registering, you will need to obtain a CEDA access token from [this page](https://services-beta.ceda.ac.uk/account/token/?_ga=2.221117848.1874942177.1727205775-405001952.1710779653)
+
+For further details see the `microclimdata` github page [here](https://github.com/ilyamaclean/microclimdata) 
+
+```{r download_climate_data}
+devtools::install_github("ilyamaclean/microclimdata")
+library(microclimdata)
+
+# Set output path
+pathout<-tempdir() 
+
+# Set time period
+startdate<-as.POSIXlt('2018/05/01', tz="UTC")
+enddate<-as.POSIXlt('2018/05/31', tz="UTC")
+
+# Set or load credentials data.frame - see microclimdata
+cred_df<-read.csv("/Users/jonathanmosedale/downscale_users.txt", header=TRUE)
+
+### Download UKCP data - WARANING this downloads c. 3 GB of data files!!!
+tme<-as.POSIXlt(seq(startdate, enddate, by = "1 day"))
+# access_token<-"your-api-token"
+# ukcpdata<-microclimdata::ukcp18_download(tme,cedatoken=access_token, pathout=pathout,
+#                                        collection='land-rcm',domain='uk',rcp='rcp85',member='01')
+ukcpdata<-mesoclimAddTrees::download_ukcp18(pathout, tme[1], tme[length(tme)], 
+                                            collection = "land-rcm", domain = "uk", rcp = "rcp85", member = "01", 
+                                            vars = c( "hurs", "huss", "pr", "prsn", "psl", "rls", "rss", "tasmax", "tasmin", "uas", "vas"), download_dtm = FALSE, access_token=access_token) 
+
+
+### Download ERA5 data
+tme<-seq.POSIXt(startdate, enddate, by = "1 hour")
+
+era5data<-microclimdata::era5_download(dtmc, tme, credentials=cred_df, file_prefix="testmcera5_", pathout=pathout)
+
+variables<-c("10m_u_component_of_wind",
+              "10m_v_component_of_wind" ,
+              "2m_dewpoint_temperature",
+              "2m_temperature",
+              "mean_sea_level_pressure",
+              "surface_pressure",
+              "total_precipitation",
+              "Surface_solar_radiation_downwards",
+              "total_sky_direct_solar_radiation_at_surface",
+              "mean_surface_downward_short_wave_radiation_flux",
+              "mean_surface_direct_short_wave_radiation_flux",
+              "mean_surface_downward_long_wave_radiation_flux")
+
+e<-ext(project(dtmc,"EPSG:4326"))
+mesoclimAddTrees::download_era5(pathout, file_out="testera5", tme,
+                        area = c(e[4], e[1], e[3], e[2]),
+                        variables = variables, era5_user, era5_key)
+
+### Download NCEP data - downloads six-hourly historic climate data from the NCEP-NCAR reanalysis project ~1min
+tme<-seq.POSIXt(startdate, enddate, by = "6 hour", tz="UTC")
+ncepdata<-microclimdata::ncep_download(dtmc, tme)
+ncepsst<-sst_download(dtmc, tme, resampleout = "FALSE", nafill = "FALSE")
+
+```
 
 ### UKCP18 climate preprocessing
 
 UKCP18 data pre-processing requires several modifications to the original data including:
 
 * Conversion of 12 x 30-day months to actual dates.
+
 * Conversion of net to downward short and longwave radiation. 
 
 The conversion of shortwave radiation is calculated using an estimate of albedo at the same resolution as the climate data. Albedo data can either be provided or constant land/sea albedo values are used.
@@ -84,13 +206,12 @@ collection<-'land-rcm'
 domain<-'uk'
 member<-'01'
 rcp<-'rcp85'
-startdate<-as.POSIXlt('2018/05/01')
-enddate<-as.POSIXlt('2018/05/31')
+startdate<-as.POSIXlt('2018/05/01', tz="UTC")
+enddate<-as.POSIXlt('2018/05/31', tz="UTC")
 
 # Processes using already downloaded ukcp18rcm files in dir_data
 t0<-now()
 ukcp18rcm<-ukcp18toclimarray(dir_ukcpdata, dtmc,  startdate, enddate,collection, domain, member)
-# should also work: ukcp18rcm<-ukcp18toclimarray(dir_ukcpdata, dtmm,  startdate, enddate,collection, domain, member)
 print(now()-t0)
 
 # Write preprocessed data
@@ -102,7 +223,7 @@ write_climdata(ukcp18rcm,file.path(dir_out,'ukcp18rcm.Rds'),overwrite=TRUE)
 
 Sea surface temperature is not included in the UKCP18 data. For the UK seas surface data for the North Atlantic area for the same corresponding climate models used in the creation of the UKCP18 data is available on ceda. This data is in lat lon projection.
 
-The function `create_ukcpsst_data` ensures that the sea surface data matches the corresponding dtmc in the UKCP18 climate data that has already been prepared - interpolating where necessary to ensure coast lines match. Sea surface data will match the crs, resolution and extent of the provided dtmc - which should extend well beyond the final downscaling area.
+The function `create_ukcpsst_data` ensures that the sea surface data matches the corresponding dtmc in the UKCP18 climate data that has already been prepared - interpolating where necessary to ensure coast lines match. Sea surface data will match the crs, resolution and extent of the provided dtmc - which should extend well at least a full climate grid cell beyond the final downscaling area.
 
 ```{r sst-preprocess}
 dir_sst<-system.file("extdata/sst", package = "mesoclim")
@@ -110,10 +231,16 @@ sst<-create_ukcpsst_data(dir_sst,startdate=as.POSIXlt('2018/05/01'),enddate=as.P
 plot(c(sst,ukcp18rcm$dtm))
 ```
 
+### ERA5 historical climate data preparation
+
+
+### NCEP climate data preparation
+
+
 ## Checking data inputs to downscaling
 
 The resulting data structures of preprocessing can be checked to ensure there are no missing or unexpected values that may indicate a difference in the expected SI units or incomplete input datasets. This is particularly advisable if the inputs for spatial downscaling are not derived from one of the provided functions.
 
 ```{r check_inputs}
-ukcp18rcm<-checkinputs(read_climdata(file.path(dir_out,'ukcp18rcm.Rds')), tstep = "day", plots=TRUE)
+checkinputs(read_climdata(file.path(dir_out,'ukcp18rcm.Rds')), tstep = "day", plots=TRUE)
 ```
