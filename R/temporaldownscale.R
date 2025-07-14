@@ -449,6 +449,7 @@ swrad_dailytohourly <- function(radsw, tme=NA, r = NA, clearsky = NA,  adjust = 
 #'  TO DO - Option of providing cloud cover data to correct sky emissivity values??
 #' @keywords temporal
 #' @examples
+#' climdaily<-read_climdata(ukcpinput)
 #' # ========================================================================= #
 #' # ~~~~~~~~~~~~~~~~~~~~ input provided as SpatRaster ======================= #
 #' # ========================================================================= #
@@ -608,6 +609,41 @@ wind_dailytohourly <- function(ws, wd, tme=NA, adjust = TRUE) {
 # ============================================================================ #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Precipitation downscale  ~~~~~~~~~~~~~~~~~~~~~ #
 # ============================================================================ #
+
+#' Daily to hourly precipitation downscale (TEMPORARY HOLDING FUNCTION)
+#'
+#' @param prec
+#' @param tme
+#'
+#' @return
+#' @export
+#'
+#' @examples
+#' climdaily<-read_climdata(ukcpinput)
+#' hrprec<-prec_dailytohourly(climdaily$prec)
+#' #Plot results for one cell
+#' cell_prec<-t(terra::extract(hrprec,matrix(c(175000,40000),ncol=2)))
+#' matplot(terra::time(hrprec),cell_prec, type = "l", lty = 1)
+prec_dailytohourly<-function(prec, tme=NA,dailyraincut=0){
+  if(inherits(prec, "SpatRaster")){
+    if(inherits(tme,"logical")) tme<-as.POSIXlt(terra::time(prec))
+    out<-'SpatRaster'
+    tem<-prec[[1]]
+  } else if(inherits(prec, "array")) out<-'array' else if(inherits(prec, c("integer","numeric"))) out<-"vector"
+
+  prec<-.is(prec)
+  prec<-ifelse(prec<dailyraincut,0,prec)
+  tmeh <- as.POSIXlt(seq(tme[1],tme[length(tme)]+23*3600, by = 3600))
+  prechr<-.daytohour(prec/24)
+
+    if(out=='SpatRaster'){
+    prechr<-.rast(prechr,tem)
+    time(prechr) <- tmeh
+  }
+  return(prechr)
+}
+
+
 #' ~~ * Need to use Bartlett-Lewis rectangular pulse model + HyetosMinute method.
 #' ~~   coding is very poor in that package so scope to imporve it.
 #' sequence of rainfalls
@@ -832,7 +868,7 @@ plotrain <- function(daily, subdaily) {
 #' @param clearsky - clearsky values for terrain (see `swrad_dailytohourly`)
 #' @param srte - a parameter controlling speed of decay of night time temperatures (see `temp_dailytohourly`)
 #' @param relmin - minimum relative humidity value (see `hum_dailytohourly`)
-#' @param noraincut - single numeric value indicating rainfall amounts that should
+#' @param noraincut - single numeric value indicating daily rainfall amounts that should
 #' be considered as no rain (see)
 #' @param toArrays - if FALSE outputs SpatRasters
 #'
@@ -879,6 +915,7 @@ temporaldownscale<-function(climdaily, adjust = TRUE, clearsky=NA, srte = 0.09, 
   hrlw<-lw_dailytohourly(lw=climdaily$lwrad, hrtemps=hrtemps, hrrh=hrrh, hrpres=hrpres, adjust=adjust)
 
   # Precipitation
+  hrprec<-prec_dailytohourly(climdaily$prec, dailyraincut=noraincut)
 
   # Windspeed
   hrwind<-wind_dailytohourly(climdaily$windspeed, climdaily$winddir, adjust = adjust)
@@ -894,7 +931,7 @@ temporaldownscale<-function(climdaily, adjust = TRUE, clearsky=NA, srte = 0.09, 
     climhourly$lwrad<-hrlw
     climhourly$windspeed<-hrwind$wsh
     climhourly$winddir<-hrwind$wdh
-    # climhourly$prec<-hrprec
+    climhourly$prec<-hrprec
   } else{
     climhourly<-climdaily[c("dtm","tme","windheight_m","tempheight_m")]
     climhourly$tme<-as.POSIXlt(terra::time(hrtemps))
@@ -905,7 +942,7 @@ temporaldownscale<-function(climdaily, adjust = TRUE, clearsky=NA, srte = 0.09, 
     climhourly$lwrad<-.is(hrlw)
     climhourly$windspeed<-.is(hrwind$wsh)
     climhourly$winddir<-.is(hrwind$wdh)
-    # climhourly$prec<-.is(hrprec)
+    climhourly$prec<-.is(hrprec)
   }
   return(climhourly)
 }
