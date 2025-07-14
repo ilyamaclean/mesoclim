@@ -403,13 +403,21 @@ lwdownscale<-function(lwrad, tc, tcf, tme, dtmf, dtmc, skyview=NA, terrainshade 
 #' sw<-swdownscale(climdata$swrad,dtmf=terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')), dtmc=climdata$dtm,terrainshade = TRUE)
 #' sw<-sw$swf
 #' terra::panel(c(sw[[1]],sw[[5]],sw[[10]],sw[[20]]),main=paste0("SW down ",c(1,5,10,20),"/05/2018"))
+#' hrsw <- swrad_dailytohourly(climdata$swrad,climdata$tme,r=climdata$dtm)
+#' hrswf<-swdownscale(hrsw,dtmf=terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')), dtmc=climdata$dtm,terrainshade = TRUE)
+#' terra::panel(c(hrswf$swf[[2]],hrswf$swf[[7]],hrswf$swf[[14]],hrswf$swf[[20]]),main=paste0("SW down ",c(1,6,13,19),"hrs on 1/5/2018"))
 swdownscale<-function(swrad, tme=NA, dtmf, dtmc, patchsim = FALSE, nsim= dim(swrad)[3],
                       hor=NA, terrainshade = FALSE) {
   if(inherits(swrad,'SpatRaster') & inherits(tme,"logical")) tme<-as.POSIXlt(terra::time(swrad))
+  if(inherits(tme,"logical")) stop("swdownscale requires tme parameter or spatraster with time!!!")
   # Work out whether daily or not
   ti<-round(as.numeric(tme[2])-as.numeric(tme[1]))
+  if (ti <= 3600) hourly<-TRUE else hourly<-FALSE
+
   # Check no NA in dtmc - convert to 0 elevation
   dtmc<-ifel(is.na(dtmc),0,dtmc)
+  #dtmf<-ifel(is.na(dtmf),0,dtmf)
+
   # Calculate clear sky fraction
   jd<-juldayvCpp(tme$year+1900, tme$mon+1, tme$mday)
   lt<-tme$hour+tme$min/60+tme$sec/3600
@@ -418,7 +426,6 @@ swdownscale<-function(swrad, tme=NA, dtmf, dtmc, patchsim = FALSE, nsim= dim(swr
   lons<-.rast(ll$lons,dtmc)
   lats<-.is(mask(lats,dtmc))
   lons<-.is(mask(lons,dtmc))
-  if (ti < 86400) hourly<-TRUE else hourly<-FALSE
   csr<-array(clearskyradmCpp(jd,lt,as.vector(lats),as.vector(lons),hourly),dim=dim(swrad))
 
   # Calculate clear-sky fraction and elevation adjust it
@@ -441,7 +448,7 @@ swdownscale<-function(swrad, tme=NA, dtmf, dtmc, patchsim = FALSE, nsim= dim(swr
   lons<-.rast(ll$lons,dtmf)
   lats<-.is(mask(lats,dtmf))
   lons<-.is(mask(lons,dtmf))
-  if (ti < 86400)  {  # Hourly
+  if (hourly)  {  # Hourly
     lats<-.rast(ll$lats,dtmf)
     lons<-.rast(ll$lons,dtmf)
     lats<-.is(mask(lats,dtmf))
@@ -455,8 +462,10 @@ swdownscale<-function(swrad, tme=NA, dtmf, dtmc, patchsim = FALSE, nsim= dim(swr
   }
 
   swradf<-.rast(csrf,dtmf)*csf
+
   if (terrainshade) {
-    if (ti < 86400)  {  # Hourly
+    if(!hourly) swradfh<-.ehr(.is(swradf)) else swradfh<-.is(swradf)
+    if (hourly)  {
       swf<-matrix(.is(swradf),ncol=dim(swradf)[3])
       dp<-difpropmCpp(swf,jd,lt,as.vector(lats),as.vector(lons))
       dp<-array(dp,dim=dim(swradf))
@@ -496,19 +505,16 @@ swdownscale<-function(swrad, tme=NA, dtmf, dtmc, patchsim = FALSE, nsim= dim(swr
     shadowmask[hora>tan(alt)]<-0
     shadowmask[(90-ze)<0]<-0
     # Calculate sky view
-    #svf<-.rta(.skyview(dtmf),dim(swradf)[3])
     svf<-.rta(.skyview(dtmf),dim(shadowmask)[3])
 
-    # Convert daily SW to hourly
-    swradfh<-.ehr(.is(swradf))
-
     # Adjust radiation to account for sky view factor
-    #drf<-.rast(dp*svf*.is(swradf),dtmf) # FAILS HERE FOR DAILY swradf still daily values
     drf<-dp*svf*swradfh
-    #swf<-(1-dp)*shadowmask*.is(swradf)+dp*svf*.is(swradf)
     swf<-(1-dp)*shadowmask*swradfh+dp*svf*swradfh
+    drf<-.rast(drf,dtmf)
     swf<-.rast(swf,dtmf)
-    if (ti == 86400) {  # daily average across days
+
+    # Calculate average daily values
+    if (!hourly) {
       swf<-hourtodayCpp(.is(swf),"mean")
       drf<-hourtodayCpp(.is(drf),"mean")
       swf<-.rast(swf,dtmf)
@@ -519,6 +525,7 @@ swdownscale<-function(swrad, tme=NA, dtmf, dtmc, patchsim = FALSE, nsim= dim(swr
     terra::time(drf)<-tme
     out<-list(swf=swf,drf=drf)
   } else { # If no terrain shading
+    terra::time(swradf)<-tme
     out<-list(swf=swradf,drf=NA)
   }
   return(out)
