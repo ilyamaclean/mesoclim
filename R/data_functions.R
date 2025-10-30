@@ -366,6 +366,7 @@ write_climdata<-function(climdata,filepath,overwrite=FALSE){
 #'
 #' @examples
 subset_climdata<-function (climdata, sdatetime, edatetime) {
+  
   if (class(climdata)[1] == "SpatRaster") {
     if (all(any(!is.na(values(climdata))))) {
       sel <- which(time(climdata) >= sdatetime %m-% months(1) &
@@ -374,12 +375,10 @@ subset_climdata<-function (climdata, sdatetime, edatetime) {
       sel <- ifelse(sel > nlyr(climdata), nlyr(climdata),
                     sel)
       newdata <- subset(climdata, sel)
-    }
-    else {
+    } else {
       newdata <- NA
     }
-  }
-  if (class(climdata)[1] == "list") {
+  } else if (class(climdata)[1] == "list") {
     sel <- which(climdata$tme >= sdatetime & climdata$tme <=
                    edatetime)
     newdata <- list()
@@ -395,6 +394,8 @@ subset_climdata<-function (climdata, sdatetime, edatetime) {
       if (class(climdata[[v]])[1] == "array")
         newdata[[v]] <- climdata[[v]][, , sel]
     }
+  } else {
+    newdata <- NA
   }
   return(newdata)
 }
