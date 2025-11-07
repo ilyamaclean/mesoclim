@@ -491,9 +491,48 @@
   cf<-mask(cf,dtmf)
   return(cf)
 }
+
+#' @title Calculates horizon angle
+#' @noRd
+.horizon <- function(dtm, azimuth) {
+  reso<-res(dtm)[1]
+  dtm<-.is(dtm)
+  dtm[is.na(dtm)]<-0
+  dtm<-dtm/reso
+  azi<-azimuth*pi/180
+  horizon<-array(0,dim(dtm))
+  dtm3<-array(0,dim(dtm)+200)
+  x<-dim(dtm)[1]
+  y<-dim(dtm)[2]
+  dtm3[101:(x+100),101:(y+100)]<-dtm
+  for (step in 1:10) {
+    horizon[1:x,1:y]<-pmax(horizon[1:x,1:y],(dtm3[(101-cos(azi)*step^2):(x+100-cos(azi)*step^2),
+                                                  (101+sin(azi)*step^2):(y+100+sin(azi)*step^2)]-dtm3[101:(x+100),101:(y+100)])/(step^2),na.rm=T)
+  }
+  horizon
+}
+
+# ============================================================================ #
+# ~~~~~~~~~ Wind worker functions here  ~~~~~~~~~~~~~~~~~~~~~~~~~ #
+# ============================================================================ #
+
+# TEST Function to calculate roughness length based on elevation x
+calculate_z0<-function(x){
+     ymax<-0.02
+     ymin<-0.001
+     c1<-5
+     c2<-250
+     y<-ifelse(x<c1,ymin+(ymax/c1)*x,0.021)
+     y<-ifelse(x>c2,(ymax+ymin) - (ymax/(1 + (x/(xmid+100))^-10)),y)
+     return(y)
+}
+
 #' @title Calculates wind altitude coefficient in specified direction
 #' @noRd
-.windz<-function(dtm1,dtm2,dtmr,wdir) {
+.windz<-function(dtm1,dtm2,dtmr,wdir,zi=10,zo=10) {
+  dtm1<-ifel(is.na(dtm1),0,dtm1)
+  dtm2<-ifel(is.na(dtm2),0,dtm2)
+  dtmr<-ifel(is.na(dtmr),0,dtmr)
   reso1<-res(dtm1)[1]
   reso2<-res(dtm2)[2]
   # Calculate shifts
@@ -515,11 +554,21 @@
   m2[(bdist+1):(bdist+dim(dtm1)[1]),(bdist+1):(bdist+dim(dtm1)[2])]<-.is(dtm1)
   wc<-array(1,dim=dim(dtm1)[1:2])
   m<-.is(dtm1)
+
+  # set roughness length for input ref
+  z0i<-0.02 
+  # set roughness length for output based on elevation
+  #z0o<-calculate_z0(m)
+  z0o<-z0i
+  z0o<-ifelse(m>200,0.005,0.02)
+  z0o<-ifelse(m<5,0.005,z0o)
   m3<-.is(dtmr) # replacement raster
   for (i in 1:length(xshift)) {
     # elevation difference
     ed<-m-m2[(bdist+1-yshift[i]):(bdist-yshift[i]+dim(m)[1]),(bdist+1+xshift[i]):(bdist+xshift[i]+dim(m)[2])]
-    mu<-suppressWarnings(log(67.8*(ed+2)-5.42)/4.8699)
+    #mu<-suppressWarnings(log(67.8*(ed+2)-5.42)/4.8699)
+    #mu<-suppressWarnings(log(67.8*(ed+zo)-5.42)/log(67.8*zi-5.42))
+    mu<-suppressWarnings( .windhgt(1,zi,ed+zo,z0i,z0o) )
     mu[ed<0]<-1
     mu[mu<1]<-1
     s<-which(is.na(mu))
@@ -560,35 +609,15 @@
 #' @param zi a numeric value idicating the height (m) above the ground of `wspeed` input
 #' @param zo a numeric value indicating the height (m) above ground level of output speeds
 #' Assumes a logarithmic height profile and imposes a minimum zo of 0.2.
-#' Equivalent of using a roughness length (z0) of ~0.2 where v = vref ln(z/z0)/ln(zref/z0) (https://www.rensmart.com/Information/WindSheer)
+#' Equivalent of using a roughness length (z0) of ~0.02 where v = vref ln(z/z0)/ln(zref/z0) (https://www.rensmart.com/Information/WindSheer)
 #' @keywords internal
-.windhgt<-function (wspeed, zi, zo) {
-  if (zo < 0.2 & zo > (5.42/67.8)){
+.windhgt<-function (wspeed, zi, zo, z0i=0.02, z0o=0.02) {
+  if (any(zo<0.2)){
     warning("Wind-height profile function performs poorly below 20 cm so output height converted to 20 cm")
-    zo <- 0.2
+    zo <- ifelse(zo<0.2,0.2,zo)
   }
-  return(wspeed * log(67.8 * zo - 5.42)/log(67.8 * zi - 5.42))
-}
-
-
-#' @title Calculates horizon angle
-#' @noRd
-.horizon <- function(dtm, azimuth) {
-  reso<-res(dtm)[1]
-  dtm<-.is(dtm)
-  dtm[is.na(dtm)]<-0
-  dtm<-dtm/reso
-  azi<-azimuth*pi/180
-  horizon<-array(0,dim(dtm))
-  dtm3<-array(0,dim(dtm)+200)
-  x<-dim(dtm)[1]
-  y<-dim(dtm)[2]
-  dtm3[101:(x+100),101:(y+100)]<-dtm
-  for (step in 1:10) {
-    horizon[1:x,1:y]<-pmax(horizon[1:x,1:y],(dtm3[(101-cos(azi)*step^2):(x+100-cos(azi)*step^2),
-                                                  (101+sin(azi)*step^2):(y+100+sin(azi)*step^2)]-dtm3[101:(x+100),101:(y+100)])/(step^2),na.rm=T)
-  }
-  horizon
+  #return(wspeed * log(67.8 * zo - 5.42)/log(67.8 * zi - 5.42))
+  return( wspeed *log(zo/z0o)/log(zi/z0i) )
 }
 
 # ============================================================================ #

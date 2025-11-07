@@ -578,7 +578,7 @@ winddownscale <- function(wspeed, wdir, dtmf, dtmm, dtmc, wca=NA, zi=10, zo = 2)
     dtmm<-terra::aggregate(dtmm,dtmm_res / res(dtmf),  na.rm=TRUE)
   }
   # If not supplied, calculate terrain adjustment coefs for 8 directions at wind height zo
-  if(class(wca)[1]=='logical') wca2<-calculate_windcoeffs(dtmc,dtmm,dtmf,zo) else wca2<-.is(wca)
+  if(class(wca)[1]=='logical') wca2<-calculate_windcoeffs(dtmc,dtmm,dtmf,zi,zo) else wca2<-.is(wca)
   # Calculate wind direction of centre of study area
   if(inherits(wdir,"SpatRaster")) wdr<-wdir else wdr<-.rast(wdir,dtmc)
   ll<-.latlongfromrast(wdr)
@@ -590,7 +590,7 @@ winddownscale <- function(wspeed, wdir, dtmf, dtmm, dtmc, wca=NA, zi=10, zo = 2)
   windmu<-wca2[,,i+1]
   # Resample wind speeds
   if(inherits(wspeed,"SpatRaster")) wsr<-wspeed else wsr<-.rast(wspeed,dtmc)
-  # Adjust windspeed to output height zo
+  # Adjust windspeed to output height zo - NOT needed!!?
   if (zi != zo) wsr<-.windhgt(wsr, zi, zo)
   #if (uz !=2) wsr<-wsr*4.8699/log(67.8*uz-5.42)
   if (crs(wsr) != crs(dtmf)) {
