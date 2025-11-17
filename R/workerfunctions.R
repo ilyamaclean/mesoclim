@@ -567,7 +567,7 @@ calculate_z0<-function(x){
     # elevation difference
     ed<-m-m2[(bdist+1-yshift[i]):(bdist-yshift[i]+dim(m)[1]),(bdist+1+xshift[i]):(bdist+xshift[i]+dim(m)[2])]
     #mu<-suppressWarnings(log(67.8*(ed+2)-5.42)/4.8699)
-    #mu<-suppressWarnings(log(67.8*(ed+zo)-5.42)/log(67.8*zi-5.42))
+    # mu<-suppressWarnings(log(67.8*(ed+zo)-5.42)/log(67.8*zi-5.42))
     mu<-suppressWarnings( .windhgt(1,zi,ed+zo,z0i,z0o) )
     mu[ed<0]<-1
     mu[mu<1]<-1
@@ -612,9 +612,10 @@ calculate_z0<-function(x){
 #' Equivalent of using a roughness length (z0) of ~0.02 where v = vref ln(z/z0)/ln(zref/z0) (https://www.rensmart.com/Information/WindSheer)
 #' @keywords internal
 .windhgt<-function (wspeed, zi, zo, z0i=0.02, z0o=0.02) {
-  if (any(zo<0.2)){
+  sel<-which(zo<0.2)
+  if (length(sel)>0){
     warning("Wind-height profile function performs poorly below 20 cm so output height converted to 20 cm")
-    zo <- ifelse(zo<0.2,0.2,zo)
+    zo[sel]<-0.2
   }
   #return(wspeed * log(67.8 * zo - 5.42)/log(67.8 * zi - 5.42))
   return( wspeed *log(zo/z0o)/log(zi/z0i) )
