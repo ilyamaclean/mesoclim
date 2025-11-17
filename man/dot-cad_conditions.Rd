@@ -48,4 +48,9 @@ vector of the same length as \code{em} and \code{wind} indicating whether condit
 occur (1) or not (0). For daily measurements it may be appropriate to apply only to daily min
 and  to set swrad to 0 assuming this minimum occurs during the night.
 }
+\examples{
+ dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+climdata<-read_climdata(mesoclim::climdata)
+.cad_conditions(climdata$tmin,climdata$windspeed,climdata$swrad,climdata$lwrad,climdata$dtmc,dtmf,refhgt = 2)
+}
 \keyword{internal}

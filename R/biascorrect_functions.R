@@ -335,8 +335,8 @@ precipcorrect_apply<-function(fut_mod, biasmods, prec_thold=0.01) {
 #' models were developed.
 #'
 #' @export
-#'
-#' @examples
+#' @seealso [biascorrect()] for deriving `biasmods` and `precip_correct` for
+#' applying corrections to precipitation datasets.
 biascorrect_climdata<-function(climdata, model_list, prec_thold=0.01, rangelims = NA, fillna=FALSE){
   # Check inputs - names match and convert to spatrasters if required
   vars<-c("relhum","pres","lwrad","swrad","tmax","tmin","windspeed","prec" )

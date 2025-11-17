@@ -612,10 +612,10 @@ wind_dailytohourly <- function(ws, wd, tme=NA, adjust = TRUE) {
 
 #' Daily to hourly precipitation downscale (TEMPORARY HOLDING FUNCTION)
 #'
-#' @param prec
-#' @param tme
-#'
-#' @return
+#' @param prec - daily total precipitaion (mm) as SpatRaster, 3D array or vector
+#' @param tme  - POSIX.lt daily time series to match `prec` - if NA will look to time dimension of `prec` spatraster
+#' @param dailyruncut - limit for daily precipitation beneath which set to zero
+#' @return hourly precipitation in same format as `prec`
 #' @export
 #'
 #' @examples
@@ -624,6 +624,10 @@ wind_dailytohourly <- function(ws, wd, tme=NA, adjust = TRUE) {
 #' #Plot results for one cell
 #' cell_prec<-t(terra::extract(hrprec,matrix(c(175000,40000),ncol=2)))
 #' matplot(terra::time(hrprec),cell_prec, type = "l", lty = 1)
+#' # Using vector of prec and tme as inputs
+#' prec<-c(10,5,0,0,5,10,12)
+#' tme<-seq(as.Date("2022/6/1"), as.Date("2022/6/7"),by = "1 day")
+#' hrprec<-prec_dailytohourly(prec,tme)
 prec_dailytohourly<-function(prec, tme=NA,dailyraincut=0){
   if(inherits(prec, "SpatRaster")){
     if(inherits(tme,"logical")) tme<-as.POSIXlt(terra::time(prec))

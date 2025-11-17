@@ -21,3 +21,6 @@ numeric or spatraster of sea level pressures matching dtm
 \description{
 Convert sea to atmospheric pressure
 }
+\examples{
+print(paste("Sea level pressure of 100 kPa atmospheric pressure at 500m elevation =",round(sea_to_atmos_pressure(100,500),1),"kPa"))
+}

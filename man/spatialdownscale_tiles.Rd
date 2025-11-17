@@ -112,6 +112,19 @@ a list of multi-layer SpatRast or 3D arrays of downscaled climate variables and 
 }
 }
 \description{
-Spatially downscales coarse-resolution climate data over large areas by tiling.
+Spatially downscales coarse-resolution climate data over large areas by:
+(i) Downscaling in monthly steps
+(ii) Dividing spatial area into a set of user defined tiles
+}
+\examples{
+ dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+ dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
+ climdata<-read_climdata(mesoclim::ukcpinput)
+ sst<-terra::unwrap(mesoclim::ukcp18sst)
+# Less efficient over such a small area but demonstrates use of multiple tiles
+ mesodat<-spatialdownscale_tiles(climdata,sst,dtmf,dtmm,include_tmean=TRUE,noraincut=0.01, overlap=200, sz=2000)
+for(n in 5:length(mesodat)) terra::plot(mesodat[[n]][[12]],main=paste(names(mesodat)[n],mesodat$tme[n]))
+# A single tile can be used but in monthly steps by setting sz to greater than x and y dimensions of dtmf
+ mesodat<-spatialdownscale_tiles(climdata,sst,dtmf,dtmm,include_tmean=TRUE,noraincut=0.01, overlap=0, sz=20000)
 }
 \keyword{spatial}

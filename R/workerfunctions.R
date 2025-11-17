@@ -1040,6 +1040,8 @@ calculate_z0<-function(x){
 #' @keywords internal
 #'
 #' @examples
+#'  dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+#' plot(.cad_multiplier(dtmf, basins = NA, refhgt = 2))
 .cad_multiplier<-function(dtmf, basins = NA, refhgt = 2){
   # Calculate elevation difference between basin height point and pixel
   if (class(basins) == "logical") basins<-basindelin(dtmf,refhgt)
@@ -1095,8 +1097,10 @@ calculate_z0<-function(x){
 #' occur (1) or not (0). For daily measurements it may be appropriate to apply only to daily min
 #' and  to set swrad to 0 assuming this minimum occurs during the night.
 #' @keywords internal
-#'
 #' @examples
+#'  dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+#' climdata<-read_climdata(mesoclim::climdata)
+#' .cad_conditions(climdata$tmin,climdata$windspeed,climdata$swrad,climdata$lwrad,climdata$dtmc,dtmf,refhgt = 2)
 .cad_conditions<-function(tc,u2,swrad,lwrad,dtmc,dtmf,refhgt = 2){
   # determine whether cold-air drainage conditions exist
   d<-0.65*0.12
@@ -1120,8 +1124,7 @@ calculate_z0<-function(x){
 #'
 #' @return spatraster of cold air drainage correction in deg C
 #' @keywords internal
-#'
-#' @examples
+##' @noRd
 .apply_cad<-function(lrf,mu,st){
   cad<-lrf*-mu
   ce<-cad*st
@@ -1515,7 +1518,7 @@ calculate_z0<-function(x){
 }
 #' @title Calculate clear sky radiation
 #' @noRd
-#' @example
+#' @examples
 #' tme<-as.POSIXlt(seq(as.POSIXct("2021-06-22 00:00"), as.POSIXct("2021-06-22 23:00"), by = "hour"))
 #' .clearskyrad(tme,60,0)
 .clearskyrad <- function(tme, lat, long, tc = 15, rh = 80, pk = 101.3) {

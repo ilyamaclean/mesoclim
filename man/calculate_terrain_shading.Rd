@@ -7,10 +7,18 @@
 calculate_terrain_shading(dtm, steps = 24, toArrays = FALSE)
 }
 \arguments{
-\item{toArrays}{}
+\item{dtm}{digital elevation spatraster in metres}
+
+\item{steps}{\itemize{
+\item number of horizon angles to return
+}}
+
+\item{toArrays}{\itemize{
+\item if FALSE returns spatrasters otherwise 3D arrays
+}}
 }
 \value{
-list (length=2) of \code{skyview} and \code{horizon} arrays or SpatRasters
+list (length=2) of total skyview (\code{skyview}) and \code{steps} x \code{horizon} arrays or SpatRasters
 }
 \description{
 Calculate horizon for different solar azimuths and total skyview
@@ -21,6 +29,6 @@ Skyview places equal importance on each sector of sky
 \examples{
 dtmf<-terra::rast(system.file("extdata/dtms/dtmf.tif",package="mesoclim"))
 results<-calculate_terrain_shading(dtmf)
-#plot(results$skyview)
-#plot(results$horizon[[c(1,6,12,18)]])
+plot(results$skyview,main="Total Skyview")
+plot(results$horizon[[c(1,6,12,18)]],main="Horizon angles")
 }

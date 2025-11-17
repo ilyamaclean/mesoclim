@@ -358,13 +358,17 @@ write_climdata<-function(climdata,filepath,overwrite=FALSE){
 #' Subset climate data by date
 #'
 #' @param climdata - list of spatraster/arrays and associated climate data
-#' @param sdatetime - start date time as POSIXlt
-#' @param edatetime - end date time as POSIXlt
+#' @param sdatetime - start date time as POSIXlt or Date
+#' @param edatetime - end date time as POSIXlt or Date
 #'
-#' @return
+#' @return list of same format as `climdata` but retricted to times between `sdatetime` and `edatetime`
 #' @export
 #'
 #' @examples
+#' climdata<-read_climdata(mesoclim::ukcpinput)
+#' start<-as.Date("2018/05/01")
+#' end<-as.Date("2018/05/07")
+#' weekdata<-subset_climdata(climdata,start,end)
 subset_climdata<-function (climdata, sdatetime, edatetime) {
   if (class(climdata)[1] == "SpatRaster") {
     if (all(any(!is.na(values(climdata))))) {

@@ -12,13 +12,22 @@ subset_climdata(climdata, sdatetime, edatetime)
 }}
 
 \item{sdatetime}{\itemize{
-\item start date time as POSIXlt
+\item start date time as POSIXlt or Date
 }}
 
 \item{edatetime}{\itemize{
-\item end date time as POSIXlt
+\item end date time as POSIXlt or Date
 }}
+}
+\value{
+list of same format as \code{climdata} but retricted to times between \code{sdatetime} and \code{edatetime}
 }
 \description{
 Subset climate data by date
+}
+\examples{
+climdata<-read_climdata(mesoclim::ukcpinput)
+start<-as.Date("2018/05/01")
+end<-as.Date("2018/05/07")
+weekdata<-subset_climdata(climdata,start,end)
 }

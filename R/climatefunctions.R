@@ -523,7 +523,7 @@ lapserate <- function(tc, rh=NA, pk=NA) {
 #' @export
 #'
 #' @examples
-#'
+#' print(paste("Sea level pressure of 100 kPa atmospheric pressure at 500m elevation =",round(sea_to_atmos_pressure(100,500),1),"kPa"))
 sea_to_atmos_pressure<-function(psl,dtm){
   if(inherits(psl,"SpatRaster")){
     toArrays<-FALSE
@@ -566,19 +566,18 @@ atmos_to_sea_pressure<-function(pres,dtm){
 
 #' Calculate horizon for different solar azimuths and total skyview
 #' @details Skyview places equal importance on each sector of sky
-#' @param dtmf
-#' @param sv_steps
-#' @param hor_steps
-#' @param toArrays
+#' @param dtm digital elevation spatraster in metres
+#' @param steps - number of horizon angles to return
+#' @param toArrays - if FALSE returns spatrasters otherwise 3D arrays 
 #'
-#' @return list (length=2) of `skyview` and `horizon` arrays or SpatRasters
+#' @return list (length=2) of total skyview (`skyview`) and `steps` x `horizon` arrays or SpatRasters
 #' @export
 #'
 #' @examples
 #' dtmf<-terra::rast(system.file("extdata/dtms/dtmf.tif",package="mesoclim"))
 #' results<-calculate_terrain_shading(dtmf)
-#' #plot(results$skyview)
-#' #plot(results$horizon[[c(1,6,12,18)]])
+#' plot(results$skyview,main="Total Skyview")
+#' plot(results$horizon[[c(1,6,12,18)]],main="Horizon angles")
 calculate_terrain_shading<-function(dtm,steps=24,toArrays=FALSE){
   r<-dtm
   dtm<-ifel(is.na(dtm),0,dtm)

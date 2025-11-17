@@ -30,4 +30,8 @@ calculates the lapse rate multiplier by the difference
 in elevation between each point and the highest in the
 basin.
 }
+\examples{
+ dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+plot(.cad_multiplier(dtmf, basins = NA, refhgt = 2))
+}
 \keyword{internal}

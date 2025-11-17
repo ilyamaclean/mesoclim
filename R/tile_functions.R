@@ -1,6 +1,8 @@
 
 #' @title Spatially downscale all climate variables by tiles
-#' @description Spatially downscales coarse-resolution climate data over large areas by tiling.
+#' @description Spatially downscales coarse-resolution climate data over large areas by:
+#' (i) Downscaling in monthly steps
+#' (ii) Dividing spatial area into a set of user defined tiles
 #' @param climdata a `climdata` model object containing climate data of the same format as `era5climdata`
 #' @param sst a SpatRast of sea-surface temperature data (deg C) that overlaps with climdata$tme
 #' @param dtmf a high-resolution SpatRast of elevations
@@ -56,6 +58,15 @@
 #' @export
 #' @keywords spatial
 #' @examples
+#'  dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+#'  dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
+#'  climdata<-read_climdata(mesoclim::ukcpinput)
+#'  sst<-terra::unwrap(mesoclim::ukcp18sst)
+#' # Less efficient over such a small area but demonstrates use of multiple tiles
+#'  mesodat<-spatialdownscale_tiles(climdata,sst,dtmf,dtmm,include_tmean=TRUE,noraincut=0.01, overlap=200, sz=2000)
+#' for(n in 5:length(mesodat)) terra::plot(mesodat[[n]][[12]],main=paste(names(mesodat)[n],mesodat$tme[n]))
+#' # A single tile can be used but in monthly steps by setting sz to greater than x and y dimensions of dtmf
+#'  mesodat<-spatialdownscale_tiles(climdata,sst,dtmf,dtmm,include_tmean=TRUE,noraincut=0.01, overlap=0, sz=20000)
 spatialdownscale_tiles<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, skyview=NA, horizon=NA,
                                  cad = TRUE,coastal = TRUE, thgto =2, whgto=2,include_tmean=FALSE,
                                  rhmin = 20, pksealevel = TRUE, patchsim = FALSE, terrainshade = TRUE,
@@ -79,8 +90,8 @@ spatialdownscale_tiles<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wc
 
   # Calculate overlapping tile set (nb size can vary)
   tileset<-create_overlapping_tiles(dtmf,overlap,sz)
-  tiles<-tileset$tile_extents[which(tileset$tile_land=="y")]
-
+  tiles<-tileset[["tile_extents"]][which(tileset$tile_land=="y")]
+ 
   # Calculate year/months of data supplied
   start<-climdata$tme[1]
   end<-climdata$tme[length(climdata$tme)]
@@ -134,11 +145,12 @@ spatialdownscale_tiles<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wc
       mesomonth$windheight_m<-mesoclimate_tiles[[1]]$windheight_m
       mesomonth$tempheight_m<-mesoclimate_tiles[[1]]$tempheight_m
       append_vars<-names(mesoclimate_tiles[[1]])[c(5:length(mesoclimate_tiles[[1]]))]
-      for(v in append_vars) mesomonth[[v]]<-do.call(merge, lapply(mesoclimate_tiles,`[[`, v))
+      if(length(mesoclimate_tiles)==1) for(v in append_vars) mesomonth[[v]]<-mesoclimate_tiles[[1]][[v]]
+      if(length(mesoclimate_tiles)>1) for(v in append_vars) mesomonth[[v]]<-do.call(merge, lapply(mesoclimate_tiles,`[[`, v))
       for(v in append_vars) names(mesomonth[[v]])<-terra::time(mesomonth[[v]])
 
       allmonths[[length(allmonths)+1]] <-mesomonth
-      print(paste("Time for downscaling ALL tiles for ALL months of year",yr,"=",format(now()-t0)))
+      #print(paste("Time for downscaling ALL tiles for ALL months of year",yr,"=",format(now()-t0)))
     } # month
   } # years
 
@@ -170,7 +182,14 @@ spatialdownscale_tiles<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wc
 #' testtiles<-create_overlapping_tiles(r,overlap=200,sz=2000)
 #' terra::plot(r)
 #' for(t in testtiles$tile_extents) terra::plot(terra::vect(terra::ext(t)),add=TRUE)
+#' testtiles<-create_overlapping_tiles(r,overlap=200,sz=20000)
 create_overlapping_tiles<-function(template.r,overlap=1000,sz=10000){
+  # If tile size > template.r return single tile with message
+  if(sz>ncol(template.r)*res(template.r)[1] & sz>nrow(template.r)*res(template.r)[2]){
+    warning("Requested tile size larger than input area - returning a single tile of whole area!")
+    tileset<-list("tile_extents"=list(ext(template.r)),"tile_land"='y')
+    return(tileset)
+  }
   xmax<-ext(template.r)[2]
   xmin<-ext(template.r)[1]
   if(sz%%res(template.r)[1]!=0) warning("Choice of tile size is NOT divisible by resolution of template.r!!")
@@ -225,134 +244,4 @@ create_overlapping_tiles<-function(template.r,overlap=1000,sz=10000){
   }
   tileset<-list("tile_extents"=elist,"tile_land"=etype)
   return(tileset)
-}
-
-#' Blend tile list
-#' @param input_list - list of overlapping spatraster tiles
-#' @return spatRaster of merged tiles
-#' @details
-#' Call function `mosaicblend` to within then across columns.
-#'
-#' @export
-#'
-#' @examples
-blend_tile_lists<-function(input_list){
-  tileext<-lapply(input_list,ext)
-  # Blend cols
-  rws<-unlist(unique(lapply(tileext,"ymax")))
-  cls<-unlist(unique(lapply(tileext,"xmax")))
-
-  col_list<-list()
-  for(c in cls){
-    sel<-which(lapply(tileext,"xmax")==c)
-    blend.r<-mosaicblend(rlist=input_list[sel])
-    col_list<-c(col_list,blend.r)
-  }
-  # Blend rows
-  output_r<-rast()
-  output_r<-c(output_r,mosaicblend(col_list))
-  return(output_r)
-}
-
-##################### FOLLOWING MIGHT NOT BE REQUIRED ################
-
-#' @title Mosaics a list of overlapping SpatRasters blending overlap areas
-#' @description Mosaics a list of overlapping SpatRasters blending
-#' the areas of overlap using a distance weighting to eliminate tiling effects
-#' @param rlist a list of SpatRasters
-#' @details
-#' If rlist contains SpatRasters that are not overlapping the conventional terra::moasic function is used.
-#' If rlist contains SpatRasters that do overlap, they should comprise a list of adjacent rasters in a single row or column.
-#' Overlapping cells calulated using weighted distances to reduce tile effects
-#' Function derived from: https://github.com/ilyamaclean/microclimf/tree/main
-#' Called by: `blend_tile_lists`
-#' @import terra
-#' @export
-mosaicblend <- function(rlist) {
-  # order by row and then by column
-  xmn<-0
-  ymn<-0
-  for (i in 1:length(rlist)) {
-    e<-ext(rlist[[i]])
-    xmn[i]<-e$xmin
-    ymn[i]<-e$ymin
-  }
-  xmn1<-unique(xmn)
-  ymn1<-unique(ymn)
-  le<-min(length(xmn1),length(ymn1))
-  if (le > 1) warning("rlist not a row or column. Blended mosaicing may not work")
-  if (length(xmn1) > length(ymn1)) {
-    o<-order(xmn)
-  } else o<-order(ymn)
-  rlist2<-list()
-  for (i in 1:length(o)) rlist2[[i]]<-rlist[[o[i]]]
-  rlist<-NULL
-  rma<-rlist2[[1]]
-  for (i in 2:length(rlist2)) {
-    r<-rlist2[[i]]
-    it<-terra::intersect(ext(rma),ext(r))
-    a<-as.numeric((it$xmax-it$xmin)*(it$ymax-it$ymin))
-    if (a>0) {
-      rma<-.blendmosaic(rma, r)
-    } else rma<-mosaic(rma,r)
-  }
-  return(rma)
-}
-#' blend two adjacent rasters that have overlap
-#' called by `mosaicblend`
-.blendmosaic<-function(r1, r2) {
-  # run checks
-  reso1<-res(r1)
-  reso2<-res(r2)
-  if (reso1[1] != reso2[1]) stop("resolutions must match")
-  if (reso1[2] != reso2[2]) stop("resolutions must match")
-  # Find whether r2 is TT, TR, RR, BR, BB, BL, LL or TL
-  e1<-ext(r1)
-  e2<-ext(r2)
-  corner<-"ID"
-  if (e2$ymax > e1$ymax & e2$xmax == e1$xmax) corner<-"TT"
-  if (e2$ymax > e1$ymax & e2$xmax > e1$xmax) corner<-"TR"
-  if (e2$ymax == e1$ymax & e2$xmax > e1$xmax) corner<-"RR"
-  if (e2$ymax < e1$ymax & e2$xmax > e1$xmax) corner<-"BR"
-  if (e2$ymax < e1$ymax & e2$xmax == e1$xmax) corner<-"BB"
-  if (e2$ymax < e1$ymax & e2$xmax < e1$xmax) corner<-"BL"
-  if (e2$ymax == e1$ymax & e2$xmax < e1$xmax) corner<-"LL"
-  if (e2$ymax > e1$ymax & e2$xmax < e1$xmax) corner<-"TL"
-  if (corner == "ID") {
-    ro<-mosaic(r1,r2,fun="mean")
-  } else {
-    # Calculate overlap area
-    if (corner == "TR" || corner == "TT") eo<-ext(e2$xmin,e1$xmax,e2$ymin,e1$ymax)
-    if (corner == "BR" || corner == "RR") eo<-ext(e2$xmin,e1$xmax,e1$ymin,e2$ymax)
-    if (corner == "BL" || corner == "BB") eo<-ext(e1$xmin,e2$xmax,e1$ymin,e2$ymax)
-    if (corner == "TL" || corner == "LL") eo<-ext(e2$xmin,e1$xmax,e2$ymin,e1$ymax)
-    # Calculate weights
-    nx<-as.numeric((eo$xmax-eo$xmin)/res(r1)[1])
-    ny<-as.numeric((eo$ymax-eo$ymin)/res(r1)[2])
-    wx<-matrix(rep(seq(0,1,length.out=nx),each=ny),ncol=nx,nrow=ny)
-    wy<-matrix(rep(seq(0,1,length.out=ny),nx),ncol=nx,nrow=ny)
-    # Create a SpatRast of the blended area
-    if (corner == "TT") w1<-wy
-    if (corner == "TR") w1<-sqrt((1-wx)^2+wy^2)/sqrt(2)
-    if (corner == "RR") w1<-1-wx
-    if (corner == "BR") w1<-sqrt((1-wx)^2+(1-wy)^2)/sqrt(2)
-    if (corner == "BB") w1<-1-wy
-    if (corner == "BL") w1<-sqrt(wx^2+(1-wy)^2)/sqrt(2)
-    if (corner == "LL") w1<-wx
-    if (corner == "TL") w1<-sqrt(wx^2+wy^2)/sqrt(2)
-    # Apply weights to raster
-    nn<-dim(r1)[3]
-    r1c<-crop(r1,eo)
-    r2c<-crop(r2,eo)
-    w1<-.rast(.rta(w1,nn),r1c[[1]])
-    rb<-r1c*w1+r2c*(1-w1)
-    # Clip out the overlap area
-    ro<-mosaic(r1,r2)
-    re<-w1*0-9999
-    ro<-mosaic(ro,re,fun="min")
-    ro[ro == -9999]<-NA
-    # Mosaic with belnded data
-    ro<-mosaic(ro,rb,fun="mean")
-  }
-  return(ro)
 }
