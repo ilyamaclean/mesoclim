@@ -698,7 +698,7 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
   if (method != "Tps" & method != "Elev") stop("method must be one of Tps or Elev")
   v<-as.vector(prec[[1]])
   v<-v[is.na(v) == FALSE]
-  if (method == "Tps" & length(v) < 10) {
+  if (method == "Tps" & length(v) < 25) {
     warning("Not enough non NA cells for sensible thin-plate spline downscale. Changed method to Elev")
     method <- "Elev"
   }
@@ -731,33 +731,41 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
   s<-which(is.na(a1))
   a1[s]<-aa[s]
   prec<-.rast(a1,prec)
+
+  # Enforce noraincut
+  prec<-ifel(prec<noraincut,0,prec)
+
   # Calculate total rainfall
   m<-.is(prec)
   m1<-apply(m,c(1,2),sum)
   r1<-.rast(m1,prec)
+
   # Calculate rain day fraction
   m2<-m
-  m2[m>noraincut]<-1.  #### NEEDS TO WORK WITH ZERO!!!
-  m2[m<=noraincut]<-0
+  m2[m>0]<-1  
+  m2[m==0]<-0 
   m2<-apply(m2,c(1,2),sum)/dim(m2)[3]
   r2<-.rast(m2,prec)
+
   # Calculate wettest days regionally to enable sensible assignment of rain
-  # to no rain days as needed
+  # to no rain days as needed.
   rrain<-apply(.is(prec),3,sum,na.rm=TRUE)
   rr2<-as.numeric(.mav(rrain,10))
-  s<-which(rrain==0)
-  rrain[s]<-rr2[s]
-  s<-which(rrain==0)
+  s<-which(rrain==0) # dry days across region
+  rrain[s]<-rr2[s] # replace with mov average
+  s<-which(rrain==0) # in case of extended dry periods?
   rrain[s]<-0.1
+
   # Calculate resampled rain
   rf3<-.resample(prec,dtmf)
   rf3<-mask(rf3,dtmf)
   if (method == "Tps") {
-    # Downscaled rain total
+    # Downscaled rain total 
     rf1<-Tpsdownscale(r1, dtmc, dtmf, method = "log", fast)  # Total rain
     # Downscaled rain day fraction
     rf2<-Tpsdownscale(r2, dtmc, dtmf, method = "logit", fast) # Rain day fraction
   } else {
+    
     # Convert NA to zero in dtmc
     dtmc<-ifel(is.na(dtmc),0,dtmc)
     # Downscaled rain total
@@ -766,10 +774,17 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
     prat<-9.039606e-03+1.818067e-03*edif-2.923351e-04*dtmf-6.471352e-07*dtmf*edif
     rtmc<-.resample(r1,dtmf)
     rf1<-rtmc*exp(prat)
-    # Downscaled rain day fraction - THIS NEEDS ATTENTION
-    prat<- 2.787208e-03+2.787208e-03*edif-2.787208e-03*dtmf-4.503742e-07*dtmf*edif
+
+    # Downscaled dry/rainy day fraction -  FORMULA BASED ON 12 and 1km HadUK
+    #prat<- 2.787208e-03+2.787208e-03*edif-2.787208e-03*dtmf-4.503742e-07*dtmf*edif # original eq
+    ddintercept<-0.07738005
+    ddb1<-3.695637e-05
+    ddb2<- -0.0004480589
+    ddb3<-2.827244e-09
+    prat<-ddintercept+ddb1*dtmf+ddb2*edif+ddb3*dtmf*edif #orig
     rdmc<-.resample(r2,dtmf)
-    rf2<-rdmc*exp(prat)
+    #rf2<-rdmc*exp(prat) # original
+    rf2<-rdmc*(1-prat) # eq now assumed to estimate dry days
     rf2[rf2<0]<-0
     rf2[rf2>1]<-1
   }
@@ -785,8 +800,10 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
   rfrac<-as.vector(t(rf2))
   mm<-rainadjustm(mm,rrain,rfrac,rtot)
   a2<-array(mm,dim=dim(a))
-  # Convert to raster
+
+  # Convert to raster and enforce noraincut
   precf<-.rast(a2,dtmf)
+  precf<-ifel(precf<noraincut,0,precf)
   terra::time(precf)<-terra::time(prec)
   return(precf)
 }
