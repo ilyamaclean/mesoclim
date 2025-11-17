@@ -23,7 +23,7 @@ Create overlapping tile set
 }
 \examples{
 r<-terra::rast(system.file("extdata/dtms/dtmf.tif",package="mesoclim"))
-testtiles<-create_overlapping_tiles(r,overlap=200,sz=1000)
-terra::plot(dtmf)
+testtiles<-create_overlapping_tiles(r,overlap=200,sz=2000)
+terra::plot(r)
 for(t in testtiles$tile_extents) terra::plot(terra::vect(terra::ext(t)),add=TRUE)
 }

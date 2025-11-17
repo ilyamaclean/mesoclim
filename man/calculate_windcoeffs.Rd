@@ -4,7 +4,7 @@
 \alias{calculate_windcoeffs}
 \title{Calculate wind coefficients - for use in wind downscaling}
 \usage{
-calculate_windcoeffs(dtmc, dtmm, dtmf, zo, toArray = TRUE)
+calculate_windcoeffs(dtmc, dtmm, dtmf, zi = 10, zo = 2, toArray = TRUE)
 }
 \arguments{
 \item{dtmc}{\itemize{
