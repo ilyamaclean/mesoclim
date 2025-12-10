@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <vector>
 #include <cmath>
-using namespace Rcpp;
+using namespace Rcpp; 
 // ============================================================================================ = #
 // ~~~~~~~~~~~~~~~~~~~ Functions used for converting between R and C++ matrices ~~~~~~~~~~~~~~~~~ #
 // ============================================================================================== #
@@ -771,7 +771,6 @@ NumericMatrix rainadjustm(NumericMatrix rainm, std::vector<double> rrain, std::v
     rainm = convertoRmatrix(rainc);
     return rainm;
 }
-using namespace Rcpp;
 // [[Rcpp::export]]
 NumericVector fill_land_na_idw(NumericVector temp, NumericMatrix landMask) {
     // temp: 3D array with dim = c(nrow, ncol, ntime)
