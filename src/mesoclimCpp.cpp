@@ -771,3 +771,140 @@ NumericMatrix rainadjustm(NumericMatrix rainm, std::vector<double> rrain, std::v
     rainm = convertoRmatrix(rainc);
     return rainm;
 }
+using namespace Rcpp;
+// [[Rcpp::export]]
+NumericVector fill_land_na_idw(NumericVector temp, NumericMatrix landMask) {
+    // temp: 3D array with dim = c(nrow, ncol, ntime)
+    // landMask: 2D matrix with 1 for land, NA for sea
+
+    // Get dimensions
+    IntegerVector dims = temp.attr("dim");
+    if (dims.size() != 3) {
+        stop("temp must be a 3D array with dim = c(nrow, ncol, ntime).");
+    }
+    int nrow = dims[0];
+    int ncol = dims[1];
+    int ntime = dims[2];
+
+    if (landMask.nrow() != nrow || landMask.ncol() != ncol) {
+        stop("Dimensions of landMask must match the first two dimensions of temp.");
+    }
+    // Precompute which cells are land and NA (to be filled), based on time slice 0.
+    // Assumes NA pattern in temp is identical across time.
+    std::vector<int> fill_cells;   // 2D indices flattened: idx2d = i + nrow * j
+    fill_cells.reserve(nrow * ncol / 4);
+
+    for (int j = 0; j < ncol; ++j) {
+        for (int i = 0; i < nrow; ++i) {
+            double mask_val = landMask(i, j);
+            // landMask: non-NA = land; NA = sea
+            if (!Rcpp::NumericVector::is_na(mask_val)) {
+                // Land cell
+                // Index in 3D array at time 0
+                int idx3d_t0 = i + nrow * j; // + nrow*ncol*0
+                double tv = temp[idx3d_t0];
+                if (Rcpp::NumericVector::is_na(tv)) {
+                    int idx2d = i + nrow * j;
+                    fill_cells.push_back(idx2d);
+                }
+            }
+        }
+    }
+
+    if (fill_cells.empty()) {
+        // Nothing to fill; return as is
+        return temp;
+    }
+    // Precompute neighbour structure (2D indices and weights) for each fill cell.
+    // We'll store them in CSR-like format:
+    //  - neigh_starts[k] ... neigh_starts[k+1]-1 = neighbours of fill_cells[k]
+    //  - neigh_index[...] = 2D index (i + nrow*j) of neighbour
+    //  - neigh_weight[...] = corresponding weight
+    const double inv_sqrt2 = 1.0 / std::sqrt(2.0);
+    int n_fill = fill_cells.size();
+    std::vector<int> neigh_starts(n_fill + 1);
+    std::vector<int> neigh_index;
+    std::vector<double> neigh_weight;
+    neigh_index.reserve(n_fill * 8);
+    neigh_weight.reserve(n_fill * 8);
+    for (int k = 0; k < n_fill; ++k) {
+        int idx2d = fill_cells[k];
+        int i = idx2d % nrow;
+        int j = idx2d / nrow;
+        neigh_starts[k] = (int)neigh_index.size();
+        for (int dj = -1; dj <= 1; ++dj) {
+            int jj = j + dj;
+            if (jj < 0 || jj >= ncol) continue;
+            for (int di = -1; di <= 1; ++di) {
+                int ii = i + di;
+                if (ii < 0 || ii >= nrow) continue;
+                if (di == 0 && dj == 0) continue; // skip self
+
+                int ni2d = ii + nrow * jj;
+
+                double w;
+                if (di == 0 || dj == 0) {
+                    // N, S, E, W
+                    w = 1.0;
+                }
+                else {
+                    // Diagonal
+                    w = inv_sqrt2;
+                }
+
+                neigh_index.push_back(ni2d);
+                neigh_weight.push_back(w);
+            }
+        }
+    }
+    neigh_starts[n_fill] = (int)neigh_index.size();
+    // Main loop over time steps
+    int plane_size = nrow * ncol;
+    for (int t = 0; t < ntime; ++t) {
+        bool changed = true;
+        int iter = 0;
+
+        while (changed) {
+            changed = false;
+            ++iter;
+
+            int base = plane_size * t;
+
+            for (int k = 0; k < n_fill; ++k) {
+                int cell2d = fill_cells[k];
+                int idx3d = base + cell2d;
+
+                double val = temp[idx3d];
+                if (!Rcpp::NumericVector::is_na(val)) {
+                    // Already filled in this time slice
+                    continue;
+                }
+
+                // Compute IDW from non-NA neighbours
+                int start = neigh_starts[k];
+                int end = neigh_starts[k + 1];
+
+                double wsum = 0.0;
+                double vsum = 0.0;
+                for (int m = start; m < end; ++m) {
+                    int n2d = neigh_index[m];
+                    double w = neigh_weight[m];
+                    double nv = temp[base + n2d];
+
+                    if (!Rcpp::NumericVector::is_na(nv)) {
+                        wsum += w;
+                        vsum += w * nv;
+                    }
+                }
+
+                if (wsum > 0.0) {
+                    temp[idx3d] = vsum / wsum;
+                    changed = true;
+                }
+            }
+
+            // If no values were filled in this iteration, we are done for this time slice
+        }
+    }
+    return temp;
+}

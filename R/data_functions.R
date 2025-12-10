@@ -402,3 +402,80 @@ subset_climdata<-function (climdata, sdatetime, edatetime) {
   }
   return(newdata)
 }
+
+#' Find nearest non-NA cell values to a point
+#'
+#' @param r spatraster of climate data
+#' @param pt vect point 
+#'
+#' @returns Nearest non-NA cell values to pt of length nlyr(r)
+#' @export
+#' @examples
+get_nearest_val<-function(r,pt){
+  d<-distance(r[[1]],pt )
+  d<-mask(d,r[[1]])
+  nearestcell<-as.numeric(where.min(d)[,"cell"])
+  vals<-as.numeric(apply(extract(r,nearestcell),2,mean))
+  return(vals)
+}
+
+
+#' Fill coastal data
+#'
+#' @param climdata - spatraster of climate data
+#' @param landsea_true - true landsea mask 
+#' @param landsea_climdata - landsea mask of climdata
+#'
+#' @returns Climdata to cover all land in landsea_true
+#'
+#' @export
+#' @examples
+landfill_climdata <- function(climdata, landsea_true, landsea_climdata=NA) {
+  if(!is.logical(landsea_climdata)){
+    climdata <- mask(climdata, landsea_climdata)
+    climdata <- crop(climdata, ext(landsea_true))
+  }
+    # match land sea mask to climate data
+    rte <- climdata[[1]]
+    if (!identical(crs(landsea_true), crs(rte))) {
+      landsea <- project(landsea_true, crs(rte))
+    }
+    e1 <- ext(rte)
+    e2 <- ext(landsea_true)
+    if (!identical(res(landsea_true), res(rte))) {
+      landsea_true <- resample(landsea_true, rte)
+    }
+    e <- c(max(e1$xmin, e2$xmin),
+          min(e1$xmax, e2$xmax),
+          max(e1$ymin, e2$ymin),
+          min(e1$ymax, e2$ymax))
+    # crop datasets to match
+    landsea_true <- crop(landsea_true, e)
+    climdata <- crop(climdata, e)
+    # convert to matrices and arrays
+    landsea_true <- landsea_true * 0 + 1
+    landseam <- as.matrix(landsea_true, wide = TRUE)
+    climdata <- as.array(climdata)
+    climdata <- fill_land_na_idw(climdata, landseam)
+    # Convert back to raster
+    climdata <- rast(climdata)
+    crs(climdata) <- crs(rte)
+    ext(climdata) <- e
+    # fill in any offshore islands from nearest nonNA value
+    missing<-mask(landsea_true,climdata[[1]],inverse=TRUE) 
+    missingpts<-vect(crds(missing),crs=crs(missing))
+    islandsvals.r<-climdata
+    values(islandsvals.r)<-NA
+    for(n in 1:nrow(missingpts)){
+      vals<-get_nearest_val(climdata,missingpts[n,] )
+      missingcell<-cellFromXY(climdata,crds(missingpts[n,]))
+      set.values(islandsvals.r, cells=missingcell, vals)
+    }
+    climdata<-cover(climdata,islandsvals.r)
+    # Orig method here
+    #climdata20 <- resample(aggregate(climdata, fact = 20, fun = mean, na.rm = TRUE), climdata[[1]])
+    #climdata <- cover(climdata, climdata20)
+    #climdata <- mask(climdata, landsea_true)
+    return(climdata)
+}
+
