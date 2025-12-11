@@ -437,6 +437,10 @@ landfill_climdata <- function(climdata, landsea_true, landsea_climdata=NA) {
   }
     # match land sea mask to climate data
     rte <- climdata[[1]]
+    tme<- time(climdata)
+    nms<-names(climdata)
+    u<-units(climdata)
+  
     if (!identical(crs(landsea_true), crs(rte))) {
       landsea <- project(landsea_true, crs(rte))
     }
@@ -461,6 +465,9 @@ landfill_climdata <- function(climdata, landsea_true, landsea_climdata=NA) {
     climdata <- rast(climdata)
     crs(climdata) <- crs(rte)
     ext(climdata) <- e
+    time(climdata)<-tme
+    names(climdata) <-nms
+    units(climdata)<-u
     # fill in any offshore islands from nearest nonNA value
     missing<-mask(landsea_true,climdata[[1]],inverse=TRUE) 
     missingpts<-vect(crds(missing),crs=crs(missing))
