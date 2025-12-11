@@ -464,14 +464,16 @@ landfill_climdata <- function(climdata, landsea_true, landsea_climdata=NA) {
     # fill in any offshore islands from nearest nonNA value
     missing<-mask(landsea_true,climdata[[1]],inverse=TRUE) 
     missingpts<-vect(crds(missing),crs=crs(missing))
-    islandsvals.r<-climdata
-    values(islandsvals.r)<-NA
-    for(n in 1:nrow(missingpts)){
-      vals<-get_nearest_val(climdata,missingpts[n,] )
-      missingcell<-cellFromXY(climdata,crds(missingpts[n,]))
-      set.values(islandsvals.r, cells=missingcell, vals)
+    if(nrow(missingpts)>0){
+      islandsvals.r<-climdata
+      values(islandsvals.r)<-NA
+      for(n in 1:nrow(missingpts)){
+        vals<-get_nearest_val(climdata,missingpts[n,] )
+        missingcell<-cellFromXY(climdata,crds(missingpts[n,]))
+        set.values(islandsvals.r, cells=missingcell, vals)
+      }
+      climdata<-cover(climdata,islandsvals.r)
     }
-    climdata<-cover(climdata,islandsvals.r)
     # Orig method here
     #climdata20 <- resample(aggregate(climdata, fact = 20, fun = mean, na.rm = TRUE), climdata[[1]])
     #climdata <- cover(climdata, climdata20)
