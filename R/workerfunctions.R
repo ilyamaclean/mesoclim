@@ -48,12 +48,6 @@
 #' @keywords internal
 #' @noRd
 .rast <- function(m,tem) {
-  # Throw warning if dim of m do not match dim of tem
-  if(any(dim(m)[1:2]!=dim(tem)[1:2])){
-    warning("In .rast dimensions of matrix/array do not match dimensions of rast template!!!")
-    #print(dim(m))
-    #print(dim(tem))
-  }
   r<-rast(m)
   ext(r)<-ext(tem)
   crs(r)<-crs(tem)
@@ -299,10 +293,17 @@
 #' @title Calculate saturated vapour pressure
 #' @noRd
 .satvap <- function(tc) {
-  e0<-(tc<0)*610.78/1000+(tc>=0)*611.2/1000
-  L <- (tc<0)*2.834*10^6+(tc>=0)*((2.501*10^6)-(2340*tc))
-  T0<-(tc<0)*273.15+(tc>=0)*273.15
-  estl<-e0*exp((L/461.5)*(1/T0-1/(tc+273.15)))
+  if(class(tc)[1]=="SpatRaster"){
+    e0<-terra::ifel(tc<0,610.78/1000,611.2/1000)
+    L<-ifel(tc<0,2.834*10^6,(2.501*10^6)-(2340*tc))
+    T0<-ifel(!is.na(tc),273.15,NA)
+    estl<-e0*exp((L/461.5)*(1/T0-1/(tc+273.15)))
+  } else{
+    e0<-(tc<0)*610.78/1000+(tc>=0)*611.2/1000
+    L <- (tc<0)*2.834*10^6+(tc>=0)*((2.501*10^6)-(2340*tc))
+    T0<-(tc<0)*273.15+(tc>=0)*273.15
+    estl<-e0*exp((L/461.5)*(1/T0-1/(tc+273.15)))
+  }
   estl
 }
 #' @title Calculates the astronomical Julian day
@@ -1343,17 +1344,6 @@ calculate_z0<-function(x){
   return(a)
 }
 
-#' @title extracts array data from nc file TO DELETE!!!???
-#' @param filein - file name of nc file
-#' @param varid - name of variable in nc file
-#' @noRd
-.nctoarray_old <- function(filein, varid = NA, aoi = NA) {
-
-  a <- aperm(ncvar_get(nc, varid = varid), c(2,1,3))
-  #a <- apply(a, c(2,3), rev)
-  nc_close(nc)
-  a
-}
 #' @title Converts matrix to array by replicating all entries for quick multiplication
 #' @param m - a matrix
 #' @param n - dim(3) of returned array

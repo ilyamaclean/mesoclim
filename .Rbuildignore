@@ -1,3 +1,7 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
 ^data-raw$
+^raw_data_files$
+^.claude$
+^analyses$
+^extradocs$

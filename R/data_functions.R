@@ -24,12 +24,13 @@ plot_timestats_r<-function(r,v,idx=c('years', 'months', 'week',  'doy', 'yearmon
     plot_df<-as.data.frame(cbind(tstep=as.numeric(sapply(strsplit(rownames(time_mean),'_'),tail,1)),mean=time_mean$mean,max=time_max$max,min=time_min$min))
     plot_df<-plot_df[order(plot_df$tstep),]
   }
-  matplot(as_datetime(plot_df$tstep), plot_df[,2:4], type = "l", lty = 1,
+  plt<-matplot(as_datetime(plot_df$tstep), plot_df[,2:4], type = "l", lty = 1,
           col = c("green", "red", "blue"), xlab = idx, ylab = v, font.main = 1,
           tck = 0.02, cex.main=1, cex.axis=0.7, main = paste(v,'by',idx), cex.main=1)
   if(lgd==TRUE) legend("topright", legend = c("Mean", "Max", "Min"), cex=0.5,
                        col = c("green", "red", "blue"),
                        lty = 1)
+  return(plt)
 }
 
 #' @title direction to cardinal label
@@ -250,15 +251,15 @@ checkinputs <- function(input_list, tstep = c("hour","day"),plots=TRUE){
   print(stats_df)
 
   # Plot spatial variation by different time steps using min, max, mean
+  myplot<-file.path(tempdir(),"myplot.png")
   if(plots){
     if(tstep=='day') vars<-c('relhum','pres','prec','lwrad','swrad','tmax','tmin','windspeed','winddir')
     if(tstep=='hour') vars<-c('relhum','pres','prec','lwrad','swrad','temp','windspeed','winddir')
-    if('cloud' %in% nms) vars<-c('cloud',vars)
+    #if('cloud' %in% nms) vars<-c('cloud',vars)
     if(data_yrs>=6) {
       print('Plotting spatial variation by year: red=max, green=mean, blue=min')
       ncol<-floor(sqrt(length(vars)))
       if(length(vars)%%ncol!=0) nrow<-ncol+1 else nrow<-ncol
-      par(mar=c(1,1,1,1))
       par(mfrow=c(nrow,ncol))
       for(v in vars){
         if(!inherits(input_list[[v]],'SpatRaster'))  r<-.rast(input_list[[v]],input_list$dtm) else r<-input_list[[v]]
@@ -269,7 +270,6 @@ checkinputs <- function(input_list, tstep = c("hour","day"),plots=TRUE){
       print('Plotting spatial variation by month: red=max, green=mean, blue=min')
       ncol<-floor(sqrt(length(vars)))
       if(length(vars)%%ncol!=0) nrow<-ncol+1 else nrow<-ncol
-      par(mar=c(1,1,1,1))
       par(mfrow=c(nrow,ncol))
       for(v in vars){
         if(!inherits(input_list[[v]],'SpatRaster'))  r<-.rast(input_list[[v]],input_list$dtm) else r<-input_list[[v]]
@@ -280,15 +280,13 @@ checkinputs <- function(input_list, tstep = c("hour","day"),plots=TRUE){
       print('Plotting spatial variation by day of year: red=max, green=mean, blue=min')
       ncol<-floor(sqrt(length(vars)))
       if(length(vars)%%ncol!=0) nrow<-ncol+1 else nrow<-ncol
-      par(mar=c(1,1,1,1))
       par(mfrow=c(nrow,ncol))
       for(v in vars){
         if(!inherits(input_list[[v]],'SpatRaster'))  r<-.rast(input_list[[v]],input_list$dtm) else r<-input_list[[v]]
         terra::time(r)<-input_list$tme
         plot_timestats_r(r,v,idx='doy')
-      }
+      } 
     }
-
     # Plot wind direction
     print('Plotting wind direction figures')
     plot_wind(.is(input_list$winddir),.is(input_list$windspeed))

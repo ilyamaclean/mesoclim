@@ -916,7 +916,7 @@ spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, 
   message('Downscaling wind...')
   uzf<-winddownscale(wspeed,wdir,dtmf,dtmm,dtmc,wca,whgti,whgto)
 
-  # winddir
+  # winddir - TO DO MOVE THIS TO windspeed downscaling function!!!!!!
   uu<-wspeed*cos(wdir*pi/180)
   vv<-wspeed*sin(wdir*pi/180)
   if (crs(uu) != crs(dtmf)) uu<-project(uu,crs(dtmf))
