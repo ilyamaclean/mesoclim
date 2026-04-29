@@ -1,12 +1,40 @@
 ########################## UKCP18 inputs for the southwest May 2018  ##########################
-ukcp_aoi<-ext(120000, 200000, -10000, 100000 )
+# UK 100m data
+dtm100m<-rast("/Users/jonathanmosedale/Data/mesoclim_inputs/gb_100m_masked_dtm.tif") # 100 m raster masked for coast
+# Coastal mask vector
+coastal.v<-vect("/Users/jonathanmosedale/Data/mesoclim_inputs/CTRY_DEC_2023_UK_BFC.shp")
 
-dtmc_uk<-rast(system.file('extdata/ukcp18rcm/orog_land-rcm_uk_12km_osgb.nc',package='mesoclim'))
-dtmc<-crop(dtmc_uk,ukcp_aoi)
-dtmc<-project(dtmc,"EPSG:27700")
+# Get dtmf
+aoi<-ext(c(165000,170000,17000,22000))
+dtmf<-crop(dtm100m,aoi)
+plot(dtmf)
+
+# Get dtmc by applying 10 km buffer
+ukdtmc<-rast(system.file('extdata/ukcp18rcm/orog_land-rcm_uk_12km_osgb.nc',package='mesoclim'))
+crs(ukdtmc)<-"EPSG:27700"
+dtmf.bbox<-vect(ext(dtmf),crs="EPSG:27700")
+wideraoi<-buffer(dtmf.bbox,10000)
+
+dtmc<-terra::crop(ukdtmc,wideraoi,snap="out")
 plot(dtmc)
 
-# Preprocess UKCP18 data using constant albedo land / sea values
+
+# Get dtmm by aggreegating 
+agg.f<-(res(dtmc)[1]/res(dtmf)[1])/10
+dtmm<-crop(aggregate(dtm100m,agg.f,na.rm=TRUE),dtmc)
+#dtmm<-terra::mask(dtmm,coastal.v,touches=TRUE)
+#plot(crop(coastal.v,dtmm),col="red")
+plot(dtmc)
+plot(dtmm,add=T)
+plot(dtmf,add=T)
+
+writeRaster(dtmf,"inst/extdata/dtms/dtmf.tif",overwrite=TRUE)
+writeRaster(dtmm,"inst/extdata/dtms/dtmm.tif",overwrite=TRUE)
+writeRaster(dtmc,"inst/extdata/dtms/dtmf.tif",overwrite=TRUE)
+
+
+########################## Preprocess UKCP18 data using constant albedo land / sea values
+# TO DO - DROP cloud cover var??
 dir_ukcp<-"/Users/jonathanmosedale/Data/mesoclim_inputs"
 
 collection<-'land-rcm'
@@ -21,16 +49,55 @@ t0<-now()
 ukcpinput<-ukcp18toclimarray(dir_ukcp, dtmc,  startdate, enddate,
                              collection, domain, member)
 print(now()-t0)
-crs(ukcpinput$dtm)<-"EPSG:27700"
+# Save as arrays and packed spatraster
 ukcpinput$dtm<-wrap(ukcpinput$dtm)
+
 usethis::use_data(ukcpinput,overwrite=TRUE)
 
-#write_climdata(ukcpinput,"data/ukcpinput.rda",overwrite=TRUE)
+# write_climdata(ukcpinput,"data/ukcpinput.rda",overwrite=TRUE)
 
 ########################## Sea Surface temperature data - to match ukcpinput$dtm ##########################
 dir_sst<-"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data/SST"
-sst<-create_ukcpsst_data(dir_sst,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),dtmc=ukcpinput$dtm, member="01")
-plot(c(sst,ukcpinput$dtm))
+ukcpsst<-create_ukcpsst_data(dir_sst,as.POSIXlt('2018/05/01'),as.POSIXlt('2018/05/31'),dtmc=dtmc, member="01")
+plot(c(ukcpsst,dtmc))
+usethis::use_data(ukcpsst,overwrite=TRUE)
+
+
+########################## Preprocess ERA5 data
+dir_era5data<-"/Users/jonathanmosedale/Library/CloudStorage/OneDrive-UniversityofExeter/Data/era5"
+
+# Get ERA5 dtmc by applying 10 km buffer
+ancillary<-rast(file.path(dir_era5data,"era5_ancillary.nc"))
+era5lsm<-ancillary$lsm %>%project("EPSG:4326")
+if(max(values(era5lsm))!=1){
+  mx<-as.numeric(global(era5lsm,max))
+  mn<-as.numeric(global(era5lsm,min))
+  era5lsm<- (era5lsm-mn) / (mx-mn)
+}
+plot(era5lsm)
+# Calculate elevation from geopotential
+RadEarth = 6371229 
+gravity = 9.80665
+era5elev<-(ancillary$z * RadEarth)/(gravity * RadEarth - ancillary$z)
+
+latlonaoi<-project(wideraoi,crs(era5elev))
+era5dtmc<-terra::crop(project(era5elev,"EPSG:4326"),latlonaoi,snap="out")
+
+plot(era5dtmc)
+plot(project(dtmf,"EPSG:4326"),add=TRUE)
+writeRaster(era5dtmc,"inst/extdata/dtms/era5dtmc.tif",overwrite=TRUE)
+writeRaster(era5lsm,"inst/extdata/dtms/era5lsm.tif",overwrite=TRUE)
+
+ncfile<-file.path(dir_era5data,"era5_surface_ukeire_2018.nc")
+# Processes using already downloaded ukcp18rcm files in dir_data
+t0<-now()
+era5input<-era5toclimarray(ncfile, dtmc=era5dtmc, lsm=era5lsm, aoi=latlonaoi, startdate= startdate, enddate=enddate)
+now()-t0
+dim(era5input$temp)
+plot(era5input$dtm)
+era5input$dtm<-wrap(era5input$dtm)
+usethis::use_data(era5input,overwrite=TRUE)
+
 
 
 ########################## UKCP18 inputs for southwest for the future May 2030  ##########################
