@@ -1,26 +1,3 @@
-#' A list of ERA5 climate data
-#'
-#' A list of hourly ERA5 climata data for May 2018 for Cornwall, UK (lat, long boundary) as
-#' returned by [era5toclimarray()]
-#'
-#' @format a list with the following elements:
-#' \describe{
-#'  \item{dtm}{a wrapped SpatRast object of elevations (m) matching the extent and resolution of climate data}
-#'  \item{tme}{POSIXlt object of dates and times}
-#'  \item{windheight_m}{numeric value in metres of wind height above ground}
-#'  \item{tempheight_m}{numeric value in metres of temperature height above ground}
-#'  \item{temp}{Temperature (deg C)}
-#'  \item{relhum}{Relative humidity (Percentage)}
-#'  \item{spechum}{Specific humidity}
-#'  \item{pres}{Sea-level atmospheric pressure (kPa)}
-#'  \item{swnet}{Net downward shortwave radiation (W/m^2)}
-#'  \item{lwnet}{Net downward longwave radiation (W/m^2)}
-#'  \item{windspeed}{at 2m (m/s)}
-#'  \item{winddir}{Wind direction (decimal degrees)}
-#'  \item{prec}{Precipitation (mm)}
-#' }
-#' @source \url{https://cds.climate.copernicus.eu//}
-"era5input"
 #' A 0.25 degree grid resolution dataset of sea-surface temperature data
 #'
 #' A spatial dataset of hourly sea-surface temperatures for May 2018 for sea around
@@ -78,4 +55,52 @@
 #' See: https://www.metoffice.gov.uk/binaries/content/assets/metofficegovuk/pdf/research/ukcp/ukcp18-guidance-data-availability-access-and-formats.pdf
 #' @format A Dataframe object with 28 rows, 6 columns
 "ukcp18lookup"
+#' A list of 12km resolution UKCP18 model future climate data
+#'
+#' A list of hourly UKCP18 regional climata data for May 2030 for Southwest UK as
+#' returned by [ukcp18toclimarray()] where collection='land-gcm' & domain='uk'
+#'
+#' @format a list with the following elements:
+#' \describe{
+#'  \item{dtm}{a wrapped SpatRast object of elevations (m) matching the extent and resolution of climate data}
+#'  \item{tme}{POSIXlt object of dates and times}
+#'  \item{windheight_m}{numeric value in metres of wind height above ground}
+#'  \item{tempheight_m}{numeric value in metres of temperature height above ground}
+#'  \item{tmax}{Maximum Daily Temperature (deg C)}
+#'  \item{tmin}{Minimum Daily Temperature (deg C)}
+#'  \item{relhum}{Relative humidity (Percentage)}
+#'  \item{spechum}{Specific humidity}
+#'  \item{pres}{Sea-level atmospheric pressure (kPa)}
+#'  \item{swnet}{Net downward shortwave radiation (W/m^2)}
+#'  \item{lwnet}{Net downward longwave radiation (W/m^2)}
+#'  \item{windspeed}{at 2m (m/s)}
+#'  \item{winddir}{Wind direction (decimal degrees)}
+#'  \item{prec}{Precipitation (mm)}
+#' }
+#' @source \url{ftp.ceda.ac.uk}
+"ukcpfuture"
+#' A list of 12km resolution preprocessed daily climate data derived from UKCP18 data model
+#'
+#' A list of hourly UKCP18 regional climata data for May 2018 for Southwest UK as
+#' returned by [ukcp18toclimarray()] where collection='land-gcm' & domain='uk'
+#'
+#' @format a list with the following elements:
+#' \describe{
+#'  \item{dtm}{a wrapped SpatRast object of elevations (m) matching the extent and resolution of climate data}
+#'  \item{tme}{POSIXlt object of dates and times}
+#'  \item{windheight_m}{numeric value in metres of wind height above ground}
+#'  \item{tempheight_m}{numeric value in metres of temperature height above ground}
+#'  \item{tmax}{Maximum Daily Temperature (deg C)}
+#'  \item{tmin}{Minimum Daily Temperature (deg C)}
+#'  \item{relhum}{Relative humidity (Percentage)}
+#'  \item{spechum}{Specific humidity}
+#'  \item{pres}{Sea-level atmospheric pressure (kPa)}
+#'  \item{swnet}{Net downward shortwave radiation (W/m^2)}
+#'  \item{lwnet}{Net downward longwave radiation (W/m^2)}
+#'  \item{windspeed}{at 2m (m/s)}
+#'  \item{winddir}{Wind direction (decimal degrees)}
+#'  \item{prec}{Precipitation (mm)}
+#' }
+#' @source \url{ftp.ceda.ac.uk}
+"climdata"
 

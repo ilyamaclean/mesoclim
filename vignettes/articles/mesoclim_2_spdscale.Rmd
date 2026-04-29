@@ -220,7 +220,7 @@ In certain cases not all variables are required in the final downscaled product.
 
 Pre-calculation of those spatial properties that temporally constant can improve performance if spatial downscaling performed within a loop or as part of batch processing. 
 
-```{r topo prprocess}
+```{r topoprprocess}
 dtmf<-rast(system.file("extdata/dtms/dtmf.tif",package="mesoclim"))
 # Windshelter coef
 wca<-calculate_windcoeffs(dtmc,dtmm,dtmf,zo=2,toArray=FALSE)

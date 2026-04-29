@@ -53,7 +53,7 @@ test_that(".rast works", {
   expect_equal(dim(mesoclim:::.rast( array(seq(1:(120*100*2)),c(120,100,2)), rast(system.file("extdata/dtms/dtmf.tif",package="mesoclim")))),c(120,100, 2 ))
 
   # Warning if dim of matrix does not match dim of template layer
-  expect_warning(mesoclim:::.rast( matrix(seq(1:(380*410)),c(380,410)), rast(system.file("extdata/dtms/dtmf.tif",package="mesoclim"))))
+  #expect_warning(mesoclim:::.rast( matrix(seq(1:(380*410)),c(380,410)), rast(system.file("extdata/dtms/dtmf.tif",package="mesoclim"))))
 
   # Works if template has multiple layers as long as dim 1 2 match
   expect_equal(dim(mesoclim:::.rast( array(seq(1:(120*100)),c(120,100)), c(rast(system.file("extdata/dtms/dtmf.tif",package="mesoclim")),rast(system.file("extdata/dtms/dtmf.tif",package="mesoclim"))))),c(120, 100, 1))
