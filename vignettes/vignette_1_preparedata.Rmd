@@ -22,7 +22,7 @@ knitr::opts_chunk$set(
 ```{r setup, include=FALSE}
 library(lubridate)
 library(terra)
-library(mesoclim)
+#library(mesoclim)
 #devtools::load_all()
 ```
 
@@ -148,9 +148,9 @@ The function `create_ukcpsst_data` preprocesses sea surface data derived from UK
 ```{r ukcpsst}
 dir_ukcpsst<-"filepath/to/downloaded/datafiles"
 
-dir_sst<-system.file("extdata/sst_sample", package = "mesoclim")
-sst<-create_ukcpsst_data(dir_sst,startdate=startdate,enddate=enddate,dtmc=ukcp18rcm$dtm, member=member)
-plot(c(sst[[1]],ukcp18rcm$dtm))
+dir_sst<-system.file("extdata/sst", package = "mesoclim")
+sst<-create_ukcpsst_data(dir_ukcpsst,startdate=startdate,enddate=enddate,dtmc=ukcp18rcm$dtm, member=member)
+plot(c(sst,ukcp18rcm$dtm))
 ```
 
 ## ERA5 historical climate data preparation

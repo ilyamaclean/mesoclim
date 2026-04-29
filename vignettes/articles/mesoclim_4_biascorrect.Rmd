@@ -16,15 +16,15 @@ knitr::opts_chunk$set(
 ```
 
 ```{r setup, include=FALSE}
-#library(mesoclim)
-devtools::load_all(quiet=TRUE)
+library(mesoclim)
+#devtools::load_all(quiet=TRUE)
 ```
 
 # Introduction
 
-Bias correction compares modeled historic data with observational data for the same period to either directly correct modelled data or provide bias-correction models for correction of modelled data. This requires comparable  stacks of observed and modeled data for the same historic period and geographical area. 
+Bias correction compares modeled historic data with observational data for the same period to directly correct modelled data and/or provide bias-correction models for correction of modelled data. This requires comparable observed and modeled data for the same historic period and geographical area. 
 
-Once bias-correction models have been calculated by comparison of modelled and observed data for the same historic period, these models can then be applied to correct UKCP modelled data for the same geographical area but modelling future time periods.
+Once bias-correction models have been calculated for the historic period, they can then be applied to correct modelled data for the same geographical area but for future time periods.
 
 
 # Historic UKCP model data at 12km
@@ -49,7 +49,6 @@ lsm12km.r<-crop(terra::rast(system.file('extdata/biascorrect/uk_seamask_12km.tif
 
 plot(lsm12km.r,main='12km land/sea')
 #plot(lsm1km.r,main='1km land/sea')
-
 ```
 
 ## Observational historic data at 12km
@@ -79,7 +78,7 @@ rain1km<-crop(extend(rain1km,ext(lsm12km.r)),ext(lsm12km.r))
 rain12km<-terra::aggregate(rain1km,12,fun="mean",na.rm=TRUE)
 rain12km<-mask( .spatinterp(rain12km),lsm12km.r, maskvalue=0 )
 
-plot(c(tmin12km[[1]],tmax12km[[1]],rain12km[[1]]),main=paste(c('Tmin','Tmax','Rain'),'1 May 2018'))
+#plot(c(tmin12km[[1]],tmax12km[[1]],rain12km[[1]]),main=paste(c('Tmin','Tmax','Rain'),'1 May 2018'))
 
 # Create list of observational data
 obsdata<-list()
@@ -125,27 +124,28 @@ Bias correction models for precipitation contain SpatRasters representing the am
 ```{r explore_bcmodels}
 plot(unwrap(model_list$prec$mu_tot),main='Total rainfall')
 plot(unwrap(model_list$prec$mu_frac ),main='Proportion of rainy days')
-
 ```
 
 ## Apply bias correction models to future UKCP model data
 
 Applying bias correction to future data 
 
-Will only be applied to grid cells from which the bias correction models were calculated. SpatRaster output may therefore be cropped when model climate inputs  exceeds the extent over which bias correction
+Will only be applied to grid cells from which the bias correction models were calculated. SpatRaster output may therefore be cropped when model climate inputs exceeds the extent over which bias correction
 models were developed.
+
+Here we bias correct one month of future temperature and precipitation data and plot the mean and standard deviation difference and corrected mean values. 
 
 ```{r future_data}
 futuredata<-read_climdata(mesoclim::ukcpfuture)
-msk<-ifel(lsm12km.r==0,NA,lsm12km.r)
+msk<-ifel(lsm12km.r==0,NA,lsm12km.r) # for use in cropping and masking sea cells
 
 bcdata<-list()
 for (v in c("tmax","tmin")) {
-  bcdata[[v]]<-biascorrect_apply(fut_mod=mask(futuredata[[v]],msk), biasmods=model_list[[v]], rangelims = NA)
-
+  bcdata[[v]]<-biascorrect_apply(fut_mod=crop(futuredata[[v]],msk,mask=TRUE), biasmods=model_list[[v]], rangelims = NA)
+  # Calculate difference between future input data and bias corrected future data
   dif<-mask(futuredata[[v]],msk)-bcdata[[v]]
-  stats<-c(app(dif,mean),app(dif,sd),(app(mask(futuredata[[v]],msk),max)-app(mask(futuredata[[v]],msk),min))-(app(bcdata[[v]],max)-app(bcdata[[v]],min)),mean(bcdata[[v]]))
-  names(stats)<-c("Mean obs-bc_model","sd obs-bc_model","obs range - bc_model range","Mean bc")
+  stats<-c(app(dif,mean),app(dif,sd),mean(bcdata[[v]]))
+  names(stats)<-paste(v,c("mean difference (input-bc)","sd difference (input-bc)","mean corrected values"))
   plot(stats)
 }
 
@@ -153,8 +153,8 @@ for (v in c("tmax","tmin")) {
 v<-"prec"
 bcdata[[v]]<-precipcorrect_apply(fut_mod=mask(futuredata[[v]],msk), biasmods=model_list[[v]])
 dif<-mask(futuredata[[v]],msk)-bcdata[[v]]
-stats<-c(app(dif,mean),app(dif,sd),(app(mask(futuredata[[v]],msk),max)-app(mask(futuredata[[v]],msk),min))-(app(bcdata[[v]],max)-app(bcdata[[v]],min)),mean(bcdata[[v]]))
-names(stats)<-c("Mean obs-bc_model","sd obs-bc_model","obs range - bc_model range","Mean bc")
+stats<-c(app(dif,mean),app(dif,sd),mean(bcdata[[v]]))
+names(stats)<-paste(v,c("mean difference (input-bc)","sd difference (input-bc)","mean corrected values"))
 plot(stats)
 
 ```
