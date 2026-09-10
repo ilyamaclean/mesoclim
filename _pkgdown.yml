@@ -111,8 +111,8 @@ reference:
 - title: "Data"
   desc: "Datasets included with the package for use in examples and vignettes."
   contents:
-  - era5input
   - ukcpinput
+  - ukcpfuture
   - era5sst
   - ukcp18sst
   - landsea

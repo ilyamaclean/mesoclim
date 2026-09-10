@@ -39,7 +39,7 @@ Suggests:
     rmarkdown,
     testthat (>= 3.0.0)
 VignetteBuilder: knitr
-URL: https://github.com/ilyamaclean/mesoclim
+URL: https://jrmosedale.github.io/mesoclim, https://github.com/ilyamaclean/mesoclim
 BugReports: https://github.com/ilyamaclean/mesoclim/issues
 Depends: 
     R (>= 3.5)
