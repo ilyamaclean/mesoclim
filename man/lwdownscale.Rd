@@ -55,3 +55,4 @@ lw<-lwdownscale(climdata$lwrad,tmean_c,dailytemps$tmean, climdata$tme, dtmf=dtmf
 terra::panel(c(lw[[1]],lw[[5]],lw[[10]],lw[[20]]),main=paste0("LW down ",c(1,5,10,15),"/05/2018"))
 
 }
+\keyword{spatial}

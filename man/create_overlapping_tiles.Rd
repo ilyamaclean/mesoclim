@@ -27,3 +27,4 @@ testtiles<-create_overlapping_tiles(r,overlap=200,sz=1000)
 terra::plot(dtmf)
 for(t in testtiles$tile_extents) terra::plot(terra::vect(terra::ext(t)),add=TRUE)
 }
+\keyword{spatial}

@@ -42,3 +42,4 @@ Apply bias correction models to all climate variables
 SpatRaster output may be cropped if climdata input extent exceeds the extent over which bias correction
 models were developed.
 }
+\keyword{biascorrect}

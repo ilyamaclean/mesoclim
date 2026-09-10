@@ -1,45 +1,128 @@
 url: https://jrmosedale.github.io/mesoclim
+
 home:
   title: Mesoclimate downscaling and bias correction with R
-  description: The mesoclim package contain tools for
-    spatial and temporal downscaling of climate data and for applying bias correction
-    to future climate data to enable production of high-resolution
-    climate data for historic and future climate scenarios.
+  description: >
+    The mesoclim package provides tools for spatial and temporal downscaling of
+    climate data and for applying bias correction to future climate data, enabling
+    production of high-resolution climate data for historic and future scenarios.
+
 template:
   bootstrap: 5
+
+articles:
+- title: "Vignettes"
+  navbar: ~
+  contents:
+  - mesoclim_1_preparedata
+  - mesoclim_2_spdscale
+  - mesoclim_3_tmpdscale
+  - mesoclim_4_biascorrect
+
 reference:
-- title: "Data download"
-  desc: "Functions to download data inputs from remote repositories."
-- contents:
-  - has_keyword("download")
-- title: "Data (pre)processing and summary functions"
-  desc: "Functions that process and handle model inputs & outputs."
-- contents:
-  - has_keyword("preprocess")
-  - has_keyword("graph")
+- title: "Data preprocessing"
+  desc: >
+    Functions to ingest raw climate model outputs (ERA5, UKCP18 RCM) and convert
+    them to the standard climdata list format used throughout the package.
+  contents:
+  - era5toclimarray
+  - ukcp18toclimarray
+  - create_ukcpsst_data
+  - checkinputs
+  - read_climdata
+  - write_climdata
+  - subset_climdata
+  - blendtemp_hadukera5
+  - get_dem
+
 - title: "Spatial downscaling"
-  desc: "Downscaling from coarse to fine spatial resolutions."
-- contents:
-  - has_keyword("spatial")
+  desc: >
+    Downscale climate variables from coarse (10s km) to fine (<1 km) spatial
+    resolution using terrain, coastal and lapse-rate effects.
+  contents:
+  - spatialdownscale
+  - spatialdownscale_tiles
+  - tempdaily_downscale
+  - temphrly_downscale
+  - precipdownscale
+  - presdownscale
+  - relhumdownscale
+  - swdownscale
+  - lwdownscale
+  - winddownscale
+
 - title: "Temporal downscaling"
-  desc: "For example daily to hourly downscaling."
-- contents:
-  - has_keyword("temporal")
+  desc: "Convert daily climate variables to hourly resolution."
+  contents:
+  - temporaldownscale
+  - temp_dailytohourly
+  - hum_dailytohourly
+  - pres_dailytohourly
+  - lw_dailytohourly
+  - swrad_dailytohourly
+  - wind_dailytohourly
+  - prec_dailytohourly
+  - subdailyrain
+  - daylength
+
 - title: "Bias correction"
-  desc: "Create and apply models of bias comparing modelled with historical observed data."
-- contents:
-  - has_keyword("biascorrect")
+  desc: >
+    Fit and apply statistical bias-correction models that adjust climate model
+    outputs to match historical observations.
+  contents:
+  - biascorrect
+  - biascorrect_apply
+  - biascorrect_climdata
+  - precipcorrect
+  - precipcorrect_apply
+
+- title: "Large-domain tiling"
+  desc: "Handle large spatial extents by splitting into overlapping tiles and reassembling."
+  contents:
+  - create_overlapping_tiles
+  - blend_tile_lists
+  - mosaicblend
+
 - title: "Mesoclimate processes"
-  desc: "Modelling of mesoclimate mechanisms."
-- contents:
-  - has_keyword("climate")
+  desc: >
+    Physical process models for terrain effects: cold-air drainage, coastal
+    exposure, wind sheltering, solar radiation and humidity conversions.
+  contents:
+  - basindelin
+  - flowacc
+  - coastalexposure
+  - calculate_terrain_shading
+  - calculate_windcoeffs
+  - lapserate
+  - windelev
+  - Tpsdownscale
+  - clearskyrad
+  - difprop
+  - converthumidity
+  - atmos_to_sea_pressure
+  - sea_to_atmos_pressure
+  - invls_calc
+
+- title: "Visualisation"
+  desc: "Plotting helpers for climate data summaries."
+  contents:
+  - plot_timestats_r
+  - plot_wind
+
 - title: "Data"
-  desc: "Datasets included with package."
-- contents:
-  - has_keyword("datasets")
-- title: "Worker functions"
-  desc: "Internal functions called by functions in mesoclim"
-- contents:
+  desc: "Datasets included with the package for use in examples and vignettes."
+  contents:
+  - era5input
+  - ukcpinput
+  - era5sst
+  - ukcp18sst
+  - landsea
+  - ukcp18lookup
+  - model_list
+
+- title: "Internal helpers"
+  desc: >
+    Lower-level functions exported for advanced use. These may be unexported in a
+    future release.
+  contents:
   - starts_with(".")
-
-

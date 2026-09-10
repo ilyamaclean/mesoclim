@@ -22,3 +22,4 @@ subset_climdata(climdata, sdatetime, edatetime)
 \description{
 Subset climate data by date
 }
+\keyword{preprocess}

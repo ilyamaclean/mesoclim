@@ -25,3 +25,4 @@ This function returns a numeric matrix identifying
 matching values from a raster that intersect with
 a set of points
 }
+\keyword{biascorrect}

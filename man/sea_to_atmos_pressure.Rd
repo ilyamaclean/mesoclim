@@ -21,3 +21,4 @@ numeric or spatraster of sea level pressures matching dtm
 \description{
 Convert sea to atmospheric pressure
 }
+\keyword{climate}

@@ -40,3 +40,4 @@ results<-calculate_terrain_shading(dtmf)
 #plot(results$skyview)
 #plot(results$horizon[[c(1,6,12,18)]])
 }
+\keyword{spatial}

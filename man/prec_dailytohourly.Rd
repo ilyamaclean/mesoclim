@@ -19,3 +19,4 @@ hrprec<-prec_dailytohourly(climdaily$prec)
 cell_prec<-t(terra::extract(hrprec,matrix(c(175000,40000),ncol=2)))
 matplot(terra::time(hrprec),cell_prec, type = "l", lty = 1)
 }
+\keyword{temporal}

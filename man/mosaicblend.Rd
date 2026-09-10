@@ -20,3 +20,4 @@ Overlapping cells calulated using weighted distances to reduce tile effects
 Function derived from: https://github.com/ilyamaclean/microclimf/tree/main
 Called by: \code{blend_tile_lists}
 }
+\keyword{spatial}

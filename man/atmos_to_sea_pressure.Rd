@@ -24,3 +24,4 @@ Convert atmospheric to sea level pressure
 \examples{
 atmos_to_sea_pressure(ukcpinput$pres,ukcpinput$dtm)
 }
+\keyword{climate}

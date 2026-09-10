@@ -33,3 +33,4 @@ wca2 - array of wind coeeficients for each of 8 wind directions
 \description{
 Calculate wind coefficients - for use in wind downscaling
 }
+\keyword{spatial}

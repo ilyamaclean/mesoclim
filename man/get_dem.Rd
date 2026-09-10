@@ -27,3 +27,4 @@ dtm <- rast(system.file("extdata/dtms/dtmf.tif", package = "mesoclim"))
 dem <- get_dem(dtm)
 }
 }
+\keyword{preprocess}

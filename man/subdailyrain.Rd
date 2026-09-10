@@ -75,3 +75,4 @@ processes. Proc. R. Soc. Lond., A 410: 269-288.
 Rodriguez-Iturbe I, Cox DR & Isham V (1988) A point process model for rainfall: Further
 developments. Proc. R. Soc. Lond., A 417: 283-298.
 }
+\keyword{temporal}

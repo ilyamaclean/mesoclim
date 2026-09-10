@@ -20,3 +20,4 @@ Blend tile list
 \details{
 Call function \code{mosaicblend} to within then across columns.
 }
+\keyword{spatial}
