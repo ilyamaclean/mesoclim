@@ -33,7 +33,6 @@ Static review of `~/OneDrive-UniversityofExeter/Rprojects/mesoclim` (branch `dev
 - ✅ **`biascorrect_climdata()` partial model list** — changed hard `stop()` to `warning()` + `vars <- intersect(vars, model_vars)` so the function applies correction only to variables present in the supplied model list and warns about those missing (relevant because `bcmodel_list` covers only tmin/tmax/prec)
 
 **Still present / not yet addressed:**
-- ❌ **P0 item 4: broken chunk fence** — `vignettes/mesoclim_1_preparedata.Rmd:201` `{r era5check}` without opening backticks — still present (file moved but not edited for this)
 - ❌ **P1 items 8–13** — all still open except partial progress on item 12
 - ❌ **P2 items 14–20** — all still open
 - ❌ **Remaining dead helpers**: `.cropnc`, `.writenc`, `.clearskyraddaily` still in `workerfunctions.R`; `rainadjustv` Rcpp export still has no R caller
@@ -76,7 +75,7 @@ Static review of `~/OneDrive-UniversityofExeter/Rprojects/mesoclim` (branch `dev
 1. ✅ **`data/climdata.rda` removed** (2026-09-10) — 39 MB dataset deleted; replaced by `data/bcmodel_list.rda` (100 kB sample bias-correction models for tmin/tmax/prec). Note: `.cad_conditions` example still uses `mesoclim::climdata` — see P1 item 13.
 2. ✅ **Vignettes fixed** (2026-09-10) — all four `.Rmd` files moved from `vignettes/articles/` to `vignettes/` with proper `%\VignetteIndexEntry{}` / `%\VignetteEngine{knitr::rmarkdown}` / `output: rmarkdown::html_vignette` metadata; `eval=FALSE` globally.
 3. ✅ **Hard-coded OneDrive bc model path replaced** (2026-09-10) — vignette 2 now calls `data(bcmodel_list, package="mesoclim")`; `biascorrect_climdata()` updated to warn (not stop) for variables not covered by the model list.
-4. ❌ **`vignettes/mesoclim_1_preparedata.Rmd` broken chunk fence** — `{r era5check}` without opening backticks at line ~201, leaving a stray closing fence. Still open.
+4. ✅ **Broken chunk fence resolved** (2026-09-10) — the `{r era5check}` bare header without backticks was in the original `vignettes/articles/` version; static analysis of the current `vignettes/mesoclim_1_preparedata.Rmd` confirms all 7 chunk fences open and close correctly (final depth 0).
 5. ✅ **Missing `.Rd` files fixed** (2026-09-10) — `@export` removed from 7 dot-functions in `ukcp_functions.R` (keeping all `#'` doc blocks); `get_dem` docs added with `\dontrun{}` example; `devtools::document()` re-run; NAMESPACE cleaned.
 6. ✅ **`.Rbuildignore` updated** (2026-09-10) — added `^docs$`, `^pkgdown$`, `^cds\.txt$`, `^README\.Rmd$`, `^\.github$`, `^analyses$`, `^R_new$`.
 7. ✅ **Compiled artefacts removed from git** (2026-09-10) — `src/*.o`, `src/*.so`, `src/*.dll` added to `.gitignore`; `git rm --cached` run on tracked `.o`/`.so` files.
