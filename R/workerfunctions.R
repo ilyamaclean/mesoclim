@@ -354,26 +354,6 @@
   solz[cazi<0 & sazi>=0]<-540-solz[cazi<0 & sazi>=0]
   solz
 }
-#' @title Calculate skyview
-#'
-#' @param dtm digital terrain spatRaster - usually of at downscale resolution and extent
-#' @param steps - number of segments to use in calculation
-#' @return spatRaster of skyview suitable for use as a parameter to [`swdownscale`] and [`lwdownscale`] functions.
-#' @noRd
-.skyview<-function(dtm,steps=36) {
-  r<-dtm
-  dtm[is.na(dtm)]<-0
-  ha <- array(0, dim(dtm)[1:2])
-  for (s in 1:steps) { # uses horizon angle in calc but places equal importance on each sector of sky
-    ha<-ha+atan(.horizon(dtm,s*360/steps))
-  }
-  ha<-ha/steps
-  ha<-tan(ha)
-  svf<-0.5*cos(2*ha)+0.5
-  svf<-.rast(svf,dtm)
-  svf<-mask(svf,r)
-  return(svf)
-}
 
 #' @title Simulate cloud or rain patchiness
 #' @import gstat
@@ -1310,17 +1290,6 @@
   return(a)
 }
 
-#' @title extracts array data from nc file TO DELETE!!!???
-#' @param filein - file name of nc file
-#' @param varid - name of variable in nc file
-#' @noRd
-.nctoarray_old <- function(filein, varid = NA, aoi = NA) {
-
-  a <- aperm(ncvar_get(nc, varid = varid), c(2,1,3))
-  #a <- apply(a, c(2,3), rev)
-  nc_close(nc)
-  a
-}
 #' @title Converts matrix to array by replicating all entries for quick multiplication
 #' @param m - a matrix
 #' @param n - dim(3) of returned array
@@ -1482,27 +1451,6 @@
   sel<-which(Tdew<0)
   Tdew[sel]<-Tfrost[sel]
   Tdew
-}
-#' @title Calculate clear sky radiation
-#' @noRd
-#' @example
-#' tme<-as.POSIXlt(seq(as.POSIXct("2021-06-22 00:00"), as.POSIXct("2021-06-22 23:00"), by = "hour"))
-#' .clearskyrad(tme,60,0)
-.clearskyrad <- function(tme, lat, long, tc = 15, rh = 80, pk = 101.3) {
-  jd<-.jday(tme)
-  lt <- tme$hour+tme$min/60+tme$sec/3600
-  sa<-.solalt(lt,lat,long,jd)*pi/180
-  m<-35*sin(sa)*((1224*sin(sa)^2+1)^(-0.5))
-  TrTpg<-1.021-0.084*(m*0.00949*pk+0.051)^0.5
-  xx<-log(rh/100)+((17.27*tc)/(237.3+tc))
-  Td<-(237.3*xx)/(17.27-xx)
-  u<-exp(0.1133-log(3.78)+0.0393*Td)
-  Tw<-1-0.077*(u*m)^0.3
-  Ta<-0.935*m
-  od<-TrTpg*Tw*Ta
-  Ic<-1352.778*sin(sa)*TrTpg*Tw*Ta
-  Ic[is.na(Ic)]<-0
-  Ic
 }
 #' @title Calculates average daily clear sky radiation over all pixels of a SpatRaster object and all days in tme
 #' @param tme - a POSIXlt object of dates

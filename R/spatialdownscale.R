@@ -352,7 +352,7 @@ lwdownscale<-function(lwrad, tc, tcf, tme, dtmf, dtmc, skyview=NA, terrainshade 
   lwupf<-.lwup(tcf)
   lwf<-lwf+(lwupc-lwupf)
   if (terrainshade) {
-    if(inherits(skyview,'logical')) skyview<-.skyview(dtmf)
+    if(inherits(skyview,'logical')) skyview<-calculate_terrain_shading(dtmf,skyview_only=TRUE)
     #lwf<-.rast(.is(lwf)*skyview,dtmf)
     lwf<-lwf*skyview
   }
@@ -508,7 +508,7 @@ swdownscale<-function(swrad, tme=NA, dtmf, dtmc, patchsim = FALSE, nsim= dim(swr
     shadowmask[hora>tan(alt)]<-0
     shadowmask[(90-ze)<0]<-0
     # Calculate sky view
-    svf<-.rta(.skyview(dtmf),dim(shadowmask)[3])
+    svf<-.rta(calculate_terrain_shading(dtmf,skyview_only=TRUE),dim(shadowmask)[3])
 
     # Adjust radiation to account for sky view factor
     drf<-dp*svf*swradfh

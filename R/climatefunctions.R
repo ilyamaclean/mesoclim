@@ -566,12 +566,17 @@ atmos_to_sea_pressure<-function(pres,dtm){
 
 #' Calculate horizon for different solar azimuths and total skyview
 #' @details Skyview places equal importance on each sector of sky
-#' @param dtmf
-#' @param sv_steps
-#' @param hor_steps
-#' @param toArrays
+#' @param dtm digital terrain model SpatRaster
+#' @param steps number of angular sectors used for skyview/horizon calculation (default 36)
+#' @param toArrays logical; if TRUE returns arrays instead of SpatRasters
+#' @param skyview_only logical; if TRUE returns only the skyview SpatRaster (or array),
+#'   skipping construction of the per-direction horizon output. Faster when horizon
+#'   angles are not needed.
 #'
-#' @return list (length=2) of `skyview` and `horizon` arrays or SpatRasters
+#' @return When \code{skyview_only = FALSE} (default): a list with elements
+#'   \code{skyview} and \code{horizon} (SpatRasters or arrays depending on
+#'   \code{toArrays}). When \code{skyview_only = TRUE}: the skyview SpatRaster
+#'   (or array) directly.
 #' @export
 #'
 #' @examples
@@ -579,15 +584,16 @@ atmos_to_sea_pressure<-function(pres,dtm){
 #' results<-calculate_terrain_shading(dtmf)
 #' #plot(results$skyview)
 #' #plot(results$horizon[[c(1,6,12,18)]])
-calculate_terrain_shading<-function(dtm,steps=24,toArrays=FALSE){
+calculate_terrain_shading<-function(dtm, steps=36, toArrays=FALSE, skyview_only=FALSE){
   r<-dtm
   dtm<-ifel(is.na(dtm),0,dtm)
-  # Calculate horizon angle lookup
-  hor<-array(NA,dim=c(dim(dtm)[1:2],steps))
+  # Accumulate horizon angles; only allocate full hor array when needed
   sv<- array(0, dim(dtm)[1:2])
+  if(!skyview_only) hor<-array(NA,dim=c(dim(dtm)[1:2],steps))
   for (i in 1:steps){
-    hor[,,i]<-.horizon(dtm,(i-1)*(360/steps))
-    sv<-sv+atan(hor[,,i])
+    h<-.horizon(dtm,(i-1)*(360/steps))
+    sv<-sv+atan(h)
+    if(!skyview_only) hor[,,i]<-h
   }
   sv<-sv/steps
   sv<-tan(sv)
@@ -596,6 +602,10 @@ calculate_terrain_shading<-function(dtm,steps=24,toArrays=FALSE){
   if(!toArrays){
     sv<-.rast(sv,dtm)
     sv<-mask(sv,r)
+  }
+  if(skyview_only) return(sv)
+
+  if(!toArrays){
     hor<-.rast(hor,dtm)
     hor<-mask(hor,r)
   }

@@ -216,7 +216,11 @@ checkinputs <- function(input_list, tstep = c("hour","day"),plots=TRUE){
     tmean<-(input_list$tmax+input_list$tmin)/2
     if (inherits(tmean,"SpatRaster")) csr<-.clearskyraddaily(input_list$tme,tmean) else csr<-.clearskyraddaily(input_list$tme,.rast(tmean,input_list$dtm))
   }
-  if(tstep=='hour') csr<-.clearskyrad(input_list$tme,ll$lat,ll$long,.is(input_list$temp),.is(input_list$relhum),.is(input_list$pres))
+  if(tstep=='hour') {
+    jd <- .jday(input_list$tme)
+    lt <- input_list$tme$hour + input_list$tme$min/60 + input_list$tme$sec/3600
+    csr <- clearskyrad(jd, lt, ll$lat, ll$long, .is(input_list$temp), .is(input_list$relhum), .is(input_list$pres))
+  }
   csd<-csr+50
   sel<-which(.is(input_list$swrad)>csd)
   if (length(sel)>0) {
