@@ -4,14 +4,14 @@
 \alias{.windhgt}
 \title{Applies height correction to wind speed measurements}
 \usage{
-.windhgt(wspeed, zi, zo)
+.windhgt(wspeed, zi, zo, z0i = 0.02, z0o = 0.02)
 }
 \arguments{
 \item{zi}{a numeric value idicating the height (m) above the ground of \code{wspeed} input}
 
 \item{zo}{a numeric value indicating the height (m) above ground level of output speeds
 Assumes a logarithmic height profile and imposes a minimum zo of 0.2.
-Equivalent of using a roughness length (z0) of ~0.2 where v = vref ln(z/z0)/ln(zref/z0) (https://www.rensmart.com/Information/WindSheer)}
+Equivalent of using a roughness length (z0) of ~0.02 where v = vref ln(z/z0)/ln(zref/z0) (https://www.rensmart.com/Information/WindSheer)}
 }
 \description{
 cf microclima::windheight

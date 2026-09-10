@@ -6,6 +6,10 @@ Test_R/*
 cds.txt
 mesoclim-iMac (2).Rproj
 R_new/
+analyses/*
+extradocs/*
+raw_data_files/*
+.claude/*
 src/*.o
 src/*.so
 src/*.dll

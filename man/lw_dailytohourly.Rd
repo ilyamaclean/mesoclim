@@ -56,7 +56,7 @@ climdaily<-read_climdata(ukcpinput)
 # ========================================================================= #
 hrtemps<-temp_dailytohourly(climdaily$tmin, climdaily$tmax, srte = 0.09)
 hrpres<-pres_dailytohourly(climdaily$pres)
-hrrh <- hum_dailytohourly(climdaily$relhum, climdaily$tmin, climdaily$tmax,hr_temp,climdaily$pres, hr_pres,relmin = 10)
+hrrh <- hum_dailytohourly(climdaily$relhum, climdaily$tmin, climdaily$tmax,hrtemps,climdaily$pres, hrpres,relmin = 10)
 lwdhr<-lw_dailytohourly(lw=climdaily$lwrad, hrtemps=hrtemps, hrrh=hrrh, hrpres=hrpres, adjust = TRUE)
 cell_lw<-t(terra::extract(lwdhr,matrix(c(175000,40000),ncol=2)))
 matplot(x=lubridate::as_datetime(terra::time(lwdhr)),y=cell_lw, type = "l", lty = 1)

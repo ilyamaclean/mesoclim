@@ -20,9 +20,9 @@ knitr::opts_chunk$set(
 ```{r setup, echo=FALSE, include=FALSE}
 library(lubridate)
 library(terra)
-#library(mesoclim)
-library(devtools)
-load_all()
+library(mesoclim)
+
+#devtools::load_all()
 ```
 
 
@@ -84,8 +84,6 @@ par(mfrow=c(2,3))
 for(v in c('tmin','tmax','relhum','pres','swrad','lwrad','windspeed','winddir','prec')){
   plot(climdata[[v]][[1]],main=paste(v,climdata$tme[[1]]))
 }
-
-
 ```
 
 ## Single step downscaling for small areas
@@ -95,14 +93,13 @@ The `spatialdownscale` wrapper function allows downscaling of all climate variab
 ```{r onestep-spdown}
 # Downscale to 50metres one month of UKCP 12km climate data
 t0<-now()
-mesoclimate<-spatialdownscale(climdata=climdata, sst=sst, dtmf, dtmm, basins = NA,  wca=NA, skyview=NA, horizon=NA, cad=TRUE, coastal = TRUE, thgto =2, whgto=2, include_tmean=TRUE, rhmin = 20, pksealevel = FALSE, patchsim = TRUE,  terrainshade = TRUE, precipmethod = "Elev", fast = TRUE, noraincut = 0.01, toArrays=FALSE) # 
+mesoclimate<-spatialdownscale(climdata=climdata, sst=sst, dtmf, dtmm, basins = NA,  wca=NA, skyview=NA, horizon=NA, cad=TRUE, coastal = TRUE, thgto =2, whgto=2, include_tmean=TRUE, rhmin = 20, pksealevel = FALSE, patchsim = FALSE,  terrainshade = TRUE, precipmethod = "Elev", fast = TRUE, noraincut = 0.01, toArrays=FALSE) # 
 print(now()-t0)
 
 # To write file:
 # dir_tmp<-dir_temp()
 # write_climdata(mesoclimate,file.path(dir_tmp,'mesoclimate.rds'))
 # mesoclimate<-read_climdata(file.path(dir_tmp,'mesoclimate.rds')))
-
 ```
 
 ### Display outputs
@@ -206,7 +203,6 @@ for(var in climvars){
   names(out_r)<-paste(var,terra::time(r[[sel]]))
   plot(out_r,main=names(out_r),font.main=1, cex.main=1, nc=length(p))
 }
-
 ```
 
 
@@ -225,7 +221,7 @@ In certain cases not all variables are required in the final downscaled product.
 
 Pre-calculation of those spatial properties that temporally constant can improve performance if spatial downscaling performed within a loop or as part of batch processing. 
 
-```{r topo prprocess}
+```{r topoprprocess}
 dtmf<-rast(system.file("extdata/dtms/dtmf.tif",package="mesoclim"))
 # Windshelter coef
 wca<-calculate_windcoeffs(dtmc,dtmm,dtmf,zo=2,toArray=FALSE)
@@ -300,7 +296,6 @@ tmean_c<-(climdata$tmin+climdata$tmax)/2
 lwrad<-lwdownscale(lwrad=climdata$lwrad,tc=tmean_c,tcf=tmean, climdata$tme, dtmf=dtmf, dtmc=climdata$dtm, skyview, terrainshade=TRUE)
                    
 plot(lwrad[[13]],main=paste("LW downward radiation",terra::time(rhf)[[13]]))
-
 ```
 
 ### Shortwave radiation downscale 
@@ -320,7 +315,7 @@ plot(swrad_compare,nr=1)
 
 ### Precipitation
 
-The `precipdownscale()` function provides various options and methods to downscale rainfall. 
+The `precipdownscale()` function provides various options and methods to downscale rainfall. Here we apply a correction based upon local elevation data.
 
 ```{r precip-dscale,out.width="50%"}
 method<-'Elev'

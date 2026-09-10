@@ -4,7 +4,7 @@
 \alias{windelev}
 \title{derive wind terrain adjustment coefficient}
 \usage{
-windelev(dtmf, dtmm, dtmc, wdir, uz = 2)
+windelev(dtmf, dtmm, dtmc, wdir, zi = 10, zo = 2)
 }
 \arguments{
 \item{dtmf}{a high-resolution SpatRast of elevations}

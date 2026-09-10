@@ -214,6 +214,18 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// fill_land_na_idw
+NumericVector fill_land_na_idw(NumericVector temp, NumericMatrix landMask);
+RcppExport SEXP _mesoclim_fill_land_na_idw(SEXP tempSEXP, SEXP landMaskSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type temp(tempSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type landMask(landMaskSEXP);
+    rcpp_result_gen = Rcpp::wrap(fill_land_na_idw(temp, landMask));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_mesoclim_hourtodayCpp", (DL_FUNC) &_mesoclim_hourtodayCpp, 2},
@@ -230,6 +242,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_mesoclim_invls_calc", (DL_FUNC) &_mesoclim_invls_calc, 11},
     {"_mesoclim_rainadjustv", (DL_FUNC) &_mesoclim_rainadjustv, 4},
     {"_mesoclim_rainadjustm", (DL_FUNC) &_mesoclim_rainadjustm, 4},
+    {"_mesoclim_fill_land_na_idw", (DL_FUNC) &_mesoclim_fill_land_na_idw, 2},
     {NULL, NULL, 0}
 };
 

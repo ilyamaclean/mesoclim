@@ -62,3 +62,7 @@ rainadjustm <- function(rainm, rrain, rfrac, rtot) {
     .Call(`_mesoclim_rainadjustm`, rainm, rrain, rfrac, rtot)
 }
 
+fill_land_na_idw <- function(temp, landMask) {
+    .Call(`_mesoclim_fill_land_na_idw`, temp, landMask)
+}
+

@@ -7,7 +7,20 @@
 prec_dailytohourly(prec, tme = NA, dailyraincut = 0)
 }
 \arguments{
-\item{tme}{}
+\item{prec}{\itemize{
+\item daily total precipitaion (mm) as SpatRaster, 3D array or vector
+}}
+
+\item{tme}{\itemize{
+\item POSIX.lt daily time series to match \code{prec} - if NA will look to time dimension of \code{prec} spatraster
+}}
+
+\item{dailyruncut}{\itemize{
+\item limit for daily precipitation beneath which set to zero
+}}
+}
+\value{
+hourly precipitation in same format as \code{prec}
 }
 \description{
 Daily to hourly precipitation downscale (TEMPORARY HOLDING FUNCTION)
@@ -18,5 +31,9 @@ hrprec<-prec_dailytohourly(climdaily$prec)
 #Plot results for one cell
 cell_prec<-t(terra::extract(hrprec,matrix(c(175000,40000),ncol=2)))
 matplot(terra::time(hrprec),cell_prec, type = "l", lty = 1)
+# Using vector of prec and tme as inputs
+prec<-c(10,5,0,0,5,10,12)
+tme<-seq(as.Date("2022/6/1"), as.Date("2022/6/7"),by = "1 day")
+hrprec<-prec_dailytohourly(prec,tme)
 }
 \keyword{temporal}

@@ -48,12 +48,6 @@
 #' @keywords internal
 #' @noRd
 .rast <- function(m,tem) {
-  # Throw warning if dim of m do not match dim of tem
-  if(any(dim(m)[1:2]!=dim(tem)[1:2])){
-    warning("In .rast dimensions of matrix/array do not match dimensions of rast template!!!")
-    #print(dim(m))
-    #print(dim(tem))
-  }
   r<-rast(m)
   ext(r)<-ext(tem)
   crs(r)<-crs(tem)
@@ -299,10 +293,17 @@
 #' @title Calculate saturated vapour pressure
 #' @noRd
 .satvap <- function(tc) {
-  e0<-(tc<0)*610.78/1000+(tc>=0)*611.2/1000
-  L <- (tc<0)*2.834*10^6+(tc>=0)*((2.501*10^6)-(2340*tc))
-  T0<-(tc<0)*273.15+(tc>=0)*273.15
-  estl<-e0*exp((L/461.5)*(1/T0-1/(tc+273.15)))
+  if(class(tc)[1]=="SpatRaster"){
+    e0<-terra::ifel(tc<0,610.78/1000,611.2/1000)
+    L<-ifel(tc<0,2.834*10^6,(2.501*10^6)-(2340*tc))
+    T0<-ifel(!is.na(tc),273.15,NA)
+    estl<-e0*exp((L/461.5)*(1/T0-1/(tc+273.15)))
+  } else{
+    e0<-(tc<0)*610.78/1000+(tc>=0)*611.2/1000
+    L <- (tc<0)*2.834*10^6+(tc>=0)*((2.501*10^6)-(2340*tc))
+    T0<-(tc<0)*273.15+(tc>=0)*273.15
+    estl<-e0*exp((L/461.5)*(1/T0-1/(tc+273.15)))
+  }
   estl
 }
 #' @title Calculates the astronomical Julian day
@@ -471,9 +472,48 @@
   cf<-mask(cf,dtmf)
   return(cf)
 }
+
+#' @title Calculates horizon angle
+#' @noRd
+.horizon <- function(dtm, azimuth) {
+  reso<-res(dtm)[1]
+  dtm<-.is(dtm)
+  dtm[is.na(dtm)]<-0
+  dtm<-dtm/reso
+  azi<-azimuth*pi/180
+  horizon<-array(0,dim(dtm))
+  dtm3<-array(0,dim(dtm)+200)
+  x<-dim(dtm)[1]
+  y<-dim(dtm)[2]
+  dtm3[101:(x+100),101:(y+100)]<-dtm
+  for (step in 1:10) {
+    horizon[1:x,1:y]<-pmax(horizon[1:x,1:y],(dtm3[(101-cos(azi)*step^2):(x+100-cos(azi)*step^2),
+                                                  (101+sin(azi)*step^2):(y+100+sin(azi)*step^2)]-dtm3[101:(x+100),101:(y+100)])/(step^2),na.rm=T)
+  }
+  horizon
+}
+
+# ============================================================================ #
+# ~~~~~~~~~ Wind worker functions here  ~~~~~~~~~~~~~~~~~~~~~~~~~ #
+# ============================================================================ #
+
+# TEST Function to calculate roughness length based on elevation x
+calculate_z0<-function(x){
+     ymax<-0.02
+     ymin<-0.001
+     c1<-5
+     c2<-250
+     y<-ifelse(x<c1,ymin+(ymax/c1)*x,0.021)
+     y<-ifelse(x>c2,(ymax+ymin) - (ymax/(1 + (x/(xmid+100))^-10)),y)
+     return(y)
+}
+
 #' @title Calculates wind altitude coefficient in specified direction
 #' @noRd
-.windz<-function(dtm1,dtm2,dtmr,wdir) {
+.windz<-function(dtm1,dtm2,dtmr,wdir,zi=10,zo=10) {
+  dtm1<-ifel(is.na(dtm1),0,dtm1)
+  dtm2<-ifel(is.na(dtm2),0,dtm2)
+  dtmr<-ifel(is.na(dtmr),0,dtmr)
   reso1<-res(dtm1)[1]
   reso2<-res(dtm2)[2]
   # Calculate shifts
@@ -495,11 +535,21 @@
   m2[(bdist+1):(bdist+dim(dtm1)[1]),(bdist+1):(bdist+dim(dtm1)[2])]<-.is(dtm1)
   wc<-array(1,dim=dim(dtm1)[1:2])
   m<-.is(dtm1)
+
+  # set roughness length for input ref
+  z0i<-0.02 
+  # set roughness length for output based on elevation
+  #z0o<-calculate_z0(m)
+  z0o<-z0i
+  z0o<-ifelse(m>200,0.005,0.02)
+  z0o<-ifelse(m<5,0.005,z0o)
   m3<-.is(dtmr) # replacement raster
   for (i in 1:length(xshift)) {
     # elevation difference
     ed<-m-m2[(bdist+1-yshift[i]):(bdist-yshift[i]+dim(m)[1]),(bdist+1+xshift[i]):(bdist+xshift[i]+dim(m)[2])]
-    mu<-suppressWarnings(log(67.8*(ed+2)-5.42)/4.8699)
+    #mu<-suppressWarnings(log(67.8*(ed+2)-5.42)/4.8699)
+    # mu<-suppressWarnings(log(67.8*(ed+zo)-5.42)/log(67.8*zi-5.42))
+    mu<-suppressWarnings( .windhgt(1,zi,ed+zo,z0i,z0o) )
     mu[ed<0]<-1
     mu[mu<1]<-1
     s<-which(is.na(mu))
@@ -540,35 +590,16 @@
 #' @param zi a numeric value idicating the height (m) above the ground of `wspeed` input
 #' @param zo a numeric value indicating the height (m) above ground level of output speeds
 #' Assumes a logarithmic height profile and imposes a minimum zo of 0.2.
-#' Equivalent of using a roughness length (z0) of ~0.2 where v = vref ln(z/z0)/ln(zref/z0) (https://www.rensmart.com/Information/WindSheer)
+#' Equivalent of using a roughness length (z0) of ~0.02 where v = vref ln(z/z0)/ln(zref/z0) (https://www.rensmart.com/Information/WindSheer)
 #' @keywords internal
-.windhgt<-function (wspeed, zi, zo) {
-  if (zo < 0.2 & zo > (5.42/67.8)){
+.windhgt<-function (wspeed, zi, zo, z0i=0.02, z0o=0.02) {
+  sel<-which(zo<0.2)
+  if (length(sel)>0){
     warning("Wind-height profile function performs poorly below 20 cm so output height converted to 20 cm")
-    zo <- 0.2
+    zo[sel]<-0.2
   }
-  return(wspeed * log(67.8 * zo - 5.42)/log(67.8 * zi - 5.42))
-}
-
-
-#' @title Calculates horizon angle
-#' @noRd
-.horizon <- function(dtm, azimuth) {
-  reso<-res(dtm)[1]
-  dtm<-.is(dtm)
-  dtm[is.na(dtm)]<-0
-  dtm<-dtm/reso
-  azi<-azimuth*pi/180
-  horizon<-array(0,dim(dtm))
-  dtm3<-array(0,dim(dtm)+200)
-  x<-dim(dtm)[1]
-  y<-dim(dtm)[2]
-  dtm3[101:(x+100),101:(y+100)]<-dtm
-  for (step in 1:10) {
-    horizon[1:x,1:y]<-pmax(horizon[1:x,1:y],(dtm3[(101-cos(azi)*step^2):(x+100-cos(azi)*step^2),
-                                                  (101+sin(azi)*step^2):(y+100+sin(azi)*step^2)]-dtm3[101:(x+100),101:(y+100)])/(step^2),na.rm=T)
-  }
-  horizon
+  #return(wspeed * log(67.8 * zo - 5.42)/log(67.8 * zi - 5.42))
+  return( wspeed *log(zo/z0o)/log(zi/z0i) )
 }
 
 # ============================================================================ #
@@ -888,6 +919,8 @@
 #' @keywords internal
 #'
 #' @examples
+#'  dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+#' plot(.cad_multiplier(dtmf, basins = NA, refhgt = 2))
 .cad_multiplier<-function(dtmf, basins = NA, refhgt = 2){
   # Calculate elevation difference between basin height point and pixel
   if (class(basins) == "logical") basins<-basindelin(dtmf,refhgt)
@@ -943,8 +976,10 @@
 #' occur (1) or not (0). For daily measurements it may be appropriate to apply only to daily min
 #' and  to set swrad to 0 assuming this minimum occurs during the night.
 #' @keywords internal
-#'
 #' @examples
+#'  dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+#' climdata<-read_climdata(mesoclim::climdata)
+#' .cad_conditions(climdata$tmin,climdata$windspeed,climdata$swrad,climdata$lwrad,climdata$dtmc,dtmf,refhgt = 2)
 .cad_conditions<-function(tc,u2,swrad,lwrad,dtmc,dtmf,refhgt = 2){
   # determine whether cold-air drainage conditions exist
   d<-0.65*0.12
@@ -968,8 +1003,7 @@
 #'
 #' @return spatraster of cold air drainage correction in deg C
 #' @keywords internal
-#'
-#' @examples
+##' @noRd
 .apply_cad<-function(lrf,mu,st){
   cad<-lrf*-mu
   ce<-cad*st

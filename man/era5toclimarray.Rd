@@ -7,8 +7,10 @@
 era5toclimarray(
   ncfile,
   dtmc,
-  lsm,
+  lsm = NA,
   aoi = NA,
+  startdate,
+  enddate,
   dtr_cor_fac = 1.285,
   toArrays = TRUE,
   zo = 10
@@ -21,7 +23,11 @@ era5toclimarray(
 
 \item{lsm}{a SpatRaster object of ERA5 landsea mask of same or larger extent as aoi and same resolution as ncfile}
 
-\item{aoi}{a  SpatRaster, sf or vect of the area to which outputs are cropped & reprojected - if NA extent/projection same as ncfile}
+\item{aoi}{a  SpatRaster, sf or vect of the area to which outputs are cropped & reprojected - if NA dtmc used to define extent}
+
+\item{startdate}{POSIXlt class defining start date of required timeseries}
+
+\item{enddate}{POSIXlt class defining end date of required timeseries}
 
 \item{dtr_cor_fac}{numeric value to be used in the diurnal temperature range
 correction of coastal grid cells. Default = 1.285, based on calibration against UK Met Office
@@ -29,12 +35,12 @@ observations. If set to zero, no correction is applied.}
 
 \item{toArrays}{logical determining if climate data returned as list of arrays. If FALSE returns list of Spatrasters.}
 
-\item{zo=}{height of wind speed above ground in metres to be output}
+\item{zo=}{height of wind speed above ground in metres to be output - defaults to ERA5 10m}
 }
 \value{
 a list of the following:
 \describe{
-\item{dtmc}{Digital elevation of downscaled area in metres (as Spatraster)}
+\item{dtmc}{Digital elevation of area (as Spatraster)}
 \item{tme}{POSIXlt object of times corresponding to climate observations}
 \item{windheight_m}{Height of windspeed data in metres above ground (as numeric)}
 \item{tempheight_m}{Height of temperature data in metres above ground (as numeric)}

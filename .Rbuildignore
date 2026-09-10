@@ -8,3 +8,6 @@
 ^\.github$
 ^analyses$
 ^R_new$
+^raw_data_files$
+^\.claude$
+^extradocs$

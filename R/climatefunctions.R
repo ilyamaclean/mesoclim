@@ -6,14 +6,14 @@
 #' @param toArray - if FALSE will produce a spatraster stack otherwise as 3D array
 #' @return wca2 - array of wind coeeficients for each of 8 wind directions
 #' @export
-calculate_windcoeffs<-function(dtmc,dtmm,dtmf,zo,toArray=TRUE){
+calculate_windcoeffs<-function(dtmc,dtmm,dtmf,zi=10,zo=2,toArray=TRUE){
   if(all(terra::res(dtmm)==terra::res(dtmf))){
     dtmm_res<-round(exp( ( log(terra::res(dtmc)[1]) + log(terra::res(dtmf)[1]) ) / 2 ))
     dtmw<-terra::aggregate(dtmm,dtmm_res / res(dtmf),  na.rm=TRUE)
   } else if(any(terra::res(dtmm)<terra::res(dtmf))) stop("dtmm in calculate windcoeffs must be same or coarser resolution than dtmf!!") else dtmw<-dtmm
   # Calculate terrain adjustment coefs in each of 8 directions for output wind height zo
   wca<-array(NA,dim=c(dim(dtmf)[1:2],8))
-  for (i in 0:7) wca[,,i+1]<-.is(windelev(dtmf,dtmw,dtmc,i*45,zo))
+  for (i in 0:7) wca[,,i+1]<-.is(windelev(dtmf,dtmw,dtmc,i*45,zi,zo))
   # smooth results
   wca2<-wca
   for (i in 0:7) wca2[,,i+1]<-0.25*wca[,,(i-1)%%8+1]+0.5*wca[,,i%%8+1]+0.25*wca[,,(i+1)%%8+1]
@@ -22,6 +22,67 @@ calculate_windcoeffs<-function(dtmc,dtmm,dtmf,zo,toArray=TRUE){
     names(wca2)<-paste("Shelter coef dir",seq(1:nlyr(wca2)))
   }
   return(wca2)
+}
+#' @title derive wind terrain adjustment coefficient
+#' @description The function `windelev` is used to spatially downscale wind, and
+#' adjusts wind speed for elevation and applies a terrain shelter coefficient for
+#' a specified wind direction.
+#' @param dtmf a high-resolution SpatRast of elevations
+#' @param dtmm a medium-resolution SpatRast of elevations covering a larger area
+#' than dtmf (see details)
+#' @param dtmc a coarse-resolution SpatRast of elevations usually matching
+#' the resolution of climate data used for downscaling (see details)
+#' @param wdir wind direction (from, decimal degrees).
+#' @param uz height above ground (m) of wind speed measurement
+#' @return a SpatRast of wind adjustment coefficients matching the resoltuion,
+#' coordinate reference system and extent of `dtmf`.
+#' @details Elevation effects are derived by sampling the dtms at intervals in
+#' an upwind direction, determining the elevation difference form each focal cell and
+#' performing a standard wind-height adjustment. Terrain sheltering is computed
+#' from horizon angles following the method detailed in Maclean et al (2019) Methods
+#' Ecol Evol 10: 280-290. By supplying three dtms, the algorithm is able to account for
+#' elevation differences outside the boundaries of `dtmf`. The area covered by `dtmm` was
+#' extend at least one `dtmc` grid cell beyond `dtmf`. Elevations must be in metres.
+#' The coordinate reference system of `dtmf` must be such that x and y are also in metres.
+#' `dtmm` and `dtmc` are reprojected to match the coordinate reference system of `dtmf`.
+#' @import terra
+#' @export
+#' @seealso [winddownscale()]
+#' @rdname windelev
+#' @keywords spatial
+#' @examples
+#' dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+#' dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
+#' climdata<-read_climdata(mesoclim::ukcpinput)
+#' wc <- windelev(dtmf, dtmm, climdata$dtm, wdir = 270)
+#' terra::plot(wc)
+windelev <- function(dtmf, dtmm, dtmc, wdir, zi = 10, zo=2) {
+  # Reproject if necessary
+  if (crs(dtmm) != crs(dtmf)) dtmm<-project(dtmm,crs(dtmf))
+  if (crs(dtmc) != crs(dtmf)) dtmc<-project(dtmc,crs(dtmf))
+  # This bit will be wrapped into a function - this for dtmm
+  # Calculate wind adjustment 1
+  dtmr<-dtmm*0+1
+  dtmr[is.na(dtmr)]<-1
+  wc1<-.windz(dtmm,dtmc,dtmr,wdir,zi,zo)
+  # Calculate wind adjustment 2
+  wc1<-.resample(wc1,dtmf)
+  wc2<-.windz(dtmf,dtmm,wc1,wdir,zi,zo)
+  # Average
+  wc<-(wc1+wc2)/2
+  # Calculate average for coarse grid cell
+  wcc<-resample(wc,dtmc,method="near")
+  wcc[is.na(wcc)]<-mean(as.vector(wc),na.rm=TRUE)
+  wcc<-.resample(wcc,wc)
+  wc<-wc/wcc
+  # Calculate terrain shelter coefficient
+  ws<-.windcoef(dtmm, wdir, hgt = zo)  # coarse
+  ws<-.resample(ws,dtmf)
+  ws2<-.windcoef(dtmf, wdir, hgt = zo) # fine
+  ws<-.rast(pmin(.is(ws),.is(ws2)),dtmf)
+  wc<-ws*wc
+  wc<-suppressWarnings(mask(wc,dtmf))
+  return(wc)
 }
 
 #' @title delineate hydrological or cold-air drainage basins
@@ -109,67 +170,6 @@ flowacc<-function (dtm, basins = NA) {
   return(fa)
 }
 
-#' @title derive wind terrain adjustment coefficient
-#' @description The function `windelev` is used to spatially downscale wind, and
-#' adjusts wind speed for elevation and applies a terrain shelter coefficient for
-#' a specified wind direction.
-#' @param dtmf a high-resolution SpatRast of elevations
-#' @param dtmm a medium-resolution SpatRast of elevations covering a larger area
-#' than dtmf (see details)
-#' @param dtmc a coarse-resolution SpatRast of elevations usually matching
-#' the resolution of climate data used for downscaling (see details)
-#' @param wdir wind direction (from, decimal degrees).
-#' @param uz height above ground (m) of wind speed measurement
-#' @return a SpatRast of wind adjustment coefficients matching the resoltuion,
-#' coordinate reference system and extent of `dtmf`.
-#' @details Elevation effects are derived by sampling the dtms at intervals in
-#' an upwind direction, determining the elevation difference form each focal cell and
-#' performing a standard wind-height adjustment. Terrain sheltering is computed
-#' from horizon angles following the method detailed in Maclean et al (2019) Methods
-#' Ecol Evol 10: 280-290. By supplying three dtms, the algorithm is able to account for
-#' elevation differences outside the boundaries of `dtmf`. The area covered by `dtmm` was
-#' extend at least one `dtmc` grid cell beyond `dtmf`. Elevations must be in metres.
-#' The coordinate reference system of `dtmf` must be such that x and y are also in metres.
-#' `dtmm` and `dtmc` are reprojected to match the coordinate reference system of `dtmf`.
-#' @import terra
-#' @export
-#' @seealso [winddownscale()]
-#' @rdname windelev
-#' @keywords spatial
-#' @examples
-#' dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
-#' dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
-#' climdata<-read_climdata(mesoclim::ukcpinput)
-#' wc <- windelev(dtmf, dtmm, climdata$dtm, wdir = 270)
-#' terra::plot(wc)
-windelev <- function(dtmf, dtmm, dtmc, wdir, uz = 2) {
-  # Reproject if necessary
-  if (crs(dtmm) != crs(dtmf)) dtmm<-project(dtmm,crs(dtmf))
-  if (crs(dtmc) != crs(dtmf)) dtmc<-project(dtmc,crs(dtmf))
-  # This bit will be wrapped into a function - this for dtmm
-  # Calculate wind adjustment 1
-  dtmr<-dtmm*0+1
-  dtmr[is.na(dtmr)]<-1
-  wc1<-.windz(dtmm,dtmc,dtmr,wdir)
-  # Calculate wind adjustment 2
-  wc1<-.resample(wc1,dtmf)
-  wc2<-.windz(dtmf,dtmm,wc1,wdir)
-  # Average
-  wc<-(wc1+wc2)/2
-  # Calculate average for coarse grid cell
-  wcc<-resample(wc,dtmc,method="near")
-  wcc[is.na(wcc)]<-mean(as.vector(wc),na.rm=TRUE)
-  wcc<-.resample(wcc,wc)
-  wc<-wc/wcc
-  # Calculate terrain shelter coefficient
-  ws<-.windcoef(dtmm, wdir, hgt = uz)  # coarse
-  ws<-.resample(ws,dtmf)
-  ws2<-.windcoef(dtmf, wdir, hgt = uz) # fine
-  ws<-.rast(pmin(.is(ws),.is(ws2)),dtmf)
-  wc<-ws*wc
-  wc<-suppressWarnings(mask(wc,dtmf))
-  return(wc)
-}
 #' @title Calculates land to sea ratio in upwind direction
 #'
 #' @description The function `coastalexposure` is used to calculate an inverse
@@ -533,7 +533,7 @@ lapserate <- function(tc, rh=NA, pk=NA) {
 #' @export
 #'
 #' @examples
-#'
+#' print(paste("Sea level pressure of 100 kPa atmospheric pressure at 500m elevation =",round(sea_to_atmos_pressure(100,500),1),"kPa"))
 sea_to_atmos_pressure<-function(psl,dtm){
   if(inherits(psl,"SpatRaster")){
     toArrays<-FALSE

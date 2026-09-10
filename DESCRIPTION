@@ -42,5 +42,5 @@ VignetteBuilder: knitr
 URL: https://github.com/ilyamaclean/mesoclim
 BugReports: https://github.com/ilyamaclean/mesoclim/issues
 Depends: 
-    R (>= 2.10)
+    R (>= 3.5)
 Config/testthat/edition: 3
