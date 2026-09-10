@@ -23,8 +23,17 @@ Static review of `~/OneDrive-UniversityofExeter/Rprojects/mesoclim` (branch `dev
 - ✅ **Sample NetCDF script added** — `data-raw/create_sample_ncdf.R` subsets ERA5, UKCP18RCM and SST files to <1 MB; outputs to `inst/extdata/era5raw/`, `inst/extdata/ukcprcm_sample/`, `inst/extdata/sst_sample/` (partial progress on P1 item 12 — sample data now exists, path references in examples still need updating)
 - ✅ **`CLAUDE.md` added** — documents build/test/document/check/Rcpp commands and package architecture
 
+**Completed since audit — P0 fixes (commit `9fe9103`):**
+
+- ✅ **P0 item 1: `data/climdata.rda` removed** — 39 MB dataset deleted; replaced by `data/bcmodel_list.rda` (100 kB, tmin/tmax/prec bias-correction models for UKCP18 RCM member 01, Cornwall area); documented in `R/data.R`
+- ✅ **P0 item 2 & 3: Vignettes fixed** — all four `.Rmd` files moved from `vignettes/articles/` to `vignettes/` with proper `%\VignetteIndexEntry{}` / `%\VignetteEngine{knitr::rmarkdown}` / `output: rmarkdown::html_vignette` metadata; global `eval=FALSE`; `library(mesoclim)` replaces `devtools::load_all()`; hard-coded OneDrive bc model path in vignette 2 replaced with `data(bcmodel_list, package="mesoclim")`
+- ✅ **P0 item 5: Missing `.Rd` files fixed** — `@export` removed from 7 dot-functions in `ukcp_functions.R` that had `@noRd` (`.get_ukcp18_dates`, `.correct_ukcp_dates`, `.fill_calendar_data`, `.change_rast_units`, `.find_ukcp_decade`, `.lwup`, `.swdown`); all `#'` documentation blocks preserved inside the function files; `get_dem` fixed separately — `@noRd` removed, proper roxygen docs added with `@examples \dontrun{}` block; `devtools::document()` re-run; `get_dem.Rd` and `model_list.Rd` generated, NAMESPACE cleaned (7 dot-functions removed, `get_dem` retained)
+- ✅ **P0 item 6: `.Rbuildignore` updated** — added `^docs$`, `^pkgdown$`, `^cds\.txt$`, `^README\.Rmd$`, `^\.github$`, `^analyses$`, `^R_new$`
+- ✅ **P0 item 7: Compiled artefacts removed** — added `src/*.o`, `src/*.so`, `src/*.dll` to `.gitignore`; `git rm --cached` run on `src/RcppExports.o`, `src/mesoclimCpp.o`, `src/mesoclim.so`
+- ✅ **`biascorrect_climdata()` partial model list** — changed hard `stop()` to `warning()` + `vars <- intersect(vars, model_vars)` so the function applies correction only to variables present in the supplied model list and warns about those missing (relevant because `bcmodel_list` covers only tmin/tmax/prec)
+
 **Still present / not yet addressed:**
-- ❌ **P0 items 1–7** — all still open (climdata 39 MB, vignettes, broken chunk fence, missing .Rd, .Rbuildignore, compiled artefacts in git)
+- ❌ **P0 item 4: broken chunk fence** — `vignettes/mesoclim_1_preparedata.Rmd:201` `{r era5check}` without opening backticks — still present (file moved but not edited for this)
 - ❌ **P1 items 8–13** — all still open except partial progress on item 12
 - ❌ **P2 items 14–20** — all still open
 - ❌ **Remaining dead helpers**: `.cropnc`, `.writenc`, `.clearskyraddaily` still in `workerfunctions.R`; `rainadjustv` Rcpp export still has no R caller
@@ -64,13 +73,13 @@ Static review of `~/OneDrive-UniversityofExeter/Rprojects/mesoclim` (branch `dev
 
 ### P0 — blocks anyone else building or using the package
 
-1. **`data/climdata.rda` is 41.0 MB of a 41.1 MB `data/` directory** and is referenced by exactly one roxygen example (`.cad_conditions`) — which is itself broken. Every other apparent use of `climdata` is a *local variable name*, not the dataset. Delete it, or shrink it to the ~20 kB scale of `ukcpinput`. This alone is ~99.7 % of `data/`.
-2. **Vignettes are not vignettes.** None of the four `.Rmd` files has `%\VignetteIndexEntry{}` / `%\VignetteEngine{knitr::rmarkdown}`, and all use `output: html_document` rather than `rmarkdown::html_vignette`, yet `DESCRIPTION` declares `VignetteBuilder: knitr`. `R CMD build` will not produce vignettes from these. Either add the index entries or move them to `vignettes/articles/` and drop `VignetteBuilder`.
-3. **`vignettes/mesoclim_2_spdscale.Rmd:78` hard-codes a local OneDrive path** to bias-correction models (`bias_correct_models_01_2020_2022.Rds`). The vignette cannot knit on any other machine. Decide: ship a small model object as package data, compute it in-vignette from HadUK samples, or mark the chunk `eval=FALSE`.
-4. **`vignettes/mesoclim_1_preparedata.Rmd:201` has a broken chunk fence** — `{r era5check}` without opening backticks, leaving a stray closing fence at line 207 and an odd fence count for the file. It will not render.
-5. **8 exported objects have no `.Rd`**: `.change_rast_units`, `.correct_ukcp_dates`, `.fill_calendar_data`, `.find_ukcp_decade`, `.get_ukcp18_dates`, `.lwup`, `.swdown`, `get_dem`. `man/` is out of step with `R/` — re-run `document()`. (Roxygen `@export` tags and `NAMESPACE` *are* consistent with each other; only `man/` has drifted.)
-6. **`.Rbuildignore` does not exclude `docs/` (9 MB) or `pkgdown/`.** Both get bundled into the source tarball. Add `^docs$`, `^pkgdown$`, `^cds\.txt$`, `^README\.Rmd$`, `^\.github$`.
-7. **Compiled artefacts are tracked in git**: `src/RcppExports.o`, `src/mesoclimCpp.o`, `src/mesoclim.so` (~2.3 MB). Add `src/*.o`, `src/*.so`, `src/*.dll` to `.gitignore` and `git rm --cached` them.
+1. ✅ **`data/climdata.rda` removed** (2026-09-10) — 39 MB dataset deleted; replaced by `data/bcmodel_list.rda` (100 kB sample bias-correction models for tmin/tmax/prec). Note: `.cad_conditions` example still uses `mesoclim::climdata` — see P1 item 13.
+2. ✅ **Vignettes fixed** (2026-09-10) — all four `.Rmd` files moved from `vignettes/articles/` to `vignettes/` with proper `%\VignetteIndexEntry{}` / `%\VignetteEngine{knitr::rmarkdown}` / `output: rmarkdown::html_vignette` metadata; `eval=FALSE` globally.
+3. ✅ **Hard-coded OneDrive bc model path replaced** (2026-09-10) — vignette 2 now calls `data(bcmodel_list, package="mesoclim")`; `biascorrect_climdata()` updated to warn (not stop) for variables not covered by the model list.
+4. ❌ **`vignettes/mesoclim_1_preparedata.Rmd` broken chunk fence** — `{r era5check}` without opening backticks at line ~201, leaving a stray closing fence. Still open.
+5. ✅ **Missing `.Rd` files fixed** (2026-09-10) — `@export` removed from 7 dot-functions in `ukcp_functions.R` (keeping all `#'` doc blocks); `get_dem` docs added with `\dontrun{}` example; `devtools::document()` re-run; NAMESPACE cleaned.
+6. ✅ **`.Rbuildignore` updated** (2026-09-10) — added `^docs$`, `^pkgdown$`, `^cds\.txt$`, `^README\.Rmd$`, `^\.github$`, `^analyses$`, `^R_new$`.
+7. ✅ **Compiled artefacts removed from git** (2026-09-10) — `src/*.o`, `src/*.so`, `src/*.dll` added to `.gitignore`; `git rm --cached` run on tracked `.o`/`.so` files.
 
 ### P1 — correctness
 
@@ -141,19 +150,18 @@ No undefined internal (`.`-prefixed) function calls were found — the internal 
 
 ## 4. Package data
 
-### `data/` — 41.1 MB total
+### `data/` — ~2.1 MB total (was 41.1 MB)
 
 | Dataset | Size | Explicit `mesoclim::` / `data()` refs | Verdict |
 |---|---|---|---|
-| `climdata.rda` | **41.0 MB** | 1 (a broken example) | **delete or shrink** |
+| ~~`climdata.rda`~~ | ~~41.0 MB~~ | — | ✅ **deleted 2026-09-10** |
+| `bcmodel_list.rda` | 100 kB | vignette 2 (`data(bcmodel_list)`) | ✅ added 2026-09-10; covers tmin/tmax/prec only |
 | `ukcp18sst.rda` | 54 kB | 11 | keep |
 | `ukcpinput.rda` | 17 kB | 54 | keep — the workhorse |
 | `era5sst.rda` | 24 kB | **0** | unused |
 | `ukcpfuture.rda` | 18 kB | 2 (vignette 4) | keep |
 | `landsea.rda` | 2.5 kB | **0** (2 examples use it as a variable name) | unused |
 | `ukcp18lookup.rda` | 0.6 kB | **0** | unused, but documented and plausibly useful |
-
-`climdata` and `ukcpinput` have *identical* `@format` blocks in `R/data.R` yet differ by a factor of 2,400 in size — worth understanding before deciding (see Q1).
 
 CRAN's limit is 5 MB for the whole tarball. Present `data/` alone is 8× that; `data/` + `inst/extdata` + `docs/` puts the tarball near 55 MB.
 
