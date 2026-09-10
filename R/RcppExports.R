@@ -33,12 +33,16 @@ hourlytempm <- function(tmn, tmx, year, month, day, lat, lon, srte = 0.09) {
     .Call(`_mesoclim_hourlytempm`, tmn, tmx, year, month, day, lat, lon, srte)
 }
 
-basinCpp <- function(dm2, bsn, dun) {
-    .Call(`_mesoclim_basinCpp`, dm2, bsn, dun)
+basinCpp <- function(dm2, bsn, method = "any") {
+    .Call(`_mesoclim_basinCpp`, dm2, bsn, method)
 }
 
 renumberbasin <- function(m, u) {
     .Call(`_mesoclim_renumberbasin`, m, u)
+}
+
+basinmerge_cpp <- function(dm2, bm2, boundary) {
+    .Call(`_mesoclim_basinmerge_cpp`, dm2, bm2, boundary)
 }
 
 #'

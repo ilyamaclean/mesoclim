@@ -128,15 +128,15 @@ BEGIN_RCPP
 END_RCPP
 }
 // basinCpp
-IntegerMatrix basinCpp(NumericMatrix& dm2, IntegerMatrix& bsn, IntegerMatrix& dun);
-RcppExport SEXP _mesoclim_basinCpp(SEXP dm2SEXP, SEXP bsnSEXP, SEXP dunSEXP) {
+IntegerMatrix basinCpp(NumericMatrix& dm2, IntegerMatrix& bsn, std::string method);
+RcppExport SEXP _mesoclim_basinCpp(SEXP dm2SEXP, SEXP bsnSEXP, SEXP methodSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< NumericMatrix& >::type dm2(dm2SEXP);
     Rcpp::traits::input_parameter< IntegerMatrix& >::type bsn(bsnSEXP);
-    Rcpp::traits::input_parameter< IntegerMatrix& >::type dun(dunSEXP);
-    rcpp_result_gen = Rcpp::wrap(basinCpp(dm2, bsn, dun));
+    Rcpp::traits::input_parameter< std::string >::type method(methodSEXP);
+    rcpp_result_gen = Rcpp::wrap(basinCpp(dm2, bsn, method));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -149,6 +149,19 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< IntegerVector& >::type m(mSEXP);
     Rcpp::traits::input_parameter< IntegerVector >::type u(uSEXP);
     rcpp_result_gen = Rcpp::wrap(renumberbasin(m, u));
+    return rcpp_result_gen;
+END_RCPP
+}
+// basinmerge_cpp
+IntegerMatrix basinmerge_cpp(NumericMatrix& dm2, IntegerMatrix& bm2, double boundary);
+RcppExport SEXP _mesoclim_basinmerge_cpp(SEXP dm2SEXP, SEXP bm2SEXP, SEXP boundarySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix& >::type dm2(dm2SEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix& >::type bm2(bm2SEXP);
+    Rcpp::traits::input_parameter< double >::type boundary(boundarySEXP);
+    rcpp_result_gen = Rcpp::wrap(basinmerge_cpp(dm2, bm2, boundary));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -213,6 +226,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_mesoclim_hourlytempm", (DL_FUNC) &_mesoclim_hourlytempm, 8},
     {"_mesoclim_basinCpp", (DL_FUNC) &_mesoclim_basinCpp, 3},
     {"_mesoclim_renumberbasin", (DL_FUNC) &_mesoclim_renumberbasin, 2},
+    {"_mesoclim_basinmerge_cpp", (DL_FUNC) &_mesoclim_basinmerge_cpp, 3},
     {"_mesoclim_invls_calc", (DL_FUNC) &_mesoclim_invls_calc, 11},
     {"_mesoclim_rainadjustv", (DL_FUNC) &_mesoclim_rainadjustv, 4},
     {"_mesoclim_rainadjustm", (DL_FUNC) &_mesoclim_rainadjustm, 4},

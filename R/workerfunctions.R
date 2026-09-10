@@ -578,15 +578,13 @@
 #' @importFrom Rcpp sourceCpp
 #' @useDynLib mesoclim, .registration = TRUE
 #' @noRd
-.basindelinCpp<-function(dtm) {
+.basindelinCpp<-function(dtm, method="any") {
   dm<-.is(dtm)
   dm[is.na(dm)]<-9999
   dm2<-array(9999,dim=c(dim(dm)[1]+2,dim(dm)[2]+2))
   dm2[2:(dim(dm)[1]+1),2:(dim(dm)[2]+1)]<-dm
-  # (2) create blank basin file
   bsn<-dm2*NA
-  dun<-array(0,dim=dim(bsn))
-  bsn<-basinCpp(dm2, bsn, dun)
+  bsn<-basinCpp(dm2, bsn, method)
   dd<-dim(bsn)
   bsn<-bsn[2:(dd[1]-1),2:(dd[2]-1)]
   if(class(bsn)[1]!='matrix') bsn<-matrix(bsn,ncol=ncol(dtm),nrow=nrow(dtm))
@@ -595,135 +593,35 @@
 }
 #' @title Internal function for delineating basins with option for boundary > 0
 #' @noRd
-.basindelin<-function(dtm, boundary = 0) {
-  # Delineate basins
-  dm<-dim(dtm)
+.basindelin<-function(dtm, boundary = 0, method = "any") {
   me<-mean(as.vector(dtm),na.rm=TRUE)
   if (is.na(me) == FALSE) {
-    bsn<-.basindelinCpp(dtm)
-    # Merge basins if boundary > 0
-    if (boundary > 0) {
-      mx<-max(as.vector(bsn),na.rm=T)
-      tst<-1
-      while (tst == 1) {
-        u<-unique(as.vector(bsn))
-        u<-u[is.na(u) == F]
-        if (length(u) > 1) {
-          bsn<-.basinmerge(dtm,bsn,boundary)
-          u<-unique(as.vector(bsn))
-          u<-u[is.na(u) == F]
-          if (length(u) > 1) {
-            bsn<-.basinmerge(dtm,bsn,boundary)
-            u<-unique(as.vector(bsn))
-            u<-u[is.na(u) == F]
-          }
-          u<-unique(as.vector(bsn))
-          u<-u[is.na(u) == F]
-        }
-        if (length(u) == 1) tst<-0
-        mx2<-max(as.vector(bsn),na.rm=T)
-        if (mx2 ==  mx) {
-          tst<-0
-        } else mx<-mx2
-      } # end while
-    } # end if boundary
-  } else bsn<-dtm # end if boundary
+    bsn<-.basindelinCpp(dtm, method)
+    if (boundary > 0) bsn<-.basinmerge(dtm, bsn, boundary)
+  } else bsn<-dtm
   return(bsn)
 }
-#' @title function to identify which basin edge cells are less or equal to boundary
+#' @title Merge basins separated by a shallow barrier (pour-point, C++ implementation)
 #' @noRd
-.edge<-function(v) {
-  o<-0
-  if (is.na(v[1]) == FALSE) {
-    if (max(v,na.rm=TRUE) > v[1]) o<-1
-  }
-  o
-}
-#' @title function to assign which surrounding cells should be merged
-#' @noRd
-.edgec<-function(v) {
-  o<-v*0
-  if (is.na(v[1]) == FALSE) {
-    s<-which(v>v[1])
-    o[s]<-1
-  }
-  o
-}
-#' @title function to grab neighbouring cells and reassign basin number
-#' @noRd
-.asign3<-function(bm2,bea,rw,cl) {
-  b3<-bm2[rw:(rw+2),cl:(cl+2)]
-  v<-bea[rw,cl,]
-  if (is.na(v[2])==FALSE & v[2] > 0) b3[2,1]<-b3[2,2]
-  if (is.na(v[3])==FALSE & v[3] > 0)  b3[2,3]<-b3[2,2]
-  if (is.na(v[4])==FALSE & v[4] > 0)  b3[1,2]<-b3[2,2]
-  if (is.na(v[5])==FALSE & v[5] > 0)  b3[1,1]<-b3[2,2]
-  if (is.na(v[6])==FALSE & v[6] > 0)  b3[1,3]<-b3[2,2]
-  if (is.na(v[7])==FALSE & v[7] > 0) b3[3,2]<-b3[2,2]
-  if (is.na(v[8])==FALSE & v[8] > 0)  b3[3,1]<-b3[2,2]
-  if (is.na(v[9])==FALSE & v[9] > 0)  b3[3,3]<-b3[2,2]
-  b3
-}
-#' @title Merge basins based on specified boundary
-#' @noRd
-.basinmerge<-function(dtm,bsn,boundary=0.25) {
-  # Put buffer around basin and dtn
+.basinmerge<-function(dtm, bsn, boundary=0.25) {
   bm<-.is(bsn)
-  bm2<-array(NA,dim=c(dim(bm)[1]+2,dim(bm)[2]+2))
-  bm2[2:(dim(bm)[1]+1),2:(dim(bm)[2]+1)]<-bm
   dm<-.is(dtm)
-  dm2<-array(NA,dim=c(dim(dm)[1]+2,dim(dm)[2]+2))
-  dm2[2:(dim(dm)[1]+1),2:(dim(dm)[2]+1)]<-dm
-  # Create 3D array of  basin numbers  with adjoining cells
-  bma<-array(NA,dim=c(dim(bm),9))
-  bma[,,1]<-bm # rw, cl
-  bma[,,2]<-bm2[2:(dim(bm)[1]+1),1:dim(bm)[2]] # rw, cl-1
-  bma[,,3]<-bm2[2:(dim(bm)[1]+1),3:(dim(bm)[2]+2)] # rw, cl+1
-  bma[,,4]<-bm2[1:dim(bm)[1],2:(dim(bm)[2]+1)] # rw-1, cl
-  bma[,,5]<-bm2[1:dim(bm)[1],1:dim(bm)[2]] # rw-1, cl-1
-  bma[,,6]<-bm2[1:dim(bm)[1],3:(dim(bm)[2]+2)] # rw-1, cl+1
-  bma[,,7]<-bm2[3:(dim(bm)[1]+2),2:(dim(bm)[2]+1)] # rw+1, cl
-  bma[,,8]<-bm2[3:(dim(bm)[1]+2),1:dim(bm)[2]] # rw+1, cl-1
-  bma[,,9]<-bm2[3:(dim(bm)[1]+2),3:(dim(bm)[2]+2)] # rw+1, cl+1
-  # Create 3D array of elevation differences with adjoining cells
-  dma<-array(NA,dim=c(dim(dm),9))
-  dma[,,1]<-dm # rw, cl
-  dma[,,2]<-dm2[2:(dim(dm)[1]+1),1:dim(dm)[2]]-dm # rw, cl-1
-  dma[,,3]<-dm2[2:(dim(dm)[1]+1),3:(dim(dm)[2]+2)]-dm  # rw, cl+1
-  dma[,,4]<-dm2[1:dim(dm)[1],2:(dim(dm)[2]+1)]-dm  # rw-1, cl
-  dma[,,5]<-dm2[1:dim(dm)[1],1:dim(dm)[2]]-dm  # rw-1, cl-1
-  dma[,,6]<-dm2[1:dim(dm)[1],3:(dim(dm)[2]+2)]-dm  # rw-1, cl+1
-  dma[,,7]<-dm2[3:(dim(dm)[1]+2),2:(dim(dm)[2]+1)]-dm  # rw+1, cl
-  dma[,,8]<-dm2[3:(dim(dm)[1]+2),1:dim(dm)[2]]-dm  # rw+1, cl-1
-  dma[,,9]<-dm2[3:(dim(dm)[1]+2),3:(dim(dm)[2]+2)]-dm  # rw+1, cl+1
-  dma2<-dma*0
-  dma2[abs(dma)<boundary]<-1
-  bma<-bma*dma2
-  bma[,,1]<-bm
-  # identify edge and basin merge cells
-  be<-apply(bma,c(1,2),.edge)
-  bea<-aperm(apply(bma,c(1,2),.edgec),c(2,3,1))
-  s<-which(be>0,arr.ind=TRUE)
-  for (i in 1:dim(s)[1]) {
-    rw<-as.numeric(s[i,1])
-    cl<-as.numeric(s[i,2])
-    b3<-.asign3(bm2,bea,rw,cl)
-    bm2[rw:(rw+2),cl:(cl+2)]<-b3
-  }
-  # reassign basin number
-  u<-unique(as.vector(bm2))
-  u<-u[is.na(u)==FALSE]
-  u<-u[order(u)]
-  bm3<-bm2
-  for (i in 1:length(u)) {
-    s<-which(bm2==u[i])
-    bm3[s]<-i
-  }
-  dd<-dim(bm3)
-  bsn<-bm3[2:(dd[1]-1),2:(dd[2]-1)]
-  # case where single column/row and bsn is a vector
-  if(class(bsn)[1]!='matrix') bsn<-matrix(bsn,ncol=ncol(dtm),nrow=nrow(dtm))
-  r<-.rast(bsn,dtm)
+  nr<-dim(bm)[1]; nc<-dim(bm)[2]
+  dm[is.na(dm)]<-9999
+  dm2<-array(9999,dim=c(nr+2,nc+2))
+  dm2[2:(nr+1),2:(nc+1)]<-dm
+  bm2<-array(NA_integer_,dim=c(nr+2,nc+2))
+  bm2[2:(nr+1),2:(nc+1)]<-bm
+  bmerged<-basinmerge_cpp(dm2, bm2, boundary)
+  dd<-dim(bmerged)
+  bmerged<-bmerged[2:(dd[1]-1),2:(dd[2]-1)]
+  if(class(bmerged)[1]!='matrix') bmerged<-matrix(bmerged,ncol=nc,nrow=nr)
+  # renumber sequentially
+  present<-!is.na(bmerged)
+  u<-sort(unique(bmerged[present]))
+  bmerged[present]<-match(bmerged[present],u)
+  r<-.rast(bmerged,dtm)
+  return(r)
 }
 
 #' @title Mosaic tiled basins merging common joins
@@ -867,7 +765,7 @@
 }
 #' @title Do an entire column of tiled basins
 #' @noRd
-.docolumn<-function(dtm,tilesize,boundary,x) {
+.docolumn<-function(dtm,tilesize,boundary,x,method="any") {
   e<-ext(dtm)
   reso<-res(dtm)
   ymxs<-as.numeric(ceiling((e$ymax-e$ymin)/reso[2]/tilesize))-1
@@ -879,7 +777,7 @@
   if (ymx > e$ymax) ymx<-e$ymax
   ec<-ext(xmn,xmx,ymn,ymx)
   dc<-crop(dtm,ec)
-  bma<-basindelin(dc,boundary)
+  bma<-basindelin(dc,boundary,method=method)
   # delineate basins for columns
   for (y in 1:ymxs) {
     xmn<-as.numeric(e$xmin)+reso[1]*tilesize*x
@@ -892,7 +790,7 @@
     dc<-crop(dtm,ec)
     ta<-suppressWarnings(max(as.vector(bma),na.rm=T))
     if (is.infinite(ta)) ta<-0
-    bo<-basindelin(dc,boundary)+ta
+    bo<-basindelin(dc,boundary,method=method)+ta
     bma<-.basinmosaic(bma,bo)
   } # end y
   return(bma)
@@ -901,16 +799,16 @@
 #' @importFrom Rcpp sourceCpp
 #' @useDynLib mesoclim, .registration = TRUE
 #' @noRd
-.basindelin_big<-function(dtm, boundary = 0, tilesize = 100, plotprogress = FALSE) {
+.basindelin_big<-function(dtm, boundary = 0, tilesize = 100, plotprogress = FALSE, method = "any") {
   # chop into tiles
   e<-ext(dtm)
   reso<-res(dtm)
   xmxs<-as.numeric(ceiling((e$xmax-e$xmin)/reso[1]/tilesize))-1
-  bma<-.docolumn(dtm,tilesize,boundary,0)
+  bma<-.docolumn(dtm,tilesize,boundary,0,method=method)
   for (x in 1:xmxs) {
     ta<-suppressWarnings(max(as.vector(bma),na.rm=T))
     if (is.infinite(ta)) ta<-0
-    bo<-.docolumn(dtm,tilesize,boundary,x)+ta
+    bo<-.docolumn(dtm,tilesize,boundary,x,method=method)+ta
     ed<-Sys.time()
     bma<-.basinmosaic(bma,bo)
     if (plotprogress) plot(bma,main=x)

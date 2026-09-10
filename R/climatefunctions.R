@@ -26,19 +26,28 @@ calculate_windcoeffs<-function(dtmc,dtmm,dtmf,zo,toArray=TRUE){
 
 #' @title delineate hydrological or cold-air drainage basins
 #' @description The function `basindelin` uses a digital elevation dataset to delineate
-#' hydrological basins, merging adjoining basis seperated by a low boundary if specified.
+#' hydrological basins, merging adjoining basins separated by a low boundary if specified.
 #' @param dtm a SpatRast object of elevations
-#' @param boundary optional numeric value. If greater than 0, adjoining basins
-#' separated by elevation differences < boundary are merged (see details.
+#' @param boundary optional numeric value. If greater than 0, adjoining basins whose
+#' lowest crossing point (pour point) is within `boundary` metres of the lower basin's
+#' floor elevation are merged. Merges are applied transitively via union-find in a
+#' single C++ pass. Default 0 (no merging).
+#' @param method Character. Controls how a strictly higher neighbouring cell is
+#' absorbed into a basin. `"any"` (default): a higher cell joins a basin as soon as
+#' any already-claimed cell of that basin is adjacent to it — the original behaviour.
+#' `"steepest"`: a higher cell only joins the basin that owns its single steepest
+#' downhill neighbour, tying basin membership to local flow direction. Cells at
+#' exactly the same elevation always merge regardless of method. `"steepest"` is more
+#' physically meaningful for cold-air drainage on complex terrain; `"any"` preserves
+#' backwards compatibility with earlier versions.
 #' @return a SpatRast of basins sequentially numbered as integers.
-#' @details This function searches for the lowest grid cell in `dtm` and assigns it
-#' as basin 1. All immediately adjacent pixels (in 8 directions) not previously assigned
-#' are then assigned as being part of this basin if higher than the focal cell. The process is repeated
-#' until no higher further cells are found. The next lowest unassigned grid cell is identified
-#' and assigned as basin 2 and the process repeated until all grid cells are assigned a basin number.
-#' If `boundary > 0`, edge grid cells are identified and the height difference from all
-#' surrounding cells calculated. If the height difference is less than `boundary`, basins
-#' are merged and the basins renumbered sequentially.
+#' @details Basin delineation uses a min-heap priority queue (O(N log N)), seeding each
+#' new basin at the globally lowest unclaimed cell and growing it to exhaustion before
+#' the next basin is considered. If `boundary > 0`, adjacent basins are merged using a
+#' pour-point algorithm: for each pair of basins sharing a boundary, the lowest possible
+#' crossing (pour point) is found; basins are merged when that crossing is within
+#' `boundary` metres of the lower basin's own floor elevation. All merges are applied
+#' transitively in a single pass.
 #' @import terra
 #' @importFrom Rcpp sourceCpp
 #' @export
@@ -46,11 +55,12 @@ calculate_windcoeffs<-function(dtmc,dtmm,dtmf,zo,toArray=TRUE){
 #' @rdname basindelin
 #' @examples
 #' bsn<-basindelin(terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')))
-basindelin<-function(dtm, boundary = 0) {
+basindelin<-function(dtm, boundary = 0, method = "any") {
+  method <- match.arg(method, c("any","steepest"))
   dm<-dim(dtm)
   if (sqrt(dm[1]*dm[2]) > 250) {
-    bsn<-.basindelin_big(dtm, boundary)
-  } else bsn<-.basindelin(dtm, boundary)
+    bsn<-.basindelin_big(dtm, boundary, method=method)
+  } else bsn<-.basindelin(dtm, boundary, method=method)
   return(bsn)
 }
 #' @title Calculates accumulated flow

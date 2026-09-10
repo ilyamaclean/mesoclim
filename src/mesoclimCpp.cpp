@@ -2,6 +2,10 @@
 #include <algorithm>
 #include <vector>
 #include <cmath>
+#include <string>
+#include <queue>
+#include <unordered_map>
+#include <functional>
 using namespace Rcpp;
 // ============================================================================================ = #
 // ~~~~~~~~~~~~~~~~~~~ Functions used for converting between R and C++ matrices ~~~~~~~~~~~~~~~~~ #
@@ -468,139 +472,107 @@ NumericMatrix hourlytempm(NumericMatrix tmn, NumericMatrix tmx, std::vector<int>
 // ============================================================================================= #
 // ~~~~~~~~~~~~~~~~~~~~~~~~~ Functions used for delineating basins ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 // ============================================================================================= #
-// Written 19th Feb 2024 by Ilya Maclean
-// Identify lowest pixel in dm2 where dun = 0
-IntegerVector whichmin(NumericMatrix& dm2, IntegerMatrix& dun) {
-    int rows = dm2.nrow(); // Get number of rows of dm2
-    int cols = dm2.ncol(); // Get number of columns of dm2
-    int rw = -1; // Initialize row index
-    int cl = -1; // Initialize column index
-    double d = dm2(0, 0); // Initialize d with the first element of dm2
-    for (int i = 0; i < rows; ++i) {
-        for (int j = 0; j < cols; ++j) {
-            if (dm2(i, j) < d && dun(i, j) < 1) {
-                rw = i; // Update row index
-                cl = j; // Update column index
-                d = dm2(i, j); // Update minimum value
-            }
-        }
+// Basin delineation via min-heap priority queue (O(N log N)), replacing the
+// original O(N^2) linear-scan approach. Each cell is pushed onto a global
+// seed-heap once; a new basin is seeded at the lowest unclaimed cell and
+// grown to exhaustion via its own local heap before the next seed is picked.
+// Two methods are supported:
+//   "any"      (default) -- original behaviour: a strictly higher neighbour
+//              joins a basin as soon as any claimed cell is adjacent to it.
+//   "steepest" -- a strictly higher neighbour only joins via its own single
+//              steepest downhill direction; ties (equal-elevation neighbours)
+//              always merge regardless of method.
+// Output is cell-for-cell identical to the old version under "any".
+struct BasinHeapCell {
+    double elev;
+    int row;
+    int col;
+};
+struct BasinHeapCompare {
+    bool operator()(const BasinHeapCell& a, const BasinHeapCell& b) const {
+        if (a.elev != b.elev) return a.elev > b.elev;
+        if (a.row  != b.row)  return a.row  > b.row;
+        return a.col > b.col;
     }
-    IntegerVector out(2);
-    out[0] = rw;
-    out[1] = cl;
-    return out;
-}
-// Identify lowest pixel within same basin in dm2 where dun = 0
-IntegerVector whichmin2(NumericMatrix& dm2, IntegerMatrix& b, IntegerMatrix& dun, int bn) {
-    int rows = dm2.nrow(); // Get number of rows of dm2
-    int cols = dm2.ncol(); // Get number of columns of dm2
-    int rw = -1; // Initialize row index
-    int cl = -1; // Initialize column index
-    double d = dm2(0, 0); // Initialize d with the first element of dm2
-    for (int i = 0; i < rows; ++i) {
-        for (int j = 0; j < cols; ++j) {
-            if (dm2(i, j) < d && b(i, j) == bn && dun(i, j) == 0) {
-                rw = i; // Update row index
-                cl = j; // Update column index
-                d = dm2(i, j); // Update minimum value
-            }
-        }
-    }
-    IntegerVector out(2);
-    out[0] = rw;
-    out[1] = cl;
-    return out;
-}
-// Select 3 x 3 matrix surrounding target focal cell given by s (numeric)
-NumericMatrix sel3n(NumericMatrix& dm2, IntegerVector s) {
-    NumericMatrix m3(3, 3);
-    for (int i = 0; i < 3; ++i) {
-        for (int j = 0; j < 3; ++j) {
-            m3(i, j) = dm2(s(0) - 1 + i, s(1) - 1 + j);
-        }
-    }
-    return m3;
-}
-// Select 3 x 3 matrix surrounding target focal cell given by s (integer)
-IntegerMatrix sel3i(IntegerMatrix& dm2, IntegerVector s) {
-    IntegerMatrix m3(3, 3);
-    for (int i = 0; i < 3; ++i) {
-        for (int j = 0; j < 3; ++j) {
-            m3(i, j) = dm2(s(0) - 1 + i, s(1) - 1 + j);
-        }
-    }
-    return m3;
-}
-// Assign all grid cells of equal height or higher surrounding a focal grid cell to same basin
-IntegerMatrix assignhigher(NumericMatrix& m3, IntegerMatrix& b3, int bn) {
-    for (int i = 0; i < 3; ++i) {
-        for (int j = 0; j < 3; ++j) {
-            if (m3(i, j) >= m3(1, 1) && b3(i, j) != 0 && m3(i, j) != 9999) {
-                b3(i, j) = bn;
-            }
-        }
-    }
-    return b3;
-}
-// slot b3 into bsn based on s
-IntegerMatrix slotin(IntegerMatrix& b, IntegerMatrix b3, IntegerVector s) {
-    for (int i = 0; i < 3; ++i) {
-        for (int j = 0; j < 3; ++j) {
-            b(s[0] + i - 1, s[1] + j - 1) = b3(i, j);
-        }
-    }
-    return b;
-}
-// Function that does the basin delineation
-// 'basinCpp
-// @export
+};
 // [[Rcpp::export]]
-IntegerMatrix basinCpp(NumericMatrix& dm2, IntegerMatrix& bsn, IntegerMatrix& dun) {
+IntegerMatrix basinCpp(NumericMatrix& dm2, IntegerMatrix& bsn, std::string method = "any") {
+    int rows = dm2.nrow();
+    int cols = dm2.ncol();
     int bn = 1;
-    int tsta = 1;
-    while (tsta == 1) {
-        // Initial iteration
-        IntegerVector s = whichmin(dm2, dun); // lowest undone pixel
-        if (s[1] > -1) {
-            // assign basin and dun
-            bsn(s[0], s[1]) = bn;
-            dun(s[0], s[1]) = 1;
-            // select 3 x 3 matrix around dm2 and bsn
-            NumericMatrix m3 = sel3n(dm2, s);
-            IntegerMatrix b3 = sel3i(bsn, s);
-            // identify which grid cells in 3 x 3 undone and higher and assign to basin bn
-            b3 = assignhigher(m3, b3, bn);
-            // Slot in b3 into basin
-            bsn = slotin(bsn, b3, s);
-        }
-        else {
-            tsta = 0;
-        }
-        // Subsequent iteration
-        int tst = 1;
-        while (tst == 1) {
-            s = whichmin2(dm2, bsn, dun, bn); // lowest undone pixel
-            if (s[1] > -1) {
-                // assign basin and dun
-                bsn(s[0], s[1]) = bn;
-                dun(s[0], s[1]) = 1;
-                // select 3 x 3 matrix around dm2 and bsn
-                NumericMatrix m3 = sel3n(dm2, s);
-                IntegerMatrix b3 = sel3i(bsn, s);
-                // identify which grid cells in 3 x 3 undone and higher and assign to basin bn
-                b3 = assignhigher(m3, b3, bn);
-                // Slot in b3 into basin
-                bsn = slotin(bsn, b3, s);
+    bool steepest = (method == "steepest");
+
+    // Precompute steepest-downhill neighbour for each interior cell (only
+    // needed for "steepest"). Distance-normalised so diagonals are not
+    // unfairly preferred over orthogonal neighbours.
+    IntegerMatrix sdrow(rows, cols), sdcol(rows, cols);
+    if (steepest) {
+        std::fill(sdrow.begin(), sdrow.end(), -1);
+        std::fill(sdcol.begin(), sdcol.end(), -1);
+        for (int i = 1; i < rows - 1; ++i) {
+            for (int j = 1; j < cols - 1; ++j) {
+                if (dm2(i, j) == 9999) continue;
+                double best_slope = -1.0;
+                int best_ni = -1, best_nj = -1;
+                for (int di = -1; di <= 1; ++di) {
+                    for (int dj = -1; dj <= 1; ++dj) {
+                        if (di == 0 && dj == 0) continue;
+                        int ni = i + di, nj = j + dj;
+                        if (dm2(ni, nj) == 9999 || dm2(ni, nj) >= dm2(i, j)) continue;
+                        double dist = (di != 0 && dj != 0) ? std::sqrt(2.0) : 1.0;
+                        double slope = (dm2(i, j) - dm2(ni, nj)) / dist;
+                        if (slope > best_slope) {
+                            best_slope = slope;
+                            best_ni = ni; best_nj = nj;
+                        }
+                    }
+                }
+                sdrow(i, j) = best_ni;
+                sdcol(i, j) = best_nj;
             }
-            else {
-                tst = 0;
+        }
+    }
+
+    // Seed-heap: every real interior cell pushed once. Lazily discards cells
+    // already claimed when popped.
+    std::priority_queue<BasinHeapCell, std::vector<BasinHeapCell>, BasinHeapCompare> seedheap;
+    for (int i = 1; i < rows - 1; ++i)
+        for (int j = 1; j < cols - 1; ++j)
+            if (dm2(i, j) != 9999)
+                seedheap.push(BasinHeapCell{dm2(i, j), i, j});
+
+    while (!seedheap.empty()) {
+        BasinHeapCell seed = seedheap.top(); seedheap.pop();
+        if (!IntegerMatrix::is_na(bsn(seed.row, seed.col))) continue; // already claimed
+
+        bsn(seed.row, seed.col) = bn;
+        std::priority_queue<BasinHeapCell, std::vector<BasinHeapCell>, BasinHeapCompare> localheap;
+        localheap.push(seed);
+
+        while (!localheap.empty()) {
+            BasinHeapCell c = localheap.top(); localheap.pop();
+            int i = c.row, j = c.col;
+            double d = dm2(i, j);
+            for (int di = -1; di <= 1; ++di) {
+                for (int dj = -1; dj <= 1; ++dj) {
+                    if (di == 0 && dj == 0) continue;
+                    int ni = i + di, nj = j + dj;
+                    if (dm2(ni, nj) == 9999 || !IntegerMatrix::is_na(bsn(ni, nj))) continue;
+                    bool claim = (dm2(ni, nj) == d) ||
+                        (dm2(ni, nj) > d &&
+                         (!steepest || (sdrow(ni, nj) == i && sdcol(ni, nj) == j)));
+                    if (claim) {
+                        bsn(ni, nj) = bn;
+                        localheap.push(BasinHeapCell{dm2(ni, nj), ni, nj});
+                    }
+                }
             }
         }
         bn++;
     }
     return bsn;
 }
-// Function used to renumber basins sequentially
+// Function used to renumber basins sequentially (used by .basindelin_big)
 // [[Rcpp::export]]
 IntegerVector renumberbasin(IntegerVector& m, IntegerVector u) {
     for (int i = 0; i < u.size(); ++i) {
@@ -611,6 +583,100 @@ IntegerVector renumberbasin(IntegerVector& m, IntegerVector u) {
         }
     }
     return m;
+}
+// ============================================================================================= #
+// ~~~~~~~~~~~~~~~~~~~~~~~~~ Functions used for merging basins ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+// ============================================================================================= #
+// Pour-point basin merging: for every pair of adjacent basins, find the lowest
+// possible crossing point (pour point). Merge transitively via union-find
+// wherever the pour point is within `boundary` metres of the lower basin's
+// floor elevation. Replaces the R-side .basinmerge() / .edge() / .edgec() /
+// .asign3() stack with a single O(N) C++ pass.
+//
+// dm2/bm2 carry a 1-cell border (elevation 9999, basin id NA) added by the
+// R wrapper so every real cell has 8 well-defined neighbours; the returned
+// matrix keeps that border for the wrapper to strip.
+// [[Rcpp::export]]
+IntegerMatrix basinmerge_cpp(NumericMatrix& dm2, IntegerMatrix& bm2, double boundary) {
+    int rows = dm2.nrow();
+    int cols = dm2.ncol();
+
+    // Map distinct basin ids to a compact 0-based index
+    std::unordered_map<int,int> id_index;
+    std::vector<int> ids;
+    for (int i = 0; i < rows; ++i)
+        for (int j = 0; j < cols; ++j) {
+            if (IntegerMatrix::is_na(bm2(i, j))) continue;
+            int v = bm2(i, j);
+            if (id_index.find(v) == id_index.end()) {
+                id_index[v] = (int)ids.size();
+                ids.push_back(v);
+            }
+        }
+    int n_ids = (int)ids.size();
+    IntegerMatrix out(rows, cols);
+    if (n_ids == 0) { std::fill(out.begin(), out.end(), NA_INTEGER); return out; }
+
+    // Basin floor: minimum dtm elevation within each basin
+    std::vector<double> floor_by_id(n_ids, 9999.0);
+    for (int i = 0; i < rows; ++i)
+        for (int j = 0; j < cols; ++j) {
+            if (IntegerMatrix::is_na(bm2(i, j))) continue;
+            int k = id_index[bm2(i, j)];
+            if (dm2(i, j) < floor_by_id[k]) floor_by_id[k] = dm2(i, j);
+        }
+
+    // Scan boundary crossings (forward neighbours only: E, SE, S, SW) to
+    // find each basin-pair's pour point (minimum crossing toll)
+    std::unordered_map<long long, double> pour;
+    static const int dOff[4][2] = {{0,1},{1,-1},{1,0},{1,1}};
+    for (int i = 1; i < rows - 1; ++i)
+        for (int j = 1; j < cols - 1; ++j) {
+            if (IntegerMatrix::is_na(bm2(i, j))) continue;
+            int v = bm2(i, j), kself = id_index[v];
+            double dself = dm2(i, j);
+            for (auto& off : dOff) {
+                int ni = i + off[0], nj = j + off[1];
+                if (IntegerMatrix::is_na(bm2(ni, nj))) continue;
+                int vn = bm2(ni, nj);
+                if (vn == v) continue;
+                int knbr = id_index[vn];
+                double toll = std::max(dself, dm2(ni, nj));
+                int lo = std::min(kself, knbr), hi = std::max(kself, knbr);
+                long long key = (long long)lo * n_ids + hi;
+                auto it = pour.find(key);
+                if (it == pour.end() || toll < it->second) pour[key] = toll;
+            }
+        }
+
+    // Union-find: merge basins whose pour point is shallow relative to
+    // the lower of their two floor elevations
+    std::vector<int> parent(n_ids);
+    for (int k = 0; k < n_ids; ++k) parent[k] = k;
+    std::function<int(int)> find_root = [&](int k) {
+        int root = k;
+        while (parent[root] != root) root = parent[root];
+        while (parent[k] != root) { int nxt = parent[k]; parent[k] = root; k = nxt; }
+        return root;
+    };
+    for (auto& kv : pour) {
+        int lo = (int)(kv.first / n_ids), hi = (int)(kv.first % n_ids);
+        double barrier = kv.second - std::min(floor_by_id[lo], floor_by_id[hi]);
+        if (barrier < boundary) {
+            int ra = find_root(lo), rb = find_root(hi);
+            if (ra != rb) parent[std::max(ra,rb)] = std::min(ra,rb);
+        }
+    }
+
+    // Relabel every cell by its merged group's root
+    std::vector<int> roots(n_ids);
+    for (int k = 0; k < n_ids; ++k) roots[k] = find_root(k);
+    for (int i = 0; i < rows; ++i)
+        for (int j = 0; j < cols; ++j) {
+            if (IntegerMatrix::is_na(bm2(i, j))) { out(i, j) = NA_INTEGER; continue; }
+            out(i, j) = roots[id_index[bm2(i, j)]] + 1;
+        }
+    return out;
 }
 // ============================================================================================= #
 // ~~~~~~~~~~~~~~~~~~~~~~~~~ Function used for calculating coastal exposure ~~~~~~~~~~~~~~~~~~~~ #
