@@ -32,7 +32,7 @@ or below-canopy or below-ground conditions, but provides suitable data
 for subsequent microclimate modelling (refs to other packages).
 
 Full documentation and worked examples are available at
-<https://jrmosedale.github.io/mesoclim>.
+<https://ilyamaclean.github.io/mesoclim>.
 
 The functions are organised around key steps in the downscaling
 workflow:

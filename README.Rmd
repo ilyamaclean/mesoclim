@@ -32,7 +32,7 @@ The mesoclim package provides functions to enable the mechanistic downscaling of
 
 The package permits the downscaling of climate data with a spatial resolution of 10s of kilometers to resolutions of under a single kilometer. It does not permit the modelling of microclimatic processes or below-canopy or below-ground conditions, but provides suitable data for subsequent microclimate modelling (refs to other packages).
 
-Full documentation and worked examples are available at <https://jrmosedale.github.io/mesoclim>.
+Full documentation and worked examples are available at <https://ilyamaclean.github.io/mesoclim>.
 
 The functions are organised around key steps in the downscaling workflow:
 
