@@ -84,7 +84,6 @@ create_ukcpsst_data<-function(
 #' @return a vector of date strings in the form 'yyy-dd-mm'
 #' @import ncdf4
 #' @import lubridate
-#' @export
 #' @details Creates a time series from the ncdf file time variable which is not correctly read by R terra package.
 #' UKCP18 time values expressed as hours since 1/1/1970 12.00. Output used by function `.correct_ukcp_dates()`
 #' @keywords internal
@@ -108,7 +107,6 @@ create_ukcpsst_data<-function(
 #' @param ukcp_dates vector of POSIXlt UKCP18 dates  as returned by '.get_ukcp18_dates()'.
 #' @return a vector of valid date strings in the form 'yyyy-dd-mm'
 #' @import lubridate
-#' @export
 #' @keywords internal
 #' @noRd
 .correct_ukcp_dates<-function(ukcp_dates){
@@ -149,7 +147,6 @@ create_ukcpsst_data<-function(
 #' @param plotdays the example days of years to plot DO NOT CHANGE
 #' @return a SpatRaster timeseries corresponding to actual calendar dates with invalid, no missing/empty days
 #' @import terra
-#' @export
 #' @keywords internal
 #' @noRd
 #' @examples
@@ -183,7 +180,6 @@ create_ukcpsst_data<-function(
 #' @return SpatRaster in new units
 #' @import terra
 #' @import units
-#' @export
 #' @keywords internal
 #' @noRd
 #' @examples
@@ -208,7 +204,6 @@ create_ukcpsst_data<-function(
 #' @param startdate POSIXlt class defining starting date
 #' @param enddate POSIXlt class defining starting date
 #' @return a vector of strings corresponding to the decade part of UKCP18 files containing the entire requested timeseries
-#' @export
 #' @import lubridate
 #' @keywords internal
 #' @noRd
@@ -237,7 +232,6 @@ create_ukcpsst_data<-function(
 #' @param em emissivity of surface c. 0.97 if not metal
 #'
 #' @return upward longwave radiation
-#' @export
 #' @keywords internal
 #' @noRd
 .lwup<-function(tc,sb=5.67*10^-8,em=0.97){
@@ -259,7 +253,6 @@ create_ukcpsst_data<-function(
 #' @param seaalb sea albedo value to be used
 #'
 #' @return Spatraster timeseries of Downward shortwave radiation
-#' @export
 #' @keywords internal
 #' @noRd
 #' @examples

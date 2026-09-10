@@ -1436,10 +1436,22 @@
            longname=varl,unit=unit)
 }
 
-#' @title terra version of microclima get_dem
+#' @title Download a digital elevation model matching a SpatRaster extent
+#' @description Downloads elevation data from the AWS Terrain Tiles service to
+#'   match the extent and resolution of a template `SpatRaster`. Requires an
+#'   internet connection.
+#' @param r A `SpatRaster` whose extent and CRS define the download area.
+#' @param zeroasna Logical. If `TRUE` (default), zero-elevation cells (sea) are
+#'   set to `NA` in the returned raster.
+#' @return A `SpatRaster` of elevation values (metres) on the same grid as `r`,
+#'   or `NULL` if no internet connection is available.
 #' @import elevatr
 #' @export
-#' @noRd
+#' @examples
+#' \dontrun{
+#' dtm <- rast(system.file("extdata/dtms/dtmf.tif", package = "mesoclim"))
+#' dem <- get_dem(dtm)
+#' }
 get_dem<-function(r, zeroasna = TRUE) {
   if (!curl::has_internet()) {
     message("Please connect to the internet and try again.")

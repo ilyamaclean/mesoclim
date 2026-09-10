@@ -4,30 +4,40 @@
 \alias{basindelin}
 \title{delineate hydrological or cold-air drainage basins}
 \usage{
-basindelin(dtm, boundary = 0)
+basindelin(dtm, boundary = 0, method = "any")
 }
 \arguments{
 \item{dtm}{a SpatRast object of elevations}
 
-\item{boundary}{optional numeric value. If greater than 0, adjoining basins
-separated by elevation differences < boundary are merged (see details.}
+\item{boundary}{optional numeric value. If greater than 0, adjoining basins whose
+lowest crossing point (pour point) is within \code{boundary} metres of the lower basin's
+floor elevation are merged. Merges are applied transitively via union-find in a
+single C++ pass. Default 0 (no merging).}
+
+\item{method}{Character. Controls how a strictly higher neighbouring cell is
+absorbed into a basin. \code{"any"} (default): a higher cell joins a basin as soon as
+any already-claimed cell of that basin is adjacent to it — the original behaviour.
+\code{"steepest"}: a higher cell only joins the basin that owns its single steepest
+downhill neighbour, tying basin membership to local flow direction. Cells at
+exactly the same elevation always merge regardless of method. \code{"steepest"} is more
+physically meaningful for cold-air drainage on complex terrain; \code{"any"} preserves
+backwards compatibility with earlier versions.}
 }
 \value{
 a SpatRast of basins sequentially numbered as integers.
 }
 \description{
 The function \code{basindelin} uses a digital elevation dataset to delineate
-hydrological basins, merging adjoining basis seperated by a low boundary if specified.
+hydrological basins, merging adjoining basins separated by a low boundary if specified.
 }
 \details{
-This function searches for the lowest grid cell in \code{dtm} and assigns it
-as basin 1. All immediately adjacent pixels (in 8 directions) not previously assigned
-are then assigned as being part of this basin if higher than the focal cell. The process is repeated
-until no higher further cells are found. The next lowest unassigned grid cell is identified
-and assigned as basin 2 and the process repeated until all grid cells are assigned a basin number.
-If \code{boundary > 0}, edge grid cells are identified and the height difference from all
-surrounding cells calculated. If the height difference is less than \code{boundary}, basins
-are merged and the basins renumbered sequentially.
+Basin delineation uses a min-heap priority queue (O(N log N)), seeding each
+new basin at the globally lowest unclaimed cell and growing it to exhaustion before
+the next basin is considered. If \code{boundary > 0}, adjacent basins are merged using a
+pour-point algorithm: for each pair of basins sharing a boundary, the lowest possible
+crossing (pour point) is found; basins are merged when that crossing is within
+\code{boundary} metres of the lower basin's own floor elevation. All merges are applied
+transitively in a single pass.
 }
 \examples{
 bsn<-basindelin(terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim')))

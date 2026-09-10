@@ -4,13 +4,29 @@
 \alias{calculate_terrain_shading}
 \title{Calculate horizon for different solar azimuths and total skyview}
 \usage{
-calculate_terrain_shading(dtm, steps = 24, toArrays = FALSE)
+calculate_terrain_shading(
+  dtm,
+  steps = 36,
+  toArrays = FALSE,
+  skyview_only = FALSE
+)
 }
 \arguments{
-\item{toArrays}{}
+\item{dtm}{digital terrain model SpatRaster}
+
+\item{steps}{number of angular sectors used for skyview/horizon calculation (default 36)}
+
+\item{toArrays}{logical; if TRUE returns arrays instead of SpatRasters}
+
+\item{skyview_only}{logical; if TRUE returns only the skyview SpatRaster (or array),
+skipping construction of the per-direction horizon output. Faster when horizon
+angles are not needed.}
 }
 \value{
-list (length=2) of \code{skyview} and \code{horizon} arrays or SpatRasters
+When \code{skyview_only = FALSE} (default): a list with elements
+\code{skyview} and \code{horizon} (SpatRasters or arrays depending on
+\code{toArrays}). When \code{skyview_only = TRUE}: the skyview SpatRaster
+(or array) directly.
 }
 \description{
 Calculate horizon for different solar azimuths and total skyview

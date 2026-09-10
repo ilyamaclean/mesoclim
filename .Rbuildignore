@@ -1,3 +1,10 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
 ^data-raw$
+^docs$
+^pkgdown$
+^cds\.txt$
+^README\.Rmd$
+^\.github$
+^analyses$
+^R_new$

@@ -343,7 +343,12 @@ biascorrect_climdata<-function(climdata, model_list, prec_thold=0.01, rangelims 
   input_vars <-names(climdata)
   model_vars<-names(model_list)
   if(!all(vars %in% input_vars)) stop("Cannot find all input variable names in climdata parameter!!!")
-  if(!all(vars %in% model_vars)) stop("Cannot find all input variable names in model_list!!!")
+  # Only correct variables present in model_list; warn about any that are absent
+  missing_vars <- setdiff(vars, model_vars)
+  if(length(missing_vars) > 0)
+    warning("No bias correction models found for: ", paste(missing_vars, collapse=", "),
+            ". These variables will be returned unchanged.")
+  vars <- intersect(vars, model_vars)
   input_class<-lapply(lapply(climdata,class),`[[`, 1)
   if(any(input_class=="PackedSpatRaster")) climdata[which(input_class=="PackedSpatRaster")]<-lapply(climdata[which(input_class=="PackedSpatRaster")],unwrap)
   if(any(input_class=="array")){

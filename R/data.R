@@ -78,4 +78,21 @@
 #' See: https://www.metoffice.gov.uk/binaries/content/assets/metofficegovuk/pdf/research/ukcp/ukcp18-guidance-data-availability-access-and-formats.pdf
 #' @format A Dataframe object with 28 rows, 6 columns
 "ukcp18lookup"
+#' Sample bias-correction model list for UKCP18 RCM member 01
+#'
+#' A list of bias-correction models for UKCP18 regional climate model member 01 for
+#' Southwest UK (Cornwall area), trained against HadUK-Grid observations for the
+#' period 2010–2019. Models are available for minimum temperature, maximum temperature
+#' and precipitation. Other climdata variables (e.g. relhum, pres, swrad, lwrad,
+#' windspeed) are not included; [biascorrect_climdata()] will apply correction only
+#' to variables present in the list and warn about any that are missing.
+#'
+#' @format A named list with three elements:
+#' \describe{
+#'  \item{tmin}{Bias-correction model for minimum daily temperature (deg C), of class \code{biascorrectmodels}}
+#'  \item{tmax}{Bias-correction model for maximum daily temperature (deg C), of class \code{biascorrectmodels}}
+#'  \item{prec}{Bias-correction model for daily precipitation (mm), of class \code{biascorrectmodels}}
+#' }
+#' @source Derived from UKCP18 RCM and HadUK-Grid data. See [biascorrect()] and [precipcorrect()] for model-fitting functions.
+"model_list"
 
