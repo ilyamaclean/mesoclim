@@ -32,7 +32,8 @@ reference:
   - read_climdata
   - write_climdata
   - subset_climdata
-  - blendtemp_hadukera5
+  - landfill_climdata
+  - get_nearest_val
   - get_dem
 
 - title: "Spatial downscaling"
@@ -41,7 +42,6 @@ reference:
     resolution using terrain, coastal and lapse-rate effects.
   contents:
   - spatialdownscale
-  - spatialdownscale_tiles
   - tempdaily_downscale
   - temphrly_downscale
   - precipdownscale
@@ -80,8 +80,7 @@ reference:
   desc: "Handle large spatial extents by splitting into overlapping tiles and reassembling."
   contents:
   - create_overlapping_tiles
-  - blend_tile_lists
-  - mosaicblend
+  - spatialdownscale_tiles
 
 - title: "Mesoclimate processes"
   desc: >
