@@ -10,7 +10,6 @@ vignette: >
 
 ```{r, echo=FALSE,include = FALSE}
 knitr::opts_chunk$set(
-  eval = FALSE,
   collapse = TRUE,
   comment = "#>"
 )
@@ -21,7 +20,6 @@ knitr::opts_chunk$set(
 library(lubridate)
 library(terra)
 library(mesoclim)
-#devtools::load_all()
 ```
 
 
@@ -85,7 +83,7 @@ plot(climdaily$dtm)
 
 As with spatial downscaling temporal downscaling of all daily variables can be performed by the wrapper fuunction `temporaldownscale`. The function assumes `tmax` and `tmin` daily values are available.
 
-```{r singlestep_tempdscale}
+```{r singlestep_tempdscale, fig.height=8}
 allhrly<-temporaldownscale(climdaily, adjust = TRUE, clearsky=NA, srte = 0.09, relmin = 10, noraincut = 0)
 par(mfrow=c(2,1))
 plot_timeseries(allhrly[["temp"]],dymxvar=climdaily$tmax,dymnvar=climdaily$tmin, spstat="mean", vartext="Temperature")

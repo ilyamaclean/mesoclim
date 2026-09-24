@@ -9,14 +9,13 @@ vignette: >
 
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
-  eval = FALSE,
   collapse = TRUE,
   comment = "#>"
 )
 ```
 
 ```{r setup, include=FALSE}
-#library(mesoclim)
+library(terra)
 library(mesoclim)
 ```
 

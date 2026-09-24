@@ -10,7 +10,6 @@ vignette: >
 
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
-  eval = FALSE,
   collapse = TRUE,
   comment = "#>"
 )
@@ -20,7 +19,6 @@ knitr::opts_chunk$set(
 ```{r setup, include=FALSE}
 library(lubridate)
 library(terra)
-#library(mesoclim)
 library(mesoclim)
 ```
 
@@ -85,12 +83,14 @@ Spatial downscaling requires digital terrain models covering not only for the im
 
 All DTMs are assumed to cover land ONLY. Sea cells for all DTMs are expected to have the value NA. 
 
-```{r inputs }
-# Directory where downloaded .nc UKCP18 climate files are held
-dir_ukcpdata<-"/Users/jonathanmosedale/Data/mesoclim_inputs"
+In this vignette we use small sample files supplied with the package: two months (December 2020 - January 2021) of UKCP18 regional data and the matching sea surface temperature data covering south-west England.
 
-# dir holding sea temperature data
-dir_sst<-system.file('extdata/sst',package='mesoclim')
+```{r inputs }
+# Directory holding UKCP18 climate .nc files - here the package sample files
+dir_ukcpdata<-system.file('extdata/ukcprcm_sample',package='mesoclim')
+
+# Directory holding sea surface temperature .nc files - here the package sample files
+dir_sst<-system.file('extdata/sst_sample',package='mesoclim')
 
 # Load coarse resolution DTM of the whole of the UK - provided by UKCP18
 ukdtmc<-terra::rast(system.file('extdata/ukcp18rcm/orog_land-rcm_uk_12km_osgb.nc',package='mesoclim'))
@@ -132,58 +132,35 @@ find the email address used to access the site and and Personal Access Token, bo
 
 For further details see the `microclimdata` github page [here](https://github.com/ilyamaclean/microclimdata) 
 
-```{r download_climate_data}
-devtools::install_github("ilyamaclean/microclimdata")
-library(microclimdata)
+The code below is not run when building this vignette as it requires user credentials and downloads large files.
+
+```{r download_climate_data, eval=FALSE}
+# devtools::install_github("ilyamaclean/microclimdata")
 
 # Set output path
-pathout<-tempdir() 
+pathout<-tempdir()
 
 # Set time period
-startdate<-as.POSIXlt('2018/05/01', tz="UTC")
-enddate<-as.POSIXlt('2018/05/31', tz="UTC")
+startdate<-as.POSIXlt('2020/12/01', tz="UTC")
+enddate<-as.POSIXlt('2020/12/31', tz="UTC")
 
-# Set or load credentials data.frame - see microclimdata
-cred_df<-read.csv("/Users/jonathanmosedale/downscale_users.txt", header=TRUE)
+# Load your credentials data.frame - see microclimdata
+cred_df<-read.csv("path/to/your/credentials.csv", header=TRUE)
 
-### Download UKCP data - WARANING this downloads c. 3 GB of data files!!!
+### Download UKCP data - WARNING this downloads c. 3 GB of data files!!!
 tme<-as.POSIXlt(seq(startdate, enddate, by = "1 day"))
-# access_token<-"your-api-token"
-# ukcpdata<-microclimdata::ukcp18_download(tme,cedatoken=access_token, pathout=pathout,
-#                                        collection='land-rcm',domain='uk',rcp='rcp85',member='01')
-ukcpdata<-mesoclimAddTrees::download_ukcp18(pathout, tme[1], tme[length(tme)], 
-                                            collection = "land-rcm", domain = "uk", rcp = "rcp85", member = "01", 
-                                            vars = c( "hurs", "huss", "pr", "prsn", "psl", "rls", "rss", "tasmax", "tasmin", "uas", "vas"), download_dtm = FALSE, access_token=access_token) 
-
+access_token<-"your-ceda-access-token"
+microclimdata::ukcp18_download(tme, cedatoken=access_token, pathout=pathout,
+                               collection='land-rcm', domain='uk', rcp='rcp85', member='01')
 
 ### Download ERA5 data
-tme<-seq.POSIXt(startdate, enddate, by = "1 hour")
+tme<-as.POSIXlt(seq(startdate, enddate, by = "1 hour"))
+microclimdata::era5_download(dtmc, tme, credentials=cred_df, file_prefix="era5_", pathout=pathout)
 
-era5data<-microclimdata::era5_download(dtmc, tme, credentials=cred_df, file_prefix="testmcera5_", pathout=pathout)
-
-variables<-c("10m_u_component_of_wind",
-              "10m_v_component_of_wind" ,
-              "2m_dewpoint_temperature",
-              "2m_temperature",
-              "mean_sea_level_pressure",
-              "surface_pressure",
-              "total_precipitation",
-              "Surface_solar_radiation_downwards",
-              "total_sky_direct_solar_radiation_at_surface",
-              "mean_surface_downward_short_wave_radiation_flux",
-              "mean_surface_direct_short_wave_radiation_flux",
-              "mean_surface_downward_long_wave_radiation_flux")
-
-e<-ext(project(dtmc,"EPSG:4326"))
-mesoclimAddTrees::download_era5(pathout, file_out="testera5", tme,
-                        area = c(e[4], e[1], e[3], e[2]),
-                        variables = variables, era5_user, era5_key)
-
-### Download NCEP data - downloads six-hourly historic climate data from the NCEP-NCAR reanalysis project ~1min
-tme<-seq.POSIXt(startdate, enddate, by = "6 hour", tz="UTC")
+### Download NCEP data - six-hourly historic climate data from the NCEP-NCAR reanalysis project
+tme<-as.POSIXlt(seq(startdate, enddate, by = "6 hour"))
 ncepdata<-microclimdata::ncep_download(dtmc, tme)
-ncepsst<-sst_download(dtmc, tme, resampleout = "FALSE", nafill = "FALSE")
-
+ncepsst<-microclimdata::sst_download(dtmc, tme, resampleout = "FALSE", nafill = "FALSE")
 ```
 
 ### UKCP18 climate preprocessing
@@ -204,13 +181,11 @@ collection<-'land-rcm'
 domain<-'uk'
 member<-'01'
 rcp<-'rcp85'
-startdate<-as.POSIXlt('2018/05/01', tz="UTC")
-enddate<-as.POSIXlt('2018/05/31', tz="UTC")
+startdate<-as.POSIXlt('2020/12/01', tz="UTC")
+enddate<-as.POSIXlt('2020/12/31', tz="UTC")
 
-# Processes using already downloaded ukcp18rcm files in dir_data
-t0<-now()
+# Processes ukcp18rcm files already held in dir_ukcpdata
 ukcp18rcm<-ukcp18toclimarray(dir_ukcpdata, dtmc,  startdate, enddate,collection, domain, member)
-print(now()-t0)
 
 # Write preprocessed data
 dir_out<-tempdir()
@@ -224,12 +199,31 @@ Sea surface temperature is not included in the UKCP18 data. For the UK seas surf
 The function `create_ukcpsst_data` ensures that the sea surface data matches the corresponding dtmc in the UKCP18 climate data that has already been prepared - interpolating where necessary to ensure coast lines match. Sea surface data will match the crs, resolution and extent of the provided dtmc - which should extend well at least a full climate grid cell beyond the final downscaling area.
 
 ```{r sst-preprocess}
-dir_sst<-system.file("extdata/sst", package = "mesoclim")
-sst<-create_ukcpsst_data(dir_sst,startdate=as.POSIXlt('2018/05/01'),enddate=as.POSIXlt('2018/05/31'),dtmc=ukcp18rcm$dtm, member="01")
+sst<-create_ukcpsst_data(dir_sst,startdate=startdate,enddate=enddate,dtmc=ukcp18rcm$dtm, member="01")
 plot(c(sst,ukcp18rcm$dtm))
 ```
 
 ### ERA5 historical climate data preparation
+
+ERA5 hourly reanalysis data, as downloaded using `microclimdata::era5_download()`, can be converted to the standard `mesoclim` input format using the function `era5toclimarray()`. This requires a coarse resolution dtm and land/sea mask matching the ERA5 grid, which can be derived from ERA5 ancillary data (geopotential and land/sea mask variables). The land/sea mask is used to correct the diurnal temperature range of coastal grid cells.
+
+Here we use a sample ERA5 file supplied with the package covering south-west England in January 2020, together with global ERA5 ancillary data (geopotential and land/sea mask). The ancillary data use longitudes of 0 to 360 degrees so are first rotated to -180 to 180 degrees to match the climate data.
+
+```{r era5-preprocess}
+era5file<-system.file('extdata/era5raw/era5_sample.nc',package='mesoclim')
+ancillary.r<-terra::rotate(terra::rast(system.file('extdata/era5raw/era5_ancillary.nc',package='mesoclim')))
+
+# Convert geopotential to elevation (m)
+RadEarth<-6371009
+gravity<-9.80665
+era5dtm<-(ancillary.r$z * RadEarth)/(gravity * RadEarth - ancillary.r$z)
+era5lsm<-ancillary.r$lsm
+
+era5input<-era5toclimarray(era5file, dtmc=era5dtm, lsm=era5lsm,
+                           startdate=as.POSIXlt('2020/01/01', tz="UTC"),
+                           enddate=as.POSIXlt('2020/01/31', tz="UTC"))
+names(era5input)
+```
 
 
 ### NCEP climate data preparation
@@ -239,6 +233,6 @@ plot(c(sst,ukcp18rcm$dtm))
 
 The resulting data structures of preprocessing can be checked to ensure there are no missing or unexpected values that may indicate a difference in the expected SI units or incomplete input datasets. This is particularly advisable if the inputs for spatial downscaling are not derived from one of the provided functions.
 
-```{r check_inputs}
+```{r check_inputs, fig.width=8, fig.height=10}
 checkinputs(read_climdata(file.path(dir_out,'ukcp18rcm.Rds')), tstep = "day", plots=TRUE)
 ```

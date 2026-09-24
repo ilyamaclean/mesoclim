@@ -10,7 +10,6 @@ vignette: >
 
 ```{r, echo=FALSE,include = FALSE}
 knitr::opts_chunk$set(
-  eval = FALSE,
   collapse = TRUE,
   comment = "#>"
 )
@@ -20,9 +19,8 @@ knitr::opts_chunk$set(
 ```{r setup, echo=FALSE, include=FALSE}
 library(lubridate)
 library(terra)
+library(magrittr)
 library(mesoclim)
-
-#devtools::load_all()
 ```
 
 
@@ -30,7 +28,7 @@ library(mesoclim)
 
 ## Data Preparation
 
-Coarse resolution climate and ancillary data (including sea surface temperature data where appropriate) will need to be prepared as outlined in `vignette('mesoclim_data_requirements', package='mesoclim')`.  
+Coarse resolution climate and ancillary data (including sea surface temperature data where appropriate) will need to be prepared as outlined in `vignette('mesoclim_1_preparedata', package='mesoclim')`.  
 
 Here we load package data previously saved using `write_climdata` function as .Rds files using the`read_climdata`functions. 
 
@@ -172,9 +170,9 @@ for(v in climvars){
 
 An alternative function is available for downscaling across large areas. The process divides the area into several tiles for which downscaling is then performed monthly. Default size of tiles is 10km^2 but this can be modified by the parameters `overlap` and `sz`. 
 
-Example below downscales to the whole of the Lizard for just a single month using small tiles for demonstration purposes. Run time may be up to 3-4 mins.
+Example below downscales to the whole of the Lizard for just a single month using small tiles for demonstration purposes. Run time may be up to 3-4 mins, so this code is not run when building this vignette.
 
-```{r downscale_by_tiles,,out.width="50%"}
+```{r downscale_by_tiles, eval=FALSE, out.width="50%"}
 dtmf<-rast(system.file("extdata/dtms/lizard50m.tif",package="mesoclim"))
 dtmm<-rast(system.file("extdata/dtms/dtmm.tif",package="mesoclim"))
 sstdata<-unwrap(mesoclim::ukcp18sst)
@@ -281,7 +279,7 @@ plot(pres[[13]],main=paste("Atmos pressure",terra::time(pres[[13]])))
 Downscales atmospheric or sea level pressure to atmospheric pressure while accounting for finer resolution variation in terrain 
 
 ```{r rh_dscale,out.width="50%"}
-tmeanc<-.hourtoday(temp_dailytohourly(climdata$tmin, climdata$tmax, climdata$tme),mean) 
+tmeanc<-(climdata$tmin+climdata$tmax)/2
 rhf<-relhumdownscale(climdata$relhum,tcc=tmeanc,tcf=dailytemps$tmean,dtmc=climdata$dtm,rhmin=20)
 
 plot(rhf[[13]],main=paste("Relative humidity",terra::time(rhf)[[13]]))
@@ -295,7 +293,7 @@ Longwave downscaling accounts for the effects of terrain on the skyview.
 tmean_c<-(climdata$tmin+climdata$tmax)/2
 lwrad<-lwdownscale(lwrad=climdata$lwrad,tc=tmean_c,tcf=tmean, climdata$tme, dtmf=dtmf, dtmc=climdata$dtm, skyview, terrainshade=TRUE)
                    
-plot(lwrad[[13]],main=paste("LW downward radiation",terra::time(rhf)[[13]]))
+plot(lwrad[[13]],main=paste("LW downward radiation",terra::time(lwrad)[[13]]))
 ```
 
 ### Shortwave radiation downscale 
@@ -325,7 +323,7 @@ precelev<-precipdownscale(climdata$prec,dtmf,climdata$dtm,
   nsim = dim(climdata$prec)[3] )
 terra::time(precelev)<-climdata$tme
 
-plot(precelev[[15]],main=paste("Precipitation",terra::time(precelev)[[13]]))
+plot(precelev[[13]],main=paste("Precipitation",terra::time(precelev)[[13]]))
 ```
 
 
