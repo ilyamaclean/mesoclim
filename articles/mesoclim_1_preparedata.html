@@ -172,12 +172,16 @@ should be the same of greater than that of the
 </ul>
 <p>All DTMs are assumed to cover land ONLY. Sea cells for all DTMs are
 expected to have the value NA.</p>
+<p>In this vignette we use small sample files supplied with the package:
+two months (December 2020 - January 2021) of UKCP18 regional data and
+the matching sea surface temperature data covering south-west
+England.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Directory where downloaded .nc UKCP18 climate files are held</span></span>
-<span><span class="va">dir_ukcpdata</span><span class="op">&lt;-</span><span class="st">"/Users/jonathanmosedale/Data/mesoclim_inputs"</span></span>
+<code class="sourceCode R"><span><span class="co"># Directory holding UKCP18 climate .nc files - here the package sample files</span></span>
+<span><span class="va">dir_ukcpdata</span><span class="op">&lt;-</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">'extdata/ukcprcm_sample'</span>,package<span class="op">=</span><span class="st">'mesoclim'</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># dir holding sea temperature data</span></span>
-<span><span class="va">dir_sst</span><span class="op">&lt;-</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">'extdata/sst'</span>,package<span class="op">=</span><span class="st">'mesoclim'</span><span class="op">)</span></span>
+<span><span class="co"># Directory holding sea surface temperature .nc files - here the package sample files</span></span>
+<span><span class="va">dir_sst</span><span class="op">&lt;-</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">'extdata/sst_sample'</span>,package<span class="op">=</span><span class="st">'mesoclim'</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Load coarse resolution DTM of the whole of the UK - provided by UKCP18</span></span>
 <span><span class="va">ukdtmc</span><span class="op">&lt;-</span><span class="fu">terra</span><span class="fu">::</span><span class="fu"><a href="https://rspatial.github.io/terra/reference/rast.html" class="external-link">rast</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">'extdata/ukcp18rcm/orog_land-rcm_uk_12km_osgb.nc'</span>,package<span class="op">=</span><span class="st">'mesoclim'</span><span class="op">)</span><span class="op">)</span></span>
@@ -198,6 +202,7 @@ expected to have the value NA.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">dtmc</span>,main<span class="op">=</span><span class="st">'Downscale area of interest on backdrop of 1km dtmm &amp; 12km ukcp18 dtm'</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">dtmm</span>, add<span class="op">=</span><span class="cn">T</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">aoi</span>,add<span class="op">=</span><span class="cn">TRUE</span>,col<span class="op">=</span><span class="st">"red"</span><span class="op">)</span></span></code></pre></div>
+<p><img src="mesoclim_1_preparedata_files/figure-html/inputs-1.png" width="700"></p>
 </div>
 <div class="section level3">
 <h3 id="creation-of-standard-inputs-for-downscaling">Creation of standard inputs for downscaling<a class="anchor" aria-label="anchor" href="#creation-of-standard-inputs-for-downscaling"></a>
@@ -249,57 +254,35 @@ page</a>
 </li>
 </ol>
 <p>For further details see the <code>microclimdata</code> github page <a href="https://github.com/ilyamaclean/microclimdata" class="external-link">here</a></p>
+<p>The code below is not run when building this vignette as it requires
+user credentials and downloads large files.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://remotes.r-lib.org/reference/install_github.html" class="external-link">install_github</a></span><span class="op">(</span><span class="st">"ilyamaclean/microclimdata"</span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/ilyamaclean/microclimf" class="external-link">microclimdata</a></span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="co"># devtools::install_github("ilyamaclean/microclimdata")</span></span>
 <span></span>
 <span><span class="co"># Set output path</span></span>
-<span><span class="va">pathout</span><span class="op">&lt;-</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span> </span>
+<span><span class="va">pathout</span><span class="op">&lt;-</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Set time period</span></span>
-<span><span class="va">startdate</span><span class="op">&lt;-</span><span class="fu"><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXlt</a></span><span class="op">(</span><span class="st">'2018/05/01'</span>, tz<span class="op">=</span><span class="st">"UTC"</span><span class="op">)</span></span>
-<span><span class="va">enddate</span><span class="op">&lt;-</span><span class="fu"><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXlt</a></span><span class="op">(</span><span class="st">'2018/05/31'</span>, tz<span class="op">=</span><span class="st">"UTC"</span><span class="op">)</span></span>
+<span><span class="va">startdate</span><span class="op">&lt;-</span><span class="fu"><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXlt</a></span><span class="op">(</span><span class="st">'2020/12/01'</span>, tz<span class="op">=</span><span class="st">"UTC"</span><span class="op">)</span></span>
+<span><span class="va">enddate</span><span class="op">&lt;-</span><span class="fu"><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXlt</a></span><span class="op">(</span><span class="st">'2020/12/31'</span>, tz<span class="op">=</span><span class="st">"UTC"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Set or load credentials data.frame - see microclimdata</span></span>
-<span><span class="va">cred_df</span><span class="op">&lt;-</span><span class="fu"><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">read.csv</a></span><span class="op">(</span><span class="st">"/Users/jonathanmosedale/downscale_users.txt"</span>, header<span class="op">=</span><span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="co"># Load your credentials data.frame - see microclimdata</span></span>
+<span><span class="va">cred_df</span><span class="op">&lt;-</span><span class="fu"><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">read.csv</a></span><span class="op">(</span><span class="st">"path/to/your/credentials.csv"</span>, header<span class="op">=</span><span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co">### Download UKCP data - WARANING this downloads c. 3 GB of data files!!!</span></span>
+<span><span class="co">### Download UKCP data - WARNING this downloads c. 3 GB of data files!!!</span></span>
 <span><span class="va">tme</span><span class="op">&lt;-</span><span class="fu"><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXlt</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="va">startdate</span>, <span class="va">enddate</span>, by <span class="op">=</span> <span class="st">"1 day"</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co"># access_token&lt;-"your-api-token"</span></span>
-<span><span class="co"># ukcpdata&lt;-microclimdata::ukcp18_download(tme,cedatoken=access_token, pathout=pathout,</span></span>
-<span><span class="co">#                                        collection='land-rcm',domain='uk',rcp='rcp85',member='01')</span></span>
-<span><span class="va">ukcpdata</span><span class="op">&lt;-</span><span class="fu">mesoclimAddTrees</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/mesoclimAddTrees/man/download_ukcp18.html" class="external-link">download_ukcp18</a></span><span class="op">(</span><span class="va">pathout</span>, <span class="va">tme</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>, <span class="va">tme</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">tme</span><span class="op">)</span><span class="op">]</span>, </span>
-<span>                                            collection <span class="op">=</span> <span class="st">"land-rcm"</span>, domain <span class="op">=</span> <span class="st">"uk"</span>, rcp <span class="op">=</span> <span class="st">"rcp85"</span>, member <span class="op">=</span> <span class="st">"01"</span>, </span>
-<span>                                            vars <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span> <span class="st">"hurs"</span>, <span class="st">"huss"</span>, <span class="st">"pr"</span>, <span class="st">"prsn"</span>, <span class="st">"psl"</span>, <span class="st">"rls"</span>, <span class="st">"rss"</span>, <span class="st">"tasmax"</span>, <span class="st">"tasmin"</span>, <span class="st">"uas"</span>, <span class="st">"vas"</span><span class="op">)</span>, download_dtm <span class="op">=</span> <span class="cn">FALSE</span>, access_token<span class="op">=</span><span class="va">access_token</span><span class="op">)</span> </span>
-<span></span>
+<span><span class="va">access_token</span><span class="op">&lt;-</span><span class="st">"your-ceda-access-token"</span></span>
+<span><span class="fu">microclimdata</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/microclimdata/man/ukcp18_download.html" class="external-link">ukcp18_download</a></span><span class="op">(</span><span class="va">tme</span>, cedatoken<span class="op">=</span><span class="va">access_token</span>, pathout<span class="op">=</span><span class="va">pathout</span>,</span>
+<span>                               collection<span class="op">=</span><span class="st">'land-rcm'</span>, domain<span class="op">=</span><span class="st">'uk'</span>, rcp<span class="op">=</span><span class="st">'rcp85'</span>, member<span class="op">=</span><span class="st">'01'</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co">### Download ERA5 data</span></span>
-<span><span class="va">tme</span><span class="op">&lt;-</span><span class="fu"><a href="https://rdrr.io/r/base/seq.POSIXt.html" class="external-link">seq.POSIXt</a></span><span class="op">(</span><span class="va">startdate</span>, <span class="va">enddate</span>, by <span class="op">=</span> <span class="st">"1 hour"</span><span class="op">)</span></span>
+<span><span class="va">tme</span><span class="op">&lt;-</span><span class="fu"><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXlt</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="va">startdate</span>, <span class="va">enddate</span>, by <span class="op">=</span> <span class="st">"1 hour"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu">microclimdata</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/microclimdata/man/era5_download.html" class="external-link">era5_download</a></span><span class="op">(</span><span class="va">dtmc</span>, <span class="va">tme</span>, credentials<span class="op">=</span><span class="va">cred_df</span>, file_prefix<span class="op">=</span><span class="st">"era5_"</span>, pathout<span class="op">=</span><span class="va">pathout</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">era5data</span><span class="op">&lt;-</span><span class="fu">microclimdata</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/microclimdata/man/era5_download.html" class="external-link">era5_download</a></span><span class="op">(</span><span class="va">dtmc</span>, <span class="va">tme</span>, credentials<span class="op">=</span><span class="va">cred_df</span>, file_prefix<span class="op">=</span><span class="st">"testmcera5_"</span>, pathout<span class="op">=</span><span class="va">pathout</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">variables</span><span class="op">&lt;-</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"10m_u_component_of_wind"</span>,</span>
-<span>              <span class="st">"10m_v_component_of_wind"</span> ,</span>
-<span>              <span class="st">"2m_dewpoint_temperature"</span>,</span>
-<span>              <span class="st">"2m_temperature"</span>,</span>
-<span>              <span class="st">"mean_sea_level_pressure"</span>,</span>
-<span>              <span class="st">"surface_pressure"</span>,</span>
-<span>              <span class="st">"total_precipitation"</span>,</span>
-<span>              <span class="st">"Surface_solar_radiation_downwards"</span>,</span>
-<span>              <span class="st">"total_sky_direct_solar_radiation_at_surface"</span>,</span>
-<span>              <span class="st">"mean_surface_downward_short_wave_radiation_flux"</span>,</span>
-<span>              <span class="st">"mean_surface_direct_short_wave_radiation_flux"</span>,</span>
-<span>              <span class="st">"mean_surface_downward_long_wave_radiation_flux"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">e</span><span class="op">&lt;-</span><span class="fu">ext</span><span class="op">(</span><span class="fu">project</span><span class="op">(</span><span class="va">dtmc</span>,<span class="st">"EPSG:4326"</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu">mesoclimAddTrees</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/mesoclimAddTrees/man/download_era5.html" class="external-link">download_era5</a></span><span class="op">(</span><span class="va">pathout</span>, file_out<span class="op">=</span><span class="st">"testera5"</span>, <span class="va">tme</span>,</span>
-<span>                        area <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">e</span><span class="op">[</span><span class="fl">4</span><span class="op">]</span>, <span class="va">e</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>, <span class="va">e</span><span class="op">[</span><span class="fl">3</span><span class="op">]</span>, <span class="va">e</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span><span class="op">)</span>,</span>
-<span>                        variables <span class="op">=</span> <span class="va">variables</span>, <span class="va">era5_user</span>, <span class="va">era5_key</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co">### Download NCEP data - downloads six-hourly historic climate data from the NCEP-NCAR reanalysis project ~1min</span></span>
-<span><span class="va">tme</span><span class="op">&lt;-</span><span class="fu"><a href="https://rdrr.io/r/base/seq.POSIXt.html" class="external-link">seq.POSIXt</a></span><span class="op">(</span><span class="va">startdate</span>, <span class="va">enddate</span>, by <span class="op">=</span> <span class="st">"6 hour"</span>, tz<span class="op">=</span><span class="st">"UTC"</span><span class="op">)</span></span>
+<span><span class="co">### Download NCEP data - six-hourly historic climate data from the NCEP-NCAR reanalysis project</span></span>
+<span><span class="va">tme</span><span class="op">&lt;-</span><span class="fu"><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXlt</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="va">startdate</span>, <span class="va">enddate</span>, by <span class="op">=</span> <span class="st">"6 hour"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">ncepdata</span><span class="op">&lt;-</span><span class="fu">microclimdata</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/microclimdata/man/ncep_download.html" class="external-link">ncep_download</a></span><span class="op">(</span><span class="va">dtmc</span>, <span class="va">tme</span><span class="op">)</span></span>
-<span><span class="va">ncepsst</span><span class="op">&lt;-</span><span class="fu"><a href="https://rdrr.io/pkg/microclimdata/man/sst_download.html" class="external-link">sst_download</a></span><span class="op">(</span><span class="va">dtmc</span>, <span class="va">tme</span>, resampleout <span class="op">=</span> <span class="st">"FALSE"</span>, nafill <span class="op">=</span> <span class="st">"FALSE"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">ncepsst</span><span class="op">&lt;-</span><span class="fu">microclimdata</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/microclimdata/man/sst_download.html" class="external-link">sst_download</a></span><span class="op">(</span><span class="va">dtmc</span>, <span class="va">tme</span>, resampleout <span class="op">=</span> <span class="st">"FALSE"</span>, nafill <span class="op">=</span> <span class="st">"FALSE"</span><span class="op">)</span></span></code></pre></div>
 <div class="section level4">
 <h4 id="ukcp18-climate-preprocessing">UKCP18 climate preprocessing<a class="anchor" aria-label="anchor" href="#ukcp18-climate-preprocessing"></a>
 </h4>
@@ -323,13 +306,22 @@ and associated data which can be written to file using the function
 <span><span class="va">domain</span><span class="op">&lt;-</span><span class="st">'uk'</span></span>
 <span><span class="va">member</span><span class="op">&lt;-</span><span class="st">'01'</span></span>
 <span><span class="va">rcp</span><span class="op">&lt;-</span><span class="st">'rcp85'</span></span>
-<span><span class="va">startdate</span><span class="op">&lt;-</span><span class="fu"><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXlt</a></span><span class="op">(</span><span class="st">'2018/05/01'</span>, tz<span class="op">=</span><span class="st">"UTC"</span><span class="op">)</span></span>
-<span><span class="va">enddate</span><span class="op">&lt;-</span><span class="fu"><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXlt</a></span><span class="op">(</span><span class="st">'2018/05/31'</span>, tz<span class="op">=</span><span class="st">"UTC"</span><span class="op">)</span></span>
+<span><span class="va">startdate</span><span class="op">&lt;-</span><span class="fu"><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXlt</a></span><span class="op">(</span><span class="st">'2020/12/01'</span>, tz<span class="op">=</span><span class="st">"UTC"</span><span class="op">)</span></span>
+<span><span class="va">enddate</span><span class="op">&lt;-</span><span class="fu"><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXlt</a></span><span class="op">(</span><span class="st">'2020/12/31'</span>, tz<span class="op">=</span><span class="st">"UTC"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Processes using already downloaded ukcp18rcm files in dir_data</span></span>
-<span><span class="va">t0</span><span class="op">&lt;-</span><span class="fu">now</span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="co"># Processes ukcp18rcm files already held in dir_ukcpdata</span></span>
 <span><span class="va">ukcp18rcm</span><span class="op">&lt;-</span><span class="fu"><a href="../reference/ukcp18toclimarray.html">ukcp18toclimarray</a></span><span class="op">(</span><span class="va">dir_ukcpdata</span>, <span class="va">dtmc</span>,  <span class="va">startdate</span>, <span class="va">enddate</span>,<span class="va">collection</span>, <span class="va">domain</span>, <span class="va">member</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu">now</span><span class="op">(</span><span class="op">)</span><span class="op">-</span><span class="va">t0</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Loading clt_rcp85_land-rcm_uk_12km_01_day_20201201-20301130.nc</span></span>
+<span><span class="co">#&gt; Loading hurs_rcp85_land-rcm_uk_12km_01_day_20201201-20301130.nc</span></span>
+<span><span class="co">#&gt; Loading pr_rcp85_land-rcm_uk_12km_01_day_20201201-20301130.nc</span></span>
+<span><span class="co">#&gt; Loading psl_rcp85_land-rcm_uk_12km_01_day_20201201-20301130.nc</span></span>
+<span><span class="co">#&gt; Loading rls_rcp85_land-rcm_uk_12km_01_day_20201201-20301130.nc</span></span>
+<span><span class="co">#&gt; Loading rss_rcp85_land-rcm_uk_12km_01_day_20201201-20301130.nc</span></span>
+<span><span class="co">#&gt; Loading tasmax_rcp85_land-rcm_uk_12km_01_day_20201201-20301130.nc</span></span>
+<span><span class="co">#&gt; Loading tasmin_rcp85_land-rcm_uk_12km_01_day_20201201-20301130.nc</span></span>
+<span><span class="co">#&gt; Loading uas_rcp85_land-rcm_uk_12km_01_day_20201201-20301130.nc</span></span>
+<span><span class="co">#&gt; Loading vas_rcp85_land-rcm_uk_12km_01_day_20201201-20301130.nc</span></span>
+<span><span class="co">#&gt; Using constant land and sea albedo values - assuming NA values in dtmc are sea!!</span></span>
 <span></span>
 <span><span class="co"># Write preprocessed data</span></span>
 <span><span class="va">dir_out</span><span class="op">&lt;-</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span></span>
@@ -349,13 +341,43 @@ coast lines match. Sea surface data will match the crs, resolution and
 extent of the provided dtmc - which should extend well at least a full
 climate grid cell beyond the final downscaling area.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">dir_sst</span><span class="op">&lt;-</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata/sst"</span>, package <span class="op">=</span> <span class="st">"mesoclim"</span><span class="op">)</span></span>
-<span><span class="va">sst</span><span class="op">&lt;-</span><span class="fu"><a href="../reference/create_ukcpsst_data.html">create_ukcpsst_data</a></span><span class="op">(</span><span class="va">dir_sst</span>,startdate<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXlt</a></span><span class="op">(</span><span class="st">'2018/05/01'</span><span class="op">)</span>,enddate<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXlt</a></span><span class="op">(</span><span class="st">'2018/05/31'</span><span class="op">)</span>,dtmc<span class="op">=</span><span class="va">ukcp18rcm</span><span class="op">$</span><span class="va">dtm</span>, member<span class="op">=</span><span class="st">"01"</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">sst</span><span class="op">&lt;-</span><span class="fu"><a href="../reference/create_ukcpsst_data.html">create_ukcpsst_data</a></span><span class="op">(</span><span class="va">dir_sst</span>,startdate<span class="op">=</span><span class="va">startdate</span>,enddate<span class="op">=</span><span class="va">enddate</span>,dtmc<span class="op">=</span><span class="va">ukcp18rcm</span><span class="op">$</span><span class="va">dtm</span>, member<span class="op">=</span><span class="st">"01"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">sst</span>,<span class="va">ukcp18rcm</span><span class="op">$</span><span class="va">dtm</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p><img src="mesoclim_1_preparedata_files/figure-html/sst-preprocess-1.png" width="700"></p>
 </div>
 <div class="section level4">
 <h4 id="era5-historical-climate-data-preparation">ERA5 historical climate data preparation<a class="anchor" aria-label="anchor" href="#era5-historical-climate-data-preparation"></a>
 </h4>
+<p>ERA5 hourly reanalysis data, as downloaded using
+<code><a href="https://rdrr.io/pkg/microclimdata/man/era5_download.html" class="external-link">microclimdata::era5_download()</a></code>, can be converted to the
+standard <code>mesoclim</code> input format using the function
+<code><a href="../reference/era5toclimarray.html">era5toclimarray()</a></code>. This requires a coarse resolution dtm
+and land/sea mask matching the ERA5 grid, which can be derived from ERA5
+ancillary data (geopotential and land/sea mask variables). The land/sea
+mask is used to correct the diurnal temperature range of coastal grid
+cells.</p>
+<p>Here we use a sample ERA5 file supplied with the package covering
+south-west England in January 2020, together with global ERA5 ancillary
+data (geopotential and land/sea mask). The ancillary data use longitudes
+of 0 to 360 degrees so are first rotated to -180 to 180 degrees to match
+the climate data.</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">era5file</span><span class="op">&lt;-</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">'extdata/era5raw/era5_sample.nc'</span>,package<span class="op">=</span><span class="st">'mesoclim'</span><span class="op">)</span></span>
+<span><span class="va">ancillary.r</span><span class="op">&lt;-</span><span class="fu">terra</span><span class="fu">::</span><span class="fu"><a href="https://rspatial.github.io/terra/reference/rotate.html" class="external-link">rotate</a></span><span class="op">(</span><span class="fu">terra</span><span class="fu">::</span><span class="fu"><a href="https://rspatial.github.io/terra/reference/rast.html" class="external-link">rast</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">'extdata/era5raw/era5_ancillary.nc'</span>,package<span class="op">=</span><span class="st">'mesoclim'</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Convert geopotential to elevation (m)</span></span>
+<span><span class="va">RadEarth</span><span class="op">&lt;-</span><span class="fl">6371009</span></span>
+<span><span class="va">gravity</span><span class="op">&lt;-</span><span class="fl">9.80665</span></span>
+<span><span class="va">era5dtm</span><span class="op">&lt;-</span><span class="op">(</span><span class="va">ancillary.r</span><span class="op">$</span><span class="va">z</span> <span class="op">*</span> <span class="va">RadEarth</span><span class="op">)</span><span class="op">/</span><span class="op">(</span><span class="va">gravity</span> <span class="op">*</span> <span class="va">RadEarth</span> <span class="op">-</span> <span class="va">ancillary.r</span><span class="op">$</span><span class="va">z</span><span class="op">)</span></span>
+<span><span class="va">era5lsm</span><span class="op">&lt;-</span><span class="va">ancillary.r</span><span class="op">$</span><span class="va">lsm</span></span>
+<span></span>
+<span><span class="va">era5input</span><span class="op">&lt;-</span><span class="fu"><a href="../reference/era5toclimarray.html">era5toclimarray</a></span><span class="op">(</span><span class="va">era5file</span>, dtmc<span class="op">=</span><span class="va">era5dtm</span>, lsm<span class="op">=</span><span class="va">era5lsm</span>,</span>
+<span>                           startdate<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXlt</a></span><span class="op">(</span><span class="st">'2020/01/01'</span>, tz<span class="op">=</span><span class="st">"UTC"</span><span class="op">)</span>,</span>
+<span>                           enddate<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXlt</a></span><span class="op">(</span><span class="st">'2020/01/31'</span>, tz<span class="op">=</span><span class="st">"UTC"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">era5input</span><span class="op">)</span></span>
+<span><span class="co">#&gt;  [1] "dtm"          "tme"          "windheight_m" "tempheight_m" "temp"        </span></span>
+<span><span class="co">#&gt;  [6] "relhum"       "pres"         "swrad"        "difrad"       "lwrad"       </span></span>
+<span><span class="co">#&gt; [11] "windspeed"    "winddir"      "prec"</span></span></code></pre></div>
 </div>
 <div class="section level4">
 <h4 id="ncep-climate-data-preparation">NCEP climate data preparation<a class="anchor" aria-label="anchor" href="#ncep-climate-data-preparation"></a>
@@ -370,8 +392,446 @@ ensure there are no missing or unexpected values that may indicate a
 difference in the expected SI units or incomplete input datasets. This
 is particularly advisable if the inputs for spatial downscaling are not
 derived from one of the provided functions.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/checkinputs.html">checkinputs</a></span><span class="op">(</span><span class="fu"><a href="../reference/read_climdata.html">read_climdata</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">dir_out</span>,<span class="st">'ukcp18rcm.Rds'</span><span class="op">)</span><span class="op">)</span>, tstep <span class="op">=</span> <span class="st">"day"</span>, plots<span class="op">=</span><span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/checkinputs.html">checkinputs</a></span><span class="op">(</span><span class="fu"><a href="../reference/read_climdata.html">read_climdata</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">dir_out</span>,<span class="st">'ukcp18rcm.Rds'</span><span class="op">)</span><span class="op">)</span>, tstep <span class="op">=</span> <span class="st">"day"</span>, plots<span class="op">=</span><span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] "Weather observations = 31"</span></span>
+<span><span class="co">#&gt; [1] "Timesteps= 24 hours for whole timeseries."</span></span>
+<span><span class="co">#&gt; [1] "Observations from 2020-12-01 to 2020-12-31"</span></span>
+<span><span class="co">#&gt; [1] "Temperature values are at 1.5 metres above ground level."</span></span>
+<span><span class="co">#&gt; [1] "Wind speeds are at 10 metres above ground level."</span></span>
+<span><span class="co">#&gt;              Min.    Mean    Max.</span></span>
+<span><span class="co">#&gt; cloud      64.230  93.366 100.000</span></span>
+<span><span class="co">#&gt; relhum     58.749  78.185  97.187</span></span>
+<span><span class="co">#&gt; prec        0.007   4.707  29.241</span></span>
+<span><span class="co">#&gt; pres       99.029 101.354 103.217</span></span>
+<span><span class="co">#&gt; lwrad     262.664 311.413 352.253</span></span>
+<span><span class="co">#&gt; swrad       3.426  25.562  45.412</span></span>
+<span><span class="co">#&gt; tmax        7.702  11.612  14.088</span></span>
+<span><span class="co">#&gt; tmin        2.985   9.053  12.651</span></span>
+<span><span class="co">#&gt; windspeed   1.275   8.788  25.633</span></span>
+<span><span class="co">#&gt; winddir     0.817 207.255 359.175</span></span>
+<span><span class="co">#&gt; elevation  24.399  49.694 100.944</span></span>
+<span><span class="co">#&gt; [1] "Plotting spatial variation by day of year: red=max, green=mean, blue=min"</span></span></code></pre></div>
+<p><img src="mesoclim_1_preparedata_files/figure-html/check_inputs-1.png" width="768"></p>
+<pre><code><span><span class="co">#&gt; [1] "Plotting wind direction figures"</span></span></code></pre>
+<p><img src="mesoclim_1_preparedata_files/figure-html/check_inputs-2.png" width="768"></p>
+<pre><code><span><span class="co">#&gt; $dtm</span></span>
+<span><span class="co">#&gt; class       : SpatRaster </span></span>
+<span><span class="co">#&gt; size        : 5, 6, 1  (nrow, ncol, nlyr)</span></span>
+<span><span class="co">#&gt; resolution  : 12000, 12000  (x, y)</span></span>
+<span><span class="co">#&gt; extent      : 132000, 204000, 12000, 72000  (xmin, xmax, ymin, ymax)</span></span>
+<span><span class="co">#&gt; coord. ref. : OSGB36 / British National Grid (EPSG:27700) </span></span>
+<span><span class="co">#&gt; source(s)   : memory</span></span>
+<span><span class="co">#&gt; varname     : clt (Cloud area fraction) </span></span>
+<span><span class="co">#&gt; name        : Elevation </span></span>
+<span><span class="co">#&gt; min value   :  24.39885 </span></span>
+<span><span class="co">#&gt; max value   : 100.94384 </span></span>
+<span><span class="co">#&gt; unit        :         m </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $tme</span></span>
+<span><span class="co">#&gt;  [1] "2020-12-01 UTC" "2020-12-02 UTC" "2020-12-03 UTC" "2020-12-04 UTC"</span></span>
+<span><span class="co">#&gt;  [5] "2020-12-05 UTC" "2020-12-06 UTC" "2020-12-07 UTC" "2020-12-08 UTC"</span></span>
+<span><span class="co">#&gt;  [9] "2020-12-09 UTC" "2020-12-10 UTC" "2020-12-11 UTC" "2020-12-12 UTC"</span></span>
+<span><span class="co">#&gt; [13] "2020-12-13 UTC" "2020-12-14 UTC" "2020-12-15 UTC" "2020-12-16 UTC"</span></span>
+<span><span class="co">#&gt; [17] "2020-12-17 UTC" "2020-12-18 UTC" "2020-12-19 UTC" "2020-12-20 UTC"</span></span>
+<span><span class="co">#&gt; [21] "2020-12-21 UTC" "2020-12-22 UTC" "2020-12-23 UTC" "2020-12-24 UTC"</span></span>
+<span><span class="co">#&gt; [25] "2020-12-25 UTC" "2020-12-26 UTC" "2020-12-27 UTC" "2020-12-28 UTC"</span></span>
+<span><span class="co">#&gt; [29] "2020-12-29 UTC" "2020-12-30 UTC" "2020-12-31 UTC"</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $windheight_m</span></span>
+<span><span class="co">#&gt; [1] 10</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $tempheight_m</span></span>
+<span><span class="co">#&gt; [1] 1.5</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $cloud</span></span>
+<span><span class="co">#&gt; class       : SpatRaster </span></span>
+<span><span class="co">#&gt; size        : 5, 6, 31  (nrow, ncol, nlyr)</span></span>
+<span><span class="co">#&gt; resolution  : 12000, 12000  (x, y)</span></span>
+<span><span class="co">#&gt; extent      : 132000, 204000, 12000, 72000  (xmin, xmax, ymin, ymax)</span></span>
+<span><span class="co">#&gt; coord. ref. : OSGB36 / British National Grid (EPSG:27700) </span></span>
+<span><span class="co">#&gt; source(s)   : memory</span></span>
+<span><span class="co">#&gt; names       :     lyr.1,    lyr.2,    lyr.3,    lyr.4,    lyr.5,    lyr.6, ... </span></span>
+<span><span class="co">#&gt; min values  :  99.62035, 95.89844, 98.45319, 80.80067, 94.54900, 91.86401, ... </span></span>
+<span><span class="co">#&gt; max values  : 100.00001, 99.81731, 99.96067, 93.42605, 99.26005, 98.11401, ... </span></span>
+<span><span class="co">#&gt; time        : 2020-12-01 to 2020-12-31 UTC (31 steps) </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $relhum</span></span>
+<span><span class="co">#&gt; , , 1</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 88.56357 88.34118 88.13335 88.00058 92.14062 93.03676</span></span>
+<span><span class="co">#&gt; [2,] 88.43149 88.26683 88.25626 91.54923 91.22167 91.26904</span></span>
+<span><span class="co">#&gt; [3,] 88.41774 88.28466 91.92549 91.29295 90.09625 84.99009</span></span>
+<span><span class="co">#&gt; [4,] 88.17519 90.66784 91.01759 90.09138 84.72496 84.88061</span></span>
+<span><span class="co">#&gt; [5,] 87.69247 86.33804 85.64431 88.39062 84.64342 84.60410</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 2</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 90.45349 90.00584 89.79315 89.36214 96.16406 96.33723</span></span>
+<span><span class="co">#&gt; [2,] 90.20162 89.93964 89.94615 95.88060 96.12481 96.16478</span></span>
+<span><span class="co">#&gt; [3,] 90.03578 89.78388 95.81261 96.00877 96.05453 90.55138</span></span>
+<span><span class="co">#&gt; [4,] 90.08424 94.19198 95.49569 96.38387 90.25480 90.41702</span></span>
+<span><span class="co">#&gt; [5,] 90.04585 90.23752 90.24439 96.35156 90.05497 90.24802</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 3</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 77.26507 77.87514 78.60873 79.10752 86.04688 88.60163</span></span>
+<span><span class="co">#&gt; [2,] 77.37645 78.00832 78.44548 84.95250 86.69399 88.70822</span></span>
+<span><span class="co">#&gt; [3,] 77.42781 77.81842 85.21426 85.69575 86.57994 81.97791</span></span>
+<span><span class="co">#&gt; [4,] 77.43449 83.36456 85.51433 87.01202 82.11404 81.16591</span></span>
+<span><span class="co">#&gt; [5,] 77.71755 79.29073 79.97250 87.20312 81.59880 80.88330</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 4</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 66.40798 66.39803 66.36990 66.18130 70.50781 75.42729</span></span>
+<span><span class="co">#&gt; [2,] 66.35714 66.40688 66.30943 70.87572 73.24030 77.09542</span></span>
+<span><span class="co">#&gt; [3,] 66.30167 66.08448 70.88083 72.11401 74.31752 71.45729</span></span>
+<span><span class="co">#&gt; [4,] 66.04899 70.16302 73.27113 74.48940 72.45557 70.42023</span></span>
+<span><span class="co">#&gt; [5,] 65.74675 66.40987 67.45663 74.54688 70.52249 69.27760</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 5</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 78.31007 78.17056 77.99374 77.92793 83.09375 85.37889</span></span>
+<span><span class="co">#&gt; [2,] 78.68127 78.56940 78.38058 84.05508 84.85943 85.80004</span></span>
+<span><span class="co">#&gt; [3,] 79.10574 78.95293 83.61526 84.33736 85.30986 80.87912</span></span>
+<span><span class="co">#&gt; [4,] 79.25385 83.25273 84.95648 84.55744 80.57698 79.68888</span></span>
+<span><span class="co">#&gt; [5,] 79.21439 78.94714 78.52038 82.72656 79.37218 78.65591</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 6</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 70.66113 71.80393 72.81831 73.38288 81.54688 85.82752</span></span>
+<span><span class="co">#&gt; [2,] 71.47122 72.60536 73.14812 82.58298 84.34428 87.66299</span></span>
+<span><span class="co">#&gt; [3,] 72.19615 72.91320 82.76371 83.85348 85.72525 80.79762</span></span>
+<span><span class="co">#&gt; [4,] 72.74278 82.14063 84.57158 86.31145 81.51485 79.87178</span></span>
+<span><span class="co">#&gt; [5,] 73.61011 75.84964 76.42957 86.79688 79.55519 78.44402</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 7</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 63.72105 63.76364 63.84441 63.74604 65.09375 67.83069</span></span>
+<span><span class="co">#&gt; [2,] 63.51654 63.62832 63.64472 64.81680 65.91528 68.46497</span></span>
+<span><span class="co">#&gt; [3,] 63.43317 63.28284 64.96499 65.72710 67.15083 65.73792</span></span>
+<span><span class="co">#&gt; [4,] 63.39072 64.03547 66.04197 66.63916 66.02885 65.27170</span></span>
+<span><span class="co">#&gt; [5,] 63.44480 63.71007 63.51971 65.57031 64.96049 64.48643</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 8</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 78.53349 78.50360 78.71204 79.44109 86.50781 87.81960</span></span>
+<span><span class="co">#&gt; [2,] 78.46426 78.50392 79.04792 85.49350 86.29170 86.09309</span></span>
+<span><span class="co">#&gt; [3,] 78.48014 78.81226 84.56300 84.98653 85.39661 80.11097</span></span>
+<span><span class="co">#&gt; [4,] 78.32170 82.26695 84.11835 83.80022 79.11431 78.71577</span></span>
+<span><span class="co">#&gt; [5,] 78.29456 78.24584 77.90600 81.64062 78.50606 78.20901</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 9</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 65.25748 65.44998 65.60441 65.63369 68.96875 74.03582</span></span>
+<span><span class="co">#&gt; [2,] 65.14984 65.36141 65.57529 68.91851 71.16967 73.34831</span></span>
+<span><span class="co">#&gt; [3,] 64.98520 65.06793 67.25240 68.70508 70.87463 68.15173</span></span>
+<span><span class="co">#&gt; [4,] 64.69283 65.08683 67.75944 68.27612 66.80392 66.63505</span></span>
+<span><span class="co">#&gt; [5,] 64.55106 64.78811 64.76565 65.78125 66.01288 65.89237</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 10</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 60.21173 60.64576 60.96391 60.91133 65.91406 70.50282</span></span>
+<span><span class="co">#&gt; [2,] 59.70783 60.03777 60.03414 64.54896 67.86069 72.81219</span></span>
+<span><span class="co">#&gt; [3,] 59.22193 59.17032 64.82936 66.00124 68.52238 65.37937</span></span>
+<span><span class="co">#&gt; [4,] 59.05051 63.03970 66.50157 68.71181 65.36897 64.14837</span></span>
+<span><span class="co">#&gt; [5,] 59.03386 59.99035 60.58223 69.73438 63.36026 61.92192</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 11</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 61.28044 60.86900 60.38240 59.89085 59.91406 63.39800</span></span>
+<span><span class="co">#&gt; [2,] 61.06421 60.65357 59.95337 60.02520 61.16177 64.33891</span></span>
+<span><span class="co">#&gt; [3,] 60.79414 60.01836 61.27930 61.43716 62.02033 60.20258</span></span>
+<span><span class="co">#&gt; [4,] 60.72503 61.79021 63.02957 63.51165 60.60356 59.17735</span></span>
+<span><span class="co">#&gt; [5,] 60.54458 60.16652 59.53530 63.82031 59.75109 58.74914</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 12</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 66.88651 66.90848 67.00166 67.06683 66.99219 69.86810</span></span>
+<span><span class="co">#&gt; [2,] 67.02283 67.02034 66.93254 67.03159 67.87356 70.08146</span></span>
+<span><span class="co">#&gt; [3,] 67.16654 66.87363 67.46140 67.81039 68.46836 69.07169</span></span>
+<span><span class="co">#&gt; [4,] 67.44693 67.56356 68.53164 69.28137 69.36485 68.91689</span></span>
+<span><span class="co">#&gt; [5,] 67.72891 68.08292 68.12498 69.82031 69.10114 68.75732</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 13</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 67.46994 67.96775 68.32331 68.54021 69.71875 73.31836</span></span>
+<span><span class="co">#&gt; [2,] 67.27996 67.71552 67.86557 68.53440 70.43362 74.04012</span></span>
+<span><span class="co">#&gt; [3,] 66.92439 67.14697 68.81374 69.24100 70.24201 71.39130</span></span>
+<span><span class="co">#&gt; [4,] 66.58959 67.58594 68.91310 70.36327 70.53672 69.99475</span></span>
+<span><span class="co">#&gt; [5,] 66.35464 67.61350 68.56297 70.61719 69.85825 69.41246</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 14</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 87.53481 87.01334 86.54130 86.31483 91.71875 93.96318</span></span>
+<span><span class="co">#&gt; [2,] 87.77670 87.29607 86.53245 91.13940 92.22460 93.71753</span></span>
+<span><span class="co">#&gt; [3,] 87.92892 87.30073 91.54539 91.74589 92.07599 88.34090</span></span>
+<span><span class="co">#&gt; [4,] 88.08733 91.45944 92.43549 92.77990 88.65815 87.47172</span></span>
+<span><span class="co">#&gt; [5,] 88.06976 88.46299 88.27905 92.62500 88.19215 86.88029</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 15</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 87.84970 87.71696 87.56487 87.22000 90.68750 92.68934</span></span>
+<span><span class="co">#&gt; [2,] 87.99052 88.06177 87.84632 91.68691 91.83141 92.90549</span></span>
+<span><span class="co">#&gt; [3,] 88.07650 88.04121 92.05045 92.32449 92.72377 89.07141</span></span>
+<span><span class="co">#&gt; [4,] 88.03192 91.40468 92.64843 93.04547 89.61453 89.06147</span></span>
+<span><span class="co">#&gt; [5,] 87.99721 88.37910 88.07378 92.46094 89.09395 88.47999</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 16</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 84.76772 85.01650 85.25868 85.59686 92.79688 94.37054</span></span>
+<span><span class="co">#&gt; [2,] 84.77726 85.02725 85.24987 91.71017 92.84274 93.75872</span></span>
+<span><span class="co">#&gt; [3,] 84.68752 84.85516 91.25860 91.71490 92.36070 88.72941</span></span>
+<span><span class="co">#&gt; [4,] 84.63243 89.41241 90.97173 91.85103 88.17713 87.65804</span></span>
+<span><span class="co">#&gt; [5,] 84.65159 85.53725 85.71053 91.47656 86.88182 86.26581</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 17</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 62.29848 62.30313 62.15783 61.86106 65.25781 70.35025</span></span>
+<span><span class="co">#&gt; [2,] 62.25210 62.36428 62.02004 65.64536 68.32217 73.10565</span></span>
+<span><span class="co">#&gt; [3,] 62.06211 61.89854 66.62282 67.74955 70.19514 68.07076</span></span>
+<span><span class="co">#&gt; [4,] 61.96847 67.23148 68.61389 71.80311 68.29327 66.89121</span></span>
+<span><span class="co">#&gt; [5,] 61.94446 65.07310 65.65183 74.22656 67.49585 65.18808</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 18</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 79.36706 79.34429 79.30713 79.13348 80.06250 82.26511</span></span>
+<span><span class="co">#&gt; [2,] 79.23464 79.35563 79.29479 80.83279 81.22401 82.52164</span></span>
+<span><span class="co">#&gt; [3,] 78.98465 78.95222 81.02950 81.45383 82.10365 81.04705</span></span>
+<span><span class="co">#&gt; [4,] 78.53951 80.11631 81.61107 82.25136 81.18414 80.99084</span></span>
+<span><span class="co">#&gt; [5,] 78.05885 78.59571 79.20348 81.76562 80.50307 80.34302</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 19</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 79.31964 79.45532 79.66644 79.70828 79.97656 82.12423</span></span>
+<span><span class="co">#&gt; [2,] 79.14991 79.29411 79.42995 80.08683 80.90308 82.58449</span></span>
+<span><span class="co">#&gt; [3,] 79.02989 79.07166 80.37497 80.97696 82.04219 81.18997</span></span>
+<span><span class="co">#&gt; [4,] 78.93721 80.11606 81.74689 82.02602 80.94604 81.17211</span></span>
+<span><span class="co">#&gt; [5,] 78.91249 79.15143 78.77778 81.15625 80.11375 80.00506</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 20</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 81.36020 81.49124 81.42637 81.42323 86.39062 88.32923</span></span>
+<span><span class="co">#&gt; [2,] 81.29906 81.18276 81.23721 86.03878 87.06158 87.69903</span></span>
+<span><span class="co">#&gt; [3,] 80.94817 80.61868 85.11562 85.95393 86.99953 83.01804</span></span>
+<span><span class="co">#&gt; [4,] 80.24145 82.19656 84.51981 86.12226 82.41439 82.32358</span></span>
+<span><span class="co">#&gt; [5,] 79.83562 80.08840 80.11471 85.66406 81.66063 81.46833</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 21</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 88.25136 88.12344 88.20463 88.62904 92.95312 93.57077</span></span>
+<span><span class="co">#&gt; [2,] 88.00631 87.96342 88.36819 92.55862 92.75426 92.43955</span></span>
+<span><span class="co">#&gt; [3,] 87.89754 88.20145 91.99776 92.26104 92.43336 86.25777</span></span>
+<span><span class="co">#&gt; [4,] 87.48219 90.68873 91.21816 91.64229 86.41923 86.06627</span></span>
+<span><span class="co">#&gt; [5,] 87.23774 86.97153 86.52125 90.70312 86.17784 85.86588</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 22</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 89.46179 90.11156 90.78626 91.68187 96.93750 96.41982</span></span>
+<span><span class="co">#&gt; [2,] 90.08976 91.02061 91.82350 97.10256 96.37036 95.56560</span></span>
+<span><span class="co">#&gt; [3,] 91.04466 92.23552 97.18662 96.90605 96.17886 88.04838</span></span>
+<span><span class="co">#&gt; [4,] 91.55003 96.61482 96.69041 96.35621 87.85622 87.92705</span></span>
+<span><span class="co">#&gt; [5,] 90.43929 90.02131 90.12309 95.71875 87.35971 86.92866</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 23</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 83.09502 84.06512 84.45170 85.16664 94.02344 94.56001</span></span>
+<span><span class="co">#&gt; [2,] 83.87054 84.24590 85.22306 93.55887 93.74154 93.89321</span></span>
+<span><span class="co">#&gt; [3,] 84.64460 85.67045 94.07674 93.89912 93.29172 82.75092</span></span>
+<span><span class="co">#&gt; [4,] 85.86254 94.00606 94.12181 94.32285 83.88039 83.62238</span></span>
+<span><span class="co">#&gt; [5,] 86.83702 86.34106 86.48596 93.72656 84.46828 84.47543</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 24</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 79.14507 79.61143 80.25926 80.87117 89.32812 91.66814</span></span>
+<span><span class="co">#&gt; [2,] 79.49419 80.05290 80.69257 89.23576 90.18942 91.20702</span></span>
+<span><span class="co">#&gt; [3,] 80.28320 80.63044 88.82899 89.42482 90.26167 84.08508</span></span>
+<span><span class="co">#&gt; [4,] 80.63322 87.40599 89.34345 89.80047 83.97961 83.02662</span></span>
+<span><span class="co">#&gt; [5,] 80.81995 81.25932 81.11868 89.07812 82.55927 81.74679</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 25</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 77.93192 78.14815 78.13601 77.98465 84.14844 86.47601</span></span>
+<span><span class="co">#&gt; [2,] 77.88916 77.86897 78.04386 84.48062 85.53392 86.69032</span></span>
+<span><span class="co">#&gt; [3,] 77.70576 77.86703 83.84344 84.88795 86.28513 82.07859</span></span>
+<span><span class="co">#&gt; [4,] 77.87531 83.21534 85.26797 85.73175 81.45672 80.90263</span></span>
+<span><span class="co">#&gt; [5,] 78.47735 78.94454 78.90165 84.64844 80.26243 79.66431</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 26</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 67.06727 66.81972 66.62049 66.45478 65.69531 67.63976</span></span>
+<span><span class="co">#&gt; [2,] 67.50596 67.22855 66.95859 64.98029 64.44604 64.45242</span></span>
+<span><span class="co">#&gt; [3,] 67.90815 67.67482 65.85050 65.20193 64.16597 67.07623</span></span>
+<span><span class="co">#&gt; [4,] 68.18161 65.17494 65.30605 64.78267 67.63191 67.52808</span></span>
+<span><span class="co">#&gt; [5,] 68.15511 68.17342 68.14327 63.97656 67.90345 67.90607</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 27</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 69.57948 69.09888 68.49847 67.95821 69.73438 70.95015</span></span>
+<span><span class="co">#&gt; [2,] 70.35007 69.89342 69.34666 71.97347 70.87727 71.40315</span></span>
+<span><span class="co">#&gt; [3,] 71.26873 70.65225 73.43616 73.00188 72.43642 68.42881</span></span>
+<span><span class="co">#&gt; [4,] 72.30703 73.79056 74.46010 74.07236 69.94370 68.91799</span></span>
+<span><span class="co">#&gt; [5,] 73.27100 72.56100 71.58126 74.14062 70.18458 69.25134</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 28</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 91.16119 91.22845 91.28725 91.25103 93.82812 94.52791</span></span>
+<span><span class="co">#&gt; [2,] 91.19329 91.29669 91.35057 93.33978 93.28220 93.34162</span></span>
+<span><span class="co">#&gt; [3,] 91.22989 91.25130 93.67770 93.44643 93.00962 89.97774</span></span>
+<span><span class="co">#&gt; [4,] 91.16281 93.13457 93.67693 93.58758 90.77303 90.81288</span></span>
+<span><span class="co">#&gt; [5,] 91.12851 91.25962 91.21783 93.63281 91.12785 91.23932</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 29</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 69.39863 69.59109 69.72705 69.86316 70.99219 72.87126</span></span>
+<span><span class="co">#&gt; [2,] 69.22049 69.40643 69.62819 69.28262 69.97070 71.00889</span></span>
+<span><span class="co">#&gt; [3,] 68.81026 68.99646 69.40423 69.15500 68.99387 70.70964</span></span>
+<span><span class="co">#&gt; [4,] 68.40969 67.02213 68.06232 68.25340 69.97276 70.36216</span></span>
+<span><span class="co">#&gt; [5,] 68.25095 68.58060 68.95893 67.36719 69.71027 69.94167</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 30</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 65.36143 64.56367 63.29613 62.32947 65.00781 67.09557</span></span>
+<span><span class="co">#&gt; [2,] 66.32455 66.03301 64.88494 67.84843 66.89318 67.73791</span></span>
+<span><span class="co">#&gt; [3,] 66.74310 66.35551 69.51788 69.41588 69.42995 66.16945</span></span>
+<span><span class="co">#&gt; [4,] 67.00325 71.36113 71.82108 71.39988 68.35210 66.84036</span></span>
+<span><span class="co">#&gt; [5,] 67.19821 67.59623 67.78335 71.52344 67.81176 66.74467</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; , , 31</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          [,1]     [,2]     [,3]     [,4]     [,5]     [,6]</span></span>
+<span><span class="co">#&gt; [1,] 74.00684 73.43531 72.86888 72.22998 78.25391 78.87800</span></span>
+<span><span class="co">#&gt; [2,] 74.78904 74.44463 74.12441 80.11493 79.10496 79.08962</span></span>
+<span><span class="co">#&gt; [3,] 75.07653 75.02465 81.16631 80.76951 79.96975 72.37735</span></span>
+<span><span class="co">#&gt; [4,] 74.96174 81.44193 81.84947 81.35307 74.12406 72.91912</span></span>
+<span><span class="co">#&gt; [5,] 74.76998 74.51509 74.40029 80.82812 73.83335 72.82491</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $prec</span></span>
+<span><span class="co">#&gt; class       : SpatRaster </span></span>
+<span><span class="co">#&gt; size        : 5, 6, 31  (nrow, ncol, nlyr)</span></span>
+<span><span class="co">#&gt; resolution  : 12000, 12000  (x, y)</span></span>
+<span><span class="co">#&gt; extent      : 132000, 204000, 12000, 72000  (xmin, xmax, ymin, ymax)</span></span>
+<span><span class="co">#&gt; coord. ref. : OSGB36 / British National Grid (EPSG:27700) </span></span>
+<span><span class="co">#&gt; source(s)   : memory</span></span>
+<span><span class="co">#&gt; names       :     lyr.1,    lyr.2,     lyr.3,     lyr.4,    lyr.5,    lyr.6, ... </span></span>
+<span><span class="co">#&gt; min values  : 0.7086005, 1.531978, 0.9797821, 0.1390798, 13.18512, 3.380047, ... </span></span>
+<span><span class="co">#&gt; max values  : 9.6037817, 8.243140, 2.1881702, 5.4723840, 22.08736, 7.003132, ... </span></span>
+<span><span class="co">#&gt; time        : 2020-12-01 to 2020-12-31 UTC (31 steps) </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $pres</span></span>
+<span><span class="co">#&gt; class       : SpatRaster </span></span>
+<span><span class="co">#&gt; size        : 5, 6, 31  (nrow, ncol, nlyr)</span></span>
+<span><span class="co">#&gt; resolution  : 12000, 12000  (x, y)</span></span>
+<span><span class="co">#&gt; extent      : 132000, 204000, 12000, 72000  (xmin, xmax, ymin, ymax)</span></span>
+<span><span class="co">#&gt; coord. ref. : OSGB36 / British National Grid (EPSG:27700) </span></span>
+<span><span class="co">#&gt; source(s)   : memory</span></span>
+<span><span class="co">#&gt; names       :    lyr.1,    lyr.2,    lyr.3,    lyr.4,    lyr.5,    lyr.6, ... </span></span>
+<span><span class="co">#&gt; min values  : 99.54047, 100.2997, 101.3668, 101.3402, 100.0420, 99.02899, ... </span></span>
+<span><span class="co">#&gt; max values  : 99.68345, 100.3673, 101.4538, 101.4344, 100.2323, 99.09224, ... </span></span>
+<span><span class="co">#&gt; time        : 2020-12-01 to 2020-12-31 UTC (31 steps) </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $lwrad</span></span>
+<span><span class="co">#&gt; class       : SpatRaster </span></span>
+<span><span class="co">#&gt; size        : 5, 6, 31  (nrow, ncol, nlyr)</span></span>
+<span><span class="co">#&gt; resolution  : 12000, 12000  (x, y)</span></span>
+<span><span class="co">#&gt; extent      : 132000, 204000, 12000, 72000  (xmin, xmax, ymin, ymax)</span></span>
+<span><span class="co">#&gt; coord. ref. : OSGB36 / British National Grid (EPSG:27700) </span></span>
+<span><span class="co">#&gt; source(s)   : memory</span></span>
+<span><span class="co">#&gt; names       :    lyr.1,    lyr.2,    lyr.3,    lyr.4,    lyr.5,    lyr.6, ... </span></span>
+<span><span class="co">#&gt; min values  : 330.2351, 323.2721, 305.8380, 292.5025, 316.2573, 300.8203, ... </span></span>
+<span><span class="co">#&gt; max values  : 352.2530, 334.9949, 330.8777, 316.4399, 333.9922, 327.5433, ... </span></span>
+<span><span class="co">#&gt; time        : 2020-12-01 to 2020-12-31 UTC (31 steps) </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $swrad</span></span>
+<span><span class="co">#&gt; class       : SpatRaster </span></span>
+<span><span class="co">#&gt; size        : 5, 6, 31  (nrow, ncol, nlyr)</span></span>
+<span><span class="co">#&gt; resolution  : 12000, 12000  (x, y)</span></span>
+<span><span class="co">#&gt; extent      : 132000, 204000, 12000, 72000  (xmin, xmax, ymin, ymax)</span></span>
+<span><span class="co">#&gt; coord. ref. : OSGB36 / British National Grid (EPSG:27700) </span></span>
+<span><span class="co">#&gt; source(s)   : memory</span></span>
+<span><span class="co">#&gt; names       :    lyr.1,    lyr.2,    lyr.3,    lyr.4,    lyr.5,    lyr.6, ... </span></span>
+<span><span class="co">#&gt; min values  : 15.60848, 15.81695, 17.24030, 25.46866, 3.425624,  6.31715, ... </span></span>
+<span><span class="co">#&gt; max values  : 28.48842, 33.74855, 40.22418, 41.30138, 9.361683, 18.82669, ... </span></span>
+<span><span class="co">#&gt; time        : 2020-12-01 to 2020-12-31 UTC (31 steps) </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $tmax</span></span>
+<span><span class="co">#&gt; class       : SpatRaster </span></span>
+<span><span class="co">#&gt; size        : 5, 6, 31  (nrow, ncol, nlyr)</span></span>
+<span><span class="co">#&gt; resolution  : 12000, 12000  (x, y)</span></span>
+<span><span class="co">#&gt; extent      : 132000, 204000, 12000, 72000  (xmin, xmax, ymin, ymax)</span></span>
+<span><span class="co">#&gt; coord. ref. : OSGB36 / British National Grid (EPSG:27700) </span></span>
+<span><span class="co">#&gt; source(s)   : memory</span></span>
+<span><span class="co">#&gt; names       :    lyr.1,    lyr.2,    lyr.3,    lyr.4,    lyr.5,     lyr.6, ... </span></span>
+<span><span class="co">#&gt; min values  : 11.67316, 10.67806, 10.01682, 10.42111, 12.18740,  9.466647, ... </span></span>
+<span><span class="co">#&gt; max values  : 13.92439, 12.71096, 13.19381, 12.77103, 14.08849, 12.887687, ... </span></span>
+<span><span class="co">#&gt; time        : 2020-12-01 to 2020-12-31 UTC (31 steps) </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $tmin</span></span>
+<span><span class="co">#&gt; class       : SpatRaster </span></span>
+<span><span class="co">#&gt; size        : 5, 6, 31  (nrow, ncol, nlyr)</span></span>
+<span><span class="co">#&gt; resolution  : 12000, 12000  (x, y)</span></span>
+<span><span class="co">#&gt; extent      : 132000, 204000, 12000, 72000  (xmin, xmax, ymin, ymax)</span></span>
+<span><span class="co">#&gt; coord. ref. : OSGB36 / British National Grid (EPSG:27700) </span></span>
+<span><span class="co">#&gt; source(s)   : memory</span></span>
+<span><span class="co">#&gt; names       :    lyr.1,     lyr.2,     lyr.3,     lyr.4,     lyr.5,    lyr.6, ... </span></span>
+<span><span class="co">#&gt; min values  : 10.18955,  7.050822,  7.309133,  7.158201,  7.548794, 7.687166, ... </span></span>
+<span><span class="co">#&gt; max values  : 12.65149, 11.395587, 10.109917, 11.206548, 11.459866, 9.907990, ... </span></span>
+<span><span class="co">#&gt; time        : 2020-12-01 to 2020-12-31 UTC (31 steps) </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $windspeed</span></span>
+<span><span class="co">#&gt; class       : SpatRaster </span></span>
+<span><span class="co">#&gt; size        : 5, 6, 31  (nrow, ncol, nlyr)</span></span>
+<span><span class="co">#&gt; resolution  : 12000, 12000  (x, y)</span></span>
+<span><span class="co">#&gt; extent      : 132000, 204000, 12000, 72000  (xmin, xmax, ymin, ymax)</span></span>
+<span><span class="co">#&gt; coord. ref. : OSGB36 / British National Grid (EPSG:27700) </span></span>
+<span><span class="co">#&gt; source(s)   : memory</span></span>
+<span><span class="co">#&gt; names       :    lyr.1,    lyr.2,    lyr.3,     lyr.4,    lyr.5,    lyr.6, ... </span></span>
+<span><span class="co">#&gt; min values  : 5.014249, 1.284195, 3.374293,  7.109227, 4.330355, 4.270629, ... </span></span>
+<span><span class="co">#&gt; max values  : 7.665591, 3.256128, 6.810767, 13.765208, 9.262621, 9.576879, ... </span></span>
+<span><span class="co">#&gt; time        : 2020-12-01 to 2020-12-31 UTC (31 steps) </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $winddir</span></span>
+<span><span class="co">#&gt; class       : SpatRaster </span></span>
+<span><span class="co">#&gt; size        : 5, 6, 31  (nrow, ncol, nlyr)</span></span>
+<span><span class="co">#&gt; resolution  : 12000, 12000  (x, y)</span></span>
+<span><span class="co">#&gt; extent      : 132000, 204000, 12000, 72000  (xmin, xmax, ymin, ymax)</span></span>
+<span><span class="co">#&gt; coord. ref. : OSGB36 / British National Grid (EPSG:27700) </span></span>
+<span><span class="co">#&gt; source(s)   : memory</span></span>
+<span><span class="co">#&gt; names       :    lyr.1,       lyr.2,    lyr.3,    lyr.4,    lyr.5,    lyr.6, ... </span></span>
+<span><span class="co">#&gt; min values  : 69.87876,   0.8168811, 237.8959, 227.0325, 196.7004, 232.2344, ... </span></span>
+<span><span class="co">#&gt; max values  : 74.12302, 359.1749074, 240.3176, 229.4743, 206.7745, 237.7627, ... </span></span>
+<span><span class="co">#&gt; time        : 2020-12-01 to 2020-12-31 UTC (31 steps)</span></span></code></pre>
 </div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
