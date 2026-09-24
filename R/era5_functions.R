@@ -35,13 +35,16 @@
 #' system in which x and y are in metres. The output data are reprojected using the coordinate reference system and
 #' extent of aoi (but SHOULD retain the approximate original grid resolution of the input climate data).
 #' Suitable lsm can be derived from ERA5 landsea mask and dtmc can be derived from ERA5 geopotential ancillary data.
+#' If `lsm` is not provided no coastal correction is applied. If `aoi` is not provided, `dtmc` and `lsm` are
+#' cropped to the extent of the ERA5 data.
 #' @examples
 #'  \dontrun{
-#' ncfile<-'path_to_downloaded_era5_file'
-#' aoi<-terra::vect(terra::ext(-7.125,-2.875,49.375,51.625),crs='EPSG:4326')
-#' dtm<-terra::rast(system.file('extdata/dtms/era5dtm.tif',package='mesoclim'))
-#' era5input<-era5toclimarray(ncfile, dtm=NA, aoi=aoi)
-#' plot_q_layers(.rast(era5input$temp,era5input$dtm))
+#' ncfile<-system.file('extdata/era5raw/era5_sample.nc',package='mesoclim')
+#' ancill<-terra::rotate(terra::rast(system.file('extdata/era5raw/era5_ancillary.nc',package='mesoclim')))
+#' dtmc<-ancill$z / 9.80665
+#' era5input<-era5toclimarray(ncfile, dtmc=dtmc, lsm=ancill$lsm,
+#'                            startdate=as.POSIXlt('2020/01/01',tz="UTC"),
+#'                            enddate=as.POSIXlt('2020/01/31',tz="UTC"))
 #' checkinputs(era5input,'hour')
 #' }
 era5toclimarray <- function(ncfile, dtmc, lsm=NA, aoi=NA, startdate, enddate, dtr_cor_fac = 1.285, toArrays=TRUE, zo=10)  {
@@ -52,32 +55,36 @@ era5toclimarray <- function(ncfile, dtmc, lsm=NA, aoi=NA, startdate, enddate, dt
   if("expver" %in% era5vars) tme<-as.POSIXlt(nc$var$expver$dim[[1]]$vals,tz='GMT',origin="1970-01-01")
   if(!"expver" %in% era5vars) tme<-as.POSIXlt(time(t2m), tz = "UTC")
   if(length(which(tme>=startdate & tme<=enddate))==0) stop("ERA5 data provided not within start and end dates!!")
-  dtmc<-project(dtmc,crs(t2m))
-  if(res(dtmc)[1]!=res(t2m)[1]){
+  # Avoid resampling when both lon/lat but crs differ only in definition (e.g. OGC:CRS84 vs EPSG:4326)
+  if(is.lonlat(crs(dtmc)) && is.lonlat(crs(t2m))) crs(dtmc)<-crs(t2m) else dtmc<-project(dtmc,crs(t2m))
+  if(class(lsm)[1] != "logical" && is.lonlat(crs(lsm))) crs(lsm)<-crs(t2m)
+  if(!isTRUE(all.equal(res(dtmc)[1],res(t2m)[1]))){
     agf <- terra::res(t2m)[1]/terra::res(dtmc)[1]
     dtmc <- terra::aggregate(dtmc, fact = agf, fun = mean, na.rm = T)
   }
   nc_close(nc)
 
-  # Crop dtmc to aoi if latter provided - check lsm presence if coastal correction
-  if(is.na(dtr_cor_fac)) coastalcorrect<-FALSE else coastalcorrect<-TRUE
+  # Coastal correction requires lsm
+  coastalcorrect<-!is.na(dtr_cor_fac) && dtr_cor_fac!=0
+  if(coastalcorrect && class(lsm)[1] == "logical"){
+    warning("No lsm provided so ignoring coastal correction!!!")
+    coastalcorrect<-FALSE
+  }
+
+  # Crop dtmc and lsm to aoi if provided, else to extent of ERA5 data
   if (class(aoi)[1] != "logical"){
     if (!class(aoi)[1] %in% c("SpatRaster", "SpatVector",
                               "sf"))
       stop("Parameter aoi NOT of suitable spatial class ")
     if (class(aoi)[1] == "sf") aoi <- vect(aoi)
-    
+
     # Check dtmc and lsm extent equals or exceeds aoi
     aoiera5<-project(aoi,crs(dtmc))
-    if(class(lsm)[1] == "logical" & (dtr_cor_fac!=0 | class(dtr_cor_fac)[1] == "logical")){
-      warning("No lsm provided so ignoring coastal correction!!!")
-      coastalcorrect<-FALSE
-    }
     if(ext(dtmc)<ext(aoiera5)) stop("dtmc smaller than aoi!!!")
     if(class(lsm)[1] != "logical"  & ext(lsm)<ext(aoiera5)) stop("lsm smaller than aoi!!!")
     dtmc<-crop(dtmc,aoiera5,snap="out")
-    if(class(lsm)[1] != "logical" ) lsm<-crop(lsm,aoiera5,snap="out")
-  }
+  } else dtmc<-crop(dtmc,t2m,snap="out")
+  if(class(lsm)[1] != "logical" ) lsm<-crop(lsm,dtmc,snap="out")
   units(dtmc)<-"m"
   names(dtmc)<-'Elevation'
 
@@ -136,9 +143,7 @@ era5toclimarray <- function(ncfile, dtmc, lsm=NA, aoi=NA, startdate, enddate, dt
     dtmc<-project(dtmc,crs(aoi))
   }
   # Calculate output variables
-  t0<-now()
   ea <- .satvap(d2m-273.15)
-  print(now()-t0)
   #temp <- as.array(tc)
   relhum <- (ea/.satvap(tc)) * 100
   relhum<-ifel(relhum>100,100,relhum)

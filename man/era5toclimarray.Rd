@@ -64,14 +64,17 @@ the model requires that input climate data are projected using a coordinate refe
 system in which x and y are in metres. The output data are reprojected using the coordinate reference system and
 extent of aoi (but SHOULD retain the approximate original grid resolution of the input climate data).
 Suitable lsm can be derived from ERA5 landsea mask and dtmc can be derived from ERA5 geopotential ancillary data.
+If \code{lsm} is not provided no coastal correction is applied. If \code{aoi} is not provided, \code{dtmc} and \code{lsm} are
+cropped to the extent of the ERA5 data.
 }
 \examples{
  \dontrun{
-ncfile<-'path_to_downloaded_era5_file'
-aoi<-terra::vect(terra::ext(-7.125,-2.875,49.375,51.625),crs='EPSG:4326')
-dtm<-terra::rast(system.file('extdata/dtms/era5dtm.tif',package='mesoclim'))
-era5input<-era5toclimarray(ncfile, dtm=NA, aoi=aoi)
-plot_q_layers(.rast(era5input$temp,era5input$dtm))
+ncfile<-system.file('extdata/era5raw/era5_sample.nc',package='mesoclim')
+ancill<-terra::rotate(terra::rast(system.file('extdata/era5raw/era5_ancillary.nc',package='mesoclim')))
+dtmc<-ancill$z / 9.80665
+era5input<-era5toclimarray(ncfile, dtmc=dtmc, lsm=ancill$lsm,
+                           startdate=as.POSIXlt('2020/01/01',tz="UTC"),
+                           enddate=as.POSIXlt('2020/01/31',tz="UTC"))
 checkinputs(era5input,'hour')
 }
 }
