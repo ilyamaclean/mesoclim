@@ -194,7 +194,7 @@ write_climdata(ukcp18rcm,file.path(dir_out,'ukcp18rcm.Rds'),overwrite=TRUE)
 
 ### UKCP18 sea surface temperature preprocessing
 
-Sea surface temperature is not included in the UKCP18 data. For the UK seas surface data for the North Atlantic area for the same corresponding climate models used in the creation of the UKCP18 data is available on ceda. This data is in lat lon projection.
+Sea surface temperature is not included in the UKCP18 data. For the UK seas surface data for the North Atlantic area (Tinker et al 2024) for the same corresponding climate models used in the creation of the UKCP18 data is available on Ceda. This data is in lat lon projection.
 
 The function `create_ukcpsst_data` ensures that the sea surface data matches the corresponding dtmc in the UKCP18 climate data that has already been prepared - interpolating where necessary to ensure coast lines match. Sea surface data will match the crs, resolution and extent of the provided dtmc - which should extend well at least a full climate grid cell beyond the final downscaling area.
 
@@ -207,7 +207,7 @@ plot(c(sst,ukcp18rcm$dtm))
 
 ERA5 hourly reanalysis data, as downloaded using `microclimdata::era5_download()`, can be converted to the standard `mesoclim` input format using the function `era5toclimarray()`. This requires a coarse resolution dtm and land/sea mask matching the ERA5 grid, which can be derived from ERA5 ancillary data (geopotential and land/sea mask variables). The land/sea mask is used to correct the diurnal temperature range of coastal grid cells.
 
-Here we use a sample ERA5 file supplied with the package covering south-west England in January 2020, together with global ERA5 ancillary data (geopotential and land/sea mask). The ancillary data use longitudes of 0 to 360 degrees so are first rotated to -180 to 180 degrees to match the climate data.
+Here we use a sample ERA5 file  covering south-west England in January 2020, together with global ERA5 ancillary data (geopotential and land/sea mask). The ancillary data use longitudes of 0 to 360 degrees so are first rotated to -180 to 180 degrees to match the climate data.
 
 ```{r era5-preprocess}
 era5file<-system.file('extdata/era5raw/era5_sample.nc',package='mesoclim')
@@ -236,3 +236,7 @@ The resulting data structures of preprocessing can be checked to ensure there ar
 ```{r check_inputs, fig.width=8, fig.height=10}
 checkinputs(read_climdata(file.path(dir_out,'ukcp18rcm.Rds')), tstep = "day", plots=TRUE)
 ```
+
+## References
+
+Tinker et al. (2024) Twenty-first century marine climate projections for the NW European shelf seas based on a perturbed parameter ensemble. Ocean Science 20:3 835--885. DOI: 10.5194/os-20-835-2024 https://os.copernicus.org/articles/20/835/2024/

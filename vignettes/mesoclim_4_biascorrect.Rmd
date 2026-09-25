@@ -32,13 +32,12 @@ Firstly direct comparison of ukcp18rcm 12km data for 2018 and HadUK  gridded dat
 
 Many of the 'sea' cells not covered by HadUK 12km also contain land cells.
 
-A landsea mask derived from Terrain 50m was caluclated for the UKCP18 12km grid to provide a proportion of land in each cell.
+A landsea mask derived from Terrain 50m was calculated for the UKCP18 12km grid to provide a proportion of land in each cell.
 
 Derived climate data from 1km HadUK - aggregate to 12km grid - compare with existing 12km 
 
 
 ```{r cf_obs_ukcp_12km}
-yr<-2018
 modeldata<-read_climdata(mesoclim::ukcpinput)
 dtmc<-modeldata$dtm
 
@@ -131,8 +130,7 @@ plot(unwrap(model_list$prec$mu_frac ),main='Proportion of rainy days')
 
 Applying bias correction to future data 
 
-Will only be applied to grid cells from which the bias correction models were calculated. SpatRaster output may therefore be cropped when model climate inputs  exceeds the extent over which bias correction
-models were developed.
+Will only be applied to grid cells from which the bias correction models were calculated. SpatRaster output may therefore be cropped when model climate inputs  exceeds the extent over which bias correction models were developed.
 
 ```{r future_data}
 futuredata<-read_climdata(mesoclim::ukcpfuture)

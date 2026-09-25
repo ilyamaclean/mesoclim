@@ -25,7 +25,7 @@ library(mesoclim)
 
 ## Introduction
 
-When both spatial and temporal dosnccaling is required (for example from UKCP18 data to hourly data at a higher resolution), it is advisable to **perform temporal downscaling prior to spatial downscaling**. This will help ensure that temporal fluctuation in, for example, windspeed and direction is incorporated into the spatial downscaling of not only these variables but dependent variables such as temperature. 
+When both spatial and temporal downscaling is required (for example from UKCP18 data to hourly data at a higher resolution), it is advisable to **perform temporal downscaling prior to spatial downscaling**. This will help ensure that temporal fluctuation in, for example, windspeed and direction is incorporated into the spatial downscaling of not only these variables but dependent variables such as temperature. 
 
 In this example, we use UKCP18RCM outputs for May 2018. 
 
@@ -81,7 +81,7 @@ plot(climdaily$dtm)
 
 ## Single step downscaling
 
-As with spatial downscaling temporal downscaling of all daily variables can be performed by the wrapper fuunction `temporaldownscale`. The function assumes `tmax` and `tmin` daily values are available.
+As with spatial downscaling temporal downscaling of all daily variables can be performed by the wrapper function `temporaldownscale`. The function assumes `tmax` and `tmin` daily values are available.
 
 ```{r singlestep_tempdscale, fig.height=8}
 allhrly<-temporaldownscale(climdaily, adjust = TRUE, clearsky=NA, srte = 0.09, relmin = 10, noraincut = 0)
@@ -164,7 +164,7 @@ Currently this function recalculates LW down from estimates of LW up from surfac
 
 If `adjust=FALSE`, the LW down inputs have no inluence but rather outputs will simply reflect temperature and calculated dew point temperature.
 
-**Another option is to downscale from LWnet by simply removing temperture dependent LWup using hourly temps????**
+**Another option is to downscale from LWnet by removing temperature dependent LWup using hourly temps????**
 
 ```{r lw-downscale}
 lwdhr<-lw_dailytohourly(lw=climdaily$lwrad, hrtemps=hrtemps, hrrh=hrrh, hrpres=hrpres, adjust = TRUE) 

@@ -11,3 +11,4 @@
 ^raw_data_files$
 ^\.claude$
 ^extradocs$
+^mesoclim_audit\.md$

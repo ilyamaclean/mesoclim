@@ -32,7 +32,7 @@ Coarse resolution climate and ancillary data (including sea surface temperature 
 
 Here we load package data previously saved using `write_climdata` function as .Rds files using the`read_climdata`functions. 
 
-Sea surface data is also required for downscaling and in this example we use the package data derived from REFERENCE
+Sea surface data is also required for downscaling and in this example we use the package data derived from Tinker et al (2024).
 
 ```{r load_data}
 # Must unpack spatrasters etc saved in .rda data object
@@ -326,5 +326,8 @@ terra::time(precelev)<-climdata$tme
 plot(precelev[[13]],main=paste("Precipitation",terra::time(precelev)[[13]]))
 ```
 
+## References
+
+Tinker et al. (2024) Twenty-first century marine climate projections for the NW European shelf seas based on a perturbed parameter ensemble. Ocean Science 20:3 835--885. DOI: 10.5194/os-20-835-2024 https://os.copernicus.org/articles/20/835/2024/
 
 
