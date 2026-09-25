@@ -15,7 +15,7 @@ Last updated 25 September 2026 (`main` @ `4791e6a`). This file lists open action
 | `main` | Active development |
 | `gh-pages` | pkgdown site output, written by `pkgdown::deploy_to_branch()` |
 | `old_ver` | Old `main` before 10 Sept 2026 |
-| `dev`, `claude/funny-goodall` | Superseded; everything is merged into `main` |
+| `dev` | Superseded; everything is merged into `main` |
 
 **Local only (gitignored):**
 - `CLAUDE.md`, which holds the working guidance for Claude Code sessions.
@@ -99,7 +99,7 @@ This audit is kept in the repository root and committed so it can be shared. It'
 22. **CI:** `usethis::use_github_action("check-standard")` and `use_github_action("pkgdown")`.
 23. **Repository size:** `.git` is about 458 MB of history (old `climdata.rda`, `docs/`, `.o` files). Consider `git filter-repo` before any publication.
 24. **Housekeeping:**
-    - Delete the `dev` and `claude/funny-goodall` branches (local and remote) and the `.claude/worktrees/funny-goodall` worktree once they're no longer needed.
+    - Delete the `dev` branch (local and remote) once it's no longer needed.
     - Review and drop the 3 stashes.
     - `analyses/issues_code.R` depends on deleted datasets.
 
@@ -119,4 +119,4 @@ This audit is kept in the repository root and committed so it can be shared. It'
 | 2026-09-09 | Initial static audit of `dev` @ `eea5324`. |
 | 2026-09-10 | Work on `claude/funny-goodall`, then fast-forwarded to `main`: basin delineation rewritten in C++ (O(N log N)); redundant helpers removed; `climdata` (39 MB) replaced by `bcmodel_list`; vignettes moved to `vignettes/`; dot-function exports cleaned; `.Rbuildignore`/`.gitignore` updated; `dev` merged (wind and precipitation fixes, `landfill_climdata`); pkgdown config rewritten and site deployed to `gh-pages`; README fixed; `old_ver` created. |
 | 2026-09-24 | Local checkout moved from `dev` to `main`. `btw` MCP set up (Rust installed). `era5toclimarray()` fixed: missing `lsm`, cropping without `aoi`, CRS84/EPSG:4326 resampling shift (`6af9311`). All four vignettes made to run on package data (`4791e6a`). Site rebuilt and pushed to `gh-pages`. |
-| 2026-09-25 | Audit restructured into setup / open actions / history; to-dos from `to_dos.md` merged in; audit moved to repository root. Tinker et al. (2024) SST reference and typo fixes added to vignettes. |
+| 2026-09-25 | Audit restructured into setup / open actions / history; to-dos from `to_dos.md` merged in; audit moved to repository root. Tinker et al. (2024) SST reference and typo fixes added to vignettes. `claude/funny-goodall` worktree and branch deleted. |
