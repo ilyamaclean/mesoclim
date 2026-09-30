@@ -1067,101 +1067,65 @@ calculate_z0<-function(x){
 }
 
 # ~~~~~~~~~~~~ Temperature Coastal Effect downscale ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-
-#' @title  applying correction factor to coastal effects to account for data resolution
+#' @title Check coastal exposure matches dtmf, cropping if it covers a larger area
+#' @param cex coastal exposure as returned by [calculate_coastalexposure()]
+#' @param dtmf fine-resolution SpatRast defining the required grid
+#' @return cex matching the geometry of dtmf
+#' @keywords internal
 #' @noRd
-.correctcoastal<-function(r) {
-  reso<-res(r)[1]
-  am<- -6.74389+1.08141*log(reso)
-  ap<- -3.1163+0.4818*log(reso)
-  bm<- -0.6167+0.3197*log(reso)
-  bp<- 1.5842-0.7922*log(reso)+0.1104*log(reso)^2
-  m<-.is(r)
-  l<-log(m/(1-m))
-  sm<-which(m> 0 & m <= 0.5)
-  sp<-which(m< 1 & m > 0.5)
-  l[sm]<-am+bm*l[sm]
-  l[sp]<-ap+bp*l[sp]
-  pm<-1/(1+exp(-l))
-  s0<-which(m==0)
-  s1<-which(m==1)
-  pm[s0]<-0
-  pm[s1]<-1
-  rp<-.rast(pm,r)
-  return(rp)
+.check_cex<-function(cex,dtmf){
+  if(inherits(cex,"PackedSpatRaster")) cex<-unwrap(cex)
+  if(!inherits(cex,"SpatRaster") || nlyr(cex)<2) stop("cex must be a SpatRaster as returned by calculate_coastalexposure()!!")
+  if(!compareGeom(cex,dtmf,stopOnError=FALSE)){
+    if(any(abs(res(cex)-res(dtmf))>1e-6) || !same.crs(cex,dtmf)) stop("cex must match the resolution and coordinate reference system of dtmf!!")
+    cex<-crop(cex,dtmf)
+    if(!compareGeom(cex,dtmf,stopOnError=FALSE)) stop("cex must cover the extent of dtmf!!")
+  }
+  cex
 }
+
 #' @title Coastal temperature effects
 #'
 #' @param tc - downscaled temperature at same res as dtmf
 #' @param sstf - downscaled sea surface temperature to dtmf resolution and extent - no NA and timeseries must match tc
-#' @param u2 - downscaled windspeed at temprature height
-#' @param wdir - wind direction (coarse resolution) - same value for all of dtmf extent will be used
-#' @param dtmf - fine dtm spatraster
-#' @param dtmm - fine-scale dtm covering wider area than dtmf (but same resolution!!)
+#' @param u2 - downscaled windspeed at temperature height
+#' @param wdir - wind direction (coarse resolution) - value at centre of area used for all cells
 #' @param dtmc - coarse dtm spatraster matching resolution and extent of wdir
-#' @param ndir - number of directions to calculate for wind exposure
-#' @param smooth - number of cells to use for smoothing matrix
-#' @param correct - corrects each timestep  so that output mean temp of area matches input area mean temp
+#' @param cex - coastal exposure matching tc as returned by [calculate_coastalexposure()]
+#' @param correct - if TRUE, adjusts output so that means over coarse-resolution blocks match input
 #' @return Spatraster of temperature that includes coastal effect
-#' @export
 #' @keywords internal
-.tempcoastal<-function(tc, sstf, u2, wdir, dtmf, dtmm, dtmc,ndir=32,smooth=5,correct=TRUE) {
-  # Resample dtmm to dtmf resolution
-  if(any(res(dtmm)!=res(dtmf))) dtmm<-.resample(dtmm,dtmf,msk=TRUE)
-
-  # Calculate coastal exposure for each wind direction - NOT very realistic for complex coasts if ndir=8
-  landsea<-ifel(is.na(dtmm),NA,1)
-  lsr<-array(NA,dim=c(dim(dtmf)[1:2],ndir))
-  for (i in 0:(ndir-1)) {
-    r<-coastalexposure(landsea, e=ext(dtmf), i%%ndir*(360/ndir)) # seems to return a raster 1 row and col too big!
-    r<-.correctcoastal(r)
-    lsr[,,i+1]<-.is(r)
-  }
-  # smooth
-  lsr2<-lsr
-  for (i in 0:(ndir-1)) lsr2[,,i+1]<-0.25*lsr[,,(i-1)%%ndir+1]+0.5*lsr[,,i%%ndir+1]+0.25*lsr[,,(i+1)%%ndir+1]
-  lsr2<-.is( focal(.rast(lsr2,dtmf),w=smooth,fun="mean",na.policy="omit",na.rm=TRUE) )
-
-  lsm<-apply(lsr,c(1,2),mean)
+#' @noRd
+.tempcoastal<-function(tc, sstf, u2, wdir, dtmc, cex, correct=FALSE) {
+  ndir<-nlyr(cex)-1
+  lsr2<-.is(cex[[1:ndir]])
+  lsm<-.is(cex[[ndir+1]])
   tst<-min(lsm,na.rm=T)
   if (tst < 1) { # only apply coastal effects if there are coastal area
-    # slot in wind speeds
     if(!inherits(wdir,"SpatRaster")) wdr<-.rast(wdir,dtmc) else wdr<-wdir
     ew<-ext(wdr)
     xy<-data.frame(x=(ew$xmin+ew$xmax)/2,y=(ew$ymin+ew$ymax)/2)
     wdir<-as.numeric(extract(wdr,xy))[-1]
     if (is.na(wdir[1])) wdir<-apply(.is(wdr),3,median,na.rm=TRUE)
-    # Calculate array land-sea ratios for every hour
     i<-round(wdir/(360/ndir))%%ndir
-    lsr<-lsr2[,,i+1]
-
-    # ADD CONDITIONAL TEST AS lsr can now all =1 (dependent on i)
-    if(any(lsr<1)){
-      # Calculate sstf weighting upwind
-      # derive power scaling coefficient from wind speed
-      p2<-0.10420*sqrt(.is(u2))-0.47852
-      # calculate logit lsr and lsm
+    lsr<-lsr2[,,i+1,drop=FALSE]
+    if(any(lsr<1,na.rm=TRUE)){
+      p2<-array(0.10420*sqrt(.is(u2))-0.47852,dim=dim(lsr))
       llsr<-log(lsr/(1-lsr))
       llsm<-.rta(log(lsm/(1-lsm)),dim(lsr)[3])
-      # Calculate mins and maxes
       s<-which(is.na(lsr) == FALSE & lsr > 0 & lsr < 1)
       llsr[lsr==0]<-log(min(lsr[s])/(1-min(lsr[s])))
       llsr[lsr==1]<-log(max(lsr[s])/(1-max(lsr[s])))
       s<-which(is.na(lsm) == FALSE & lsm > 0 & lsm < 1)
       llsm[lsm==0]<-log(min(lsm[s])/(1-min(lsm[s])))
       llsm[lsm==1]<-log(max(lsm[s])/(1-max(lsm[s])))
-      # predict logit swgt
       lswgt<- -0.1095761+p2*(llsr+3.401197)-0.1553487*llsm
       swgt<-.rast(1/(1+exp(-lswgt)),tc)
       tcp<-swgt*sstf+(1-swgt)*tc
-      # Correct using area mean via aggregation is NOT suitable when tiling
-      # BUT Increases temperature range significantly across while area!!!
-      # Perhaps should only be applied to cells with a coastal effect??
       if(correct){
-        af<-res(dtmc)[1]/res(dtmf)[1]
+        af<-res(dtmc)[1]/res(tc)[1]
         tcc<-resample(aggregate(tcp,af,na.rm=TRUE),tcp)
-        #tcp<-tc+(tcp-tcc) # original version
-        tcp<-tc+(tcp-tcc)*swgt # new version
+        tcp<-tc+(tcp-tcc)*swgt
       }
     } else tcp<-tc
   } else tcp<-tc

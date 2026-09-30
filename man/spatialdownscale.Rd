@@ -25,7 +25,8 @@ spatialdownscale(
   precipmethod = "Elev",
   fast = TRUE,
   noraincut = 0,
-  toArrays = FALSE
+  toArrays = FALSE,
+  cex = NA
 )
 }
 \arguments{
@@ -36,7 +37,8 @@ spatialdownscale(
 \item{dtmf}{a high-resolution SpatRast of elevations}
 
 \item{dtmm}{a medium-resolution SpatRast of elevations covering a larger area
-than dtmf (only needed for coastal effects - see details under \code{\link[=temphrly_downscale]{temphrly_downscale()}}).}
+than dtmf. Needed for wind downscaling, and for coastal effects if \code{cex} isn't supplied
+(see \code{\link[=calculate_coastalexposure]{calculate_coastalexposure()}}).}
 
 \item{basins}{optionally, a fine-resolution SpatRast of basins as returned by \code{\link[=basindelin]{basindelin()}}
 matching the coordinate reference system and extent of \code{dtmf}. Calculated if
@@ -76,6 +78,9 @@ down-scaling (see details under \code{\link[=precipdownscale]{precipdownscale()}
 zero (see details under \code{\link[=precipdownscale]{precipdownscale()}}).}
 
 \item{toArrays}{if TRUE climate variables are output as 3D arrays if FALSE as Spatarasters}
+
+\item{cex}{optionally, coastal exposure matching \code{dtmf} as returned by \code{\link[=calculate_coastalexposure]{calculate_coastalexposure()}}.
+Calculated from \code{dtmf} and \code{dtmm} if not supplied and \code{coastal = TRUE}.}
 
 \item{pathsim}{optional logical indicating whether to simulate cloud cover and
 rainfall patchiness see details under \code{\link[=swdownscale]{swdownscale()}} and \code{\link[=precipdownscale]{precipdownscale()}}.}

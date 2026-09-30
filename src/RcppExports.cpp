@@ -10,6 +10,29 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// coastal_exposure_cpp
+Rcpp::NumericMatrix coastal_exposure_cpp(Rcpp::NumericMatrix lsm, double resolution, double xmin, double ymax, Rcpp::NumericVector s, double direction, Rcpp::List masks, Rcpp::NumericVector mask_reso, Rcpp::NumericVector mask_xmin, Rcpp::NumericVector mask_xmax, Rcpp::NumericVector mask_ymin, Rcpp::NumericVector mask_ymax, double jitter_deg);
+RcppExport SEXP _mesoclim_coastal_exposure_cpp(SEXP lsmSEXP, SEXP resolutionSEXP, SEXP xminSEXP, SEXP ymaxSEXP, SEXP sSEXP, SEXP directionSEXP, SEXP masksSEXP, SEXP mask_resoSEXP, SEXP mask_xminSEXP, SEXP mask_xmaxSEXP, SEXP mask_yminSEXP, SEXP mask_ymaxSEXP, SEXP jitter_degSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type lsm(lsmSEXP);
+    Rcpp::traits::input_parameter< double >::type resolution(resolutionSEXP);
+    Rcpp::traits::input_parameter< double >::type xmin(xminSEXP);
+    Rcpp::traits::input_parameter< double >::type ymax(ymaxSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type s(sSEXP);
+    Rcpp::traits::input_parameter< double >::type direction(directionSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type masks(masksSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type mask_reso(mask_resoSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type mask_xmin(mask_xminSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type mask_xmax(mask_xmaxSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type mask_ymin(mask_yminSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type mask_ymax(mask_ymaxSEXP);
+    Rcpp::traits::input_parameter< double >::type jitter_deg(jitter_degSEXP);
+    rcpp_result_gen = Rcpp::wrap(coastal_exposure_cpp(lsm, resolution, xmin, ymax, s, direction, masks, mask_reso, mask_xmin, mask_xmax, mask_ymin, mask_ymax, jitter_deg));
+    return rcpp_result_gen;
+END_RCPP
+}
 // hourtodayCpp
 NumericVector hourtodayCpp(NumericVector a, std::string fun);
 RcppExport SEXP _mesoclim_hourtodayCpp(SEXP aSEXP, SEXP funSEXP) {
@@ -165,27 +188,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// invls_calc
-NumericMatrix invls_calc(NumericMatrix lsm, double resolution, double xmin, double ymax, NumericVector s, int direction, NumericMatrix slr, double slr_xmin, double slr_xmax, double slr_ymin, double slr_ymax);
-RcppExport SEXP _mesoclim_invls_calc(SEXP lsmSEXP, SEXP resolutionSEXP, SEXP xminSEXP, SEXP ymaxSEXP, SEXP sSEXP, SEXP directionSEXP, SEXP slrSEXP, SEXP slr_xminSEXP, SEXP slr_xmaxSEXP, SEXP slr_yminSEXP, SEXP slr_ymaxSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericMatrix >::type lsm(lsmSEXP);
-    Rcpp::traits::input_parameter< double >::type resolution(resolutionSEXP);
-    Rcpp::traits::input_parameter< double >::type xmin(xminSEXP);
-    Rcpp::traits::input_parameter< double >::type ymax(ymaxSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type s(sSEXP);
-    Rcpp::traits::input_parameter< int >::type direction(directionSEXP);
-    Rcpp::traits::input_parameter< NumericMatrix >::type slr(slrSEXP);
-    Rcpp::traits::input_parameter< double >::type slr_xmin(slr_xminSEXP);
-    Rcpp::traits::input_parameter< double >::type slr_xmax(slr_xmaxSEXP);
-    Rcpp::traits::input_parameter< double >::type slr_ymin(slr_yminSEXP);
-    Rcpp::traits::input_parameter< double >::type slr_ymax(slr_ymaxSEXP);
-    rcpp_result_gen = Rcpp::wrap(invls_calc(lsm, resolution, xmin, ymax, s, direction, slr, slr_xmin, slr_xmax, slr_ymin, slr_ymax));
-    return rcpp_result_gen;
-END_RCPP
-}
 // rainadjustv
 std::vector<double> rainadjustv(std::vector<double> rain, std::vector<double> rrain, double rfrac, double rtot);
 RcppExport SEXP _mesoclim_rainadjustv(SEXP rainSEXP, SEXP rrainSEXP, SEXP rfracSEXP, SEXP rtotSEXP) {
@@ -228,6 +230,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_mesoclim_coastal_exposure_cpp", (DL_FUNC) &_mesoclim_coastal_exposure_cpp, 13},
     {"_mesoclim_hourtodayCpp", (DL_FUNC) &_mesoclim_hourtodayCpp, 2},
     {"_mesoclim_populatematrix", (DL_FUNC) &_mesoclim_populatematrix, 2},
     {"_mesoclim_juldayvCpp", (DL_FUNC) &_mesoclim_juldayvCpp, 3},
@@ -239,7 +242,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_mesoclim_basinCpp", (DL_FUNC) &_mesoclim_basinCpp, 3},
     {"_mesoclim_renumberbasin", (DL_FUNC) &_mesoclim_renumberbasin, 2},
     {"_mesoclim_basinmerge_cpp", (DL_FUNC) &_mesoclim_basinmerge_cpp, 3},
-    {"_mesoclim_invls_calc", (DL_FUNC) &_mesoclim_invls_calc, 11},
     {"_mesoclim_rainadjustv", (DL_FUNC) &_mesoclim_rainadjustv, 4},
     {"_mesoclim_rainadjustm", (DL_FUNC) &_mesoclim_rainadjustm, 4},
     {"_mesoclim_fill_land_na_idw", (DL_FUNC) &_mesoclim_fill_land_na_idw, 2},

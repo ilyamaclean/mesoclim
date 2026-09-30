@@ -27,7 +27,8 @@ spatialdownscale_tiles(
   noraincut = 0,
   toArrays = FALSE,
   overlap = 1000,
-  sz = 10000
+  sz = 10000,
+  cex = NA
 )
 }
 \arguments{
@@ -38,7 +39,8 @@ spatialdownscale_tiles(
 \item{dtmf}{a high-resolution SpatRast of elevations}
 
 \item{dtmm}{a medium-resolution SpatRast of elevations covering a larger area
-than dtmf (only needed for coastal effects - see details under \code{\link[=temphrly_downscale]{temphrly_downscale()}}).}
+than dtmf. Needed for wind downscaling, and for coastal effects if \code{cex} isn't supplied
+(see \code{\link[=calculate_coastalexposure]{calculate_coastalexposure()}}).}
 
 \item{basins}{optionally, a fine-resolution SpatRast of basins as returned by \code{\link[=basindelin]{basindelin()}}
 matching the coordinate reference system and extent of \code{dtmf}. Calculated if
@@ -86,6 +88,9 @@ zero (see details under \code{\link[=precipdownscale]{precipdownscale()}}).}
 \item{sz}{\itemize{
 \item size of tiles (in metres or projection unit)
 }}
+
+\item{cex}{optionally, coastal exposure covering \code{dtmf} as returned by \code{\link[=calculate_coastalexposure]{calculate_coastalexposure()}}.
+Calculated once for the whole of \code{dtmf} if not supplied and \code{coastal = TRUE}, then cropped to each tile.}
 
 \item{pathsim}{optional logical indicating whether to simulate cloud cover and
 rainfall patchiness see details under \code{\link[=swdownscale]{swdownscale()}} and \code{\link[=precipdownscale]{precipdownscale()}}.}

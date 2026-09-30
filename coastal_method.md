@@ -185,6 +185,21 @@ Further issues found in `.tempcoastal()`:
 
 Goal: replace mesoclim's coastal exposure calculation with the terravars method, compute the static exposure **once per domain**, and pass it to every function that applies the coastal effect.
 
+### Status (30 Sept 2026)
+
+Phases 1–3 are implemented on branch `coastal-terravars`, with tests and a vignette 2 update. Decisions taken: port the code (no licence issue, same author); `coastalexposure()` returns **land fraction**; `jitter = TRUE` by default; `.correctcoastal()` dropped; `.tempcoastal()` defaults to `correct = FALSE`. Replaced code is archived in `R_new/coastal_legacy/` (not on GitHub).
+
+- **API:**
+  - `coastalexposure(landsea, wdir, coarse = NULL, n = 2, jitter = TRUE)`. A `coarse` level in a differently described CRS is projected to `landsea`'s.
+  - `calculate_coastalexposure(dtmf, dtmm, coarse, ndir = 32, smooth = 5, n, jitter, filename)`.
+  - A `cex` argument (last position) on `spatialdownscale()`, `spatialdownscale_tiles()`, `tempdaily_downscale()` and `temphrly_downscale()`.
+  - `.tempcoastal()` is internal, and no longer fails with a single timestep.
+- **Speed (optimised build, Lizard, 32 directions):** 4.8 s without jitter, 19 s with it. Jitter's per-sample sin/cos is the main cost; a lookup table of offset rotations could cut it. Note that `devtools::load_all()` compiles C++ without optimisation, so timings under `load_all()` are about 3× slower.
+- **Tiled Lizard, one month (optimised builds):** 88 s on the branch against 94 s on `main`. For longer runs the saving grows in proportion to the number of months.
+- **Results change as expected before recalibration:** tmax on the tiled Lizard is +0.18 °C on average against `main` (5–95%: −0.05 to +0.48). In vignette 2, mean tmin is +0.9 °C and mean tmax −0.5 °C.
+
+Next: Phase 4 recalibration. Merge to `main` when the outputs have been checked.
+
 ### Evidence from a prototype run
 
 terravars' `coastal_exposure_cpp()` was compiled standalone and run on the Lizard (`lizard50m`, with `dtmm` as a `coarse` level, 32 directions):

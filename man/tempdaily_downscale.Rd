@@ -15,7 +15,8 @@ tempdaily_downscale(
   cad = TRUE,
   coastal = TRUE,
   thgto = 2,
-  whgto = 2
+  whgto = 2,
+  cex = NA
 )
 }
 \arguments{
@@ -30,7 +31,7 @@ If NA will calculate from hourluy downscaling of tmin and tmax in \code{climdata
 \item{dtmf}{a high-resolution SpatRast of elevations}
 
 \item{dtmm}{a medium-resolution SpatRast of elevations covering a larger area
-than dtmf (only needed for coastal effects - see details).}
+than dtmf. Needed for coastal effects if \code{cex} isn't supplied (see \code{\link[=calculate_coastalexposure]{calculate_coastalexposure()}}).}
 
 \item{basins}{optionally, a fine-resolution SpatRast of basins as returned by \code{\link[=basindelin]{basindelin()}}
 matching the coordinate reference system and extent of \code{dtmf}. Calculated if
@@ -47,6 +48,9 @@ Calculated if not supplied.}
 
 \item{whgto}{height above ground of output wind speed measurements.
 to resolution of \code{dtmf}.}
+
+\item{cex}{optionally, coastal exposure matching \code{dtmf} as returned by \code{\link[=calculate_coastalexposure]{calculate_coastalexposure()}}.
+Calculated from \code{dtmf} and \code{dtmm} if not supplied and \code{coastal = TRUE}.}
 
 \item{tempvar}{string name of element of climdata holding temperature data (ie 'temp','tmax','tmin')}
 }

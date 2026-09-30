@@ -7,7 +7,8 @@
 #' @param sst a SpatRast of sea-surface temperature data (deg C) that overlaps with climdata$tme
 #' @param dtmf a high-resolution SpatRast of elevations
 #' @param dtmm a medium-resolution SpatRast of elevations covering a larger area
-#' than dtmf (only needed for coastal effects - see details under [temphrly_downscale()]).
+#' than dtmf. Needed for wind downscaling, and for coastal effects if `cex` isn't supplied
+#' (see [calculate_coastalexposure()]).
 #' @param basins optionally, a fine-resolution SpatRast of basins as returned by [basindelin()]
 #' matching the coordinate reference system and extent of `dtmf`. Calculated if
 #' not supplied.
@@ -16,6 +17,8 @@
 #' not supplied.
 #' @param cad optional logical indicating whether to calculate cold-air drainage effects
 #' @param coastal optional logical indicating whether to calculate coastal effects
+#' @param cex optionally, coastal exposure covering `dtmf` as returned by [calculate_coastalexposure()].
+#' Calculated once for the whole of `dtmf` if not supplied and `coastal = TRUE`, then cropped to each tile.
 #' @param thgto height above ground of temperature output.
 #' @param whgto height above ground of wind speed output.
 #' @param include_tmean if TRUE and daily data will output mean daily temperature based on hourly downsccaling
@@ -70,7 +73,7 @@
 spatialdownscale_tiles<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, skyview=NA, horizon=NA,
                                  cad = TRUE,coastal = TRUE, thgto =2, whgto=2,include_tmean=FALSE,
                                  rhmin = 20, pksealevel = TRUE, patchsim = FALSE, terrainshade = TRUE,
-                                 precipmethod = "Elev",fast = TRUE, noraincut = 0, toArrays=FALSE, overlap=1000, sz=10000){
+                                 precipmethod = "Elev",fast = TRUE, noraincut = 0, toArrays=FALSE, overlap=1000, sz=10000, cex=NA){
 
   # Convert variables - unpack any wrapped spatRasters and convert arrays to spatraster
   input_class<-lapply(lapply(climdata,class),"[",1)
@@ -86,6 +89,9 @@ spatialdownscale_tiles<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wc
     results<-calculate_terrain_shading(dtmf,steps=24,toArrays=FALSE)
     skyview<-results$skyview
     horizon<-results$horizon
+  }
+  if(coastal){
+    if(inherits(cex,"logical")) cex<-calculate_coastalexposure(dtmf,dtmm) else cex<-.check_cex(cex,dtmf)
   }
 
   # Calculate overlapping tile set (nb size can vary)
@@ -128,12 +134,13 @@ spatialdownscale_tiles<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wc
         wca_tile<-.is(crop(.rast(wca,dtmf),t))
         sky_tile<-crop(skyview,t)
         hor_tile<-crop(horizon,t)
+        if(coastal) cex_tile<-crop(cex,t) else cex_tile<-NA
 
         mesoclimate<-spatialdownscale(climdata=climdata_m, sst=sst, dtmf=dtmf_tile, dtmm=dtmm,
                                       basins = basins_tile, wca=wca_tile, skyview=sky_tile, horizon=hor_tile,
                                       cad=cad, coastal=coastal, thgto=thgto, whgto=whgto, include_tmean=include_tmean,
                                       rhmin=rhmin, pksealevel=pksealevel, patchsim=patchsim,
-                                      terrainshade=terrainshade, precipmethod=precipmethod, fast=fast, noraincut=noraincut)
+                                      terrainshade=terrainshade, precipmethod=precipmethod, fast=fast, noraincut=noraincut, cex=cex_tile)
 
         mesoclimate_tiles[[length(mesoclimate_tiles)+1]]<-mesoclimate
       } # downscale tiles

@@ -219,6 +219,8 @@ In certain cases not all variables are required in the final downscaled product.
 
 Pre-calculation of those spatial properties that temporally constant can improve performance if spatial downscaling performed within a loop or as part of batch processing. 
 
+Coastal exposure - the proportion of land upwind of each cell in each of 32 wind directions - is calculated by `calculate_coastalexposure`. The wider-area `dtmm` is used to sample land and sea beyond the extent of `dtmf`. The result can be passed via the `cex` parameter to `spatialdownscale`, `spatialdownscale_tiles`, `tempdaily_downscale` and `temphrly_downscale`, which otherwise calculate it themselves.
+
 ```{r topoprprocess}
 dtmf<-rast(system.file("extdata/dtms/dtmf.tif",package="mesoclim"))
 # Windshelter coef
@@ -229,6 +231,8 @@ basins<-basindelin(dtmf, boundary = 2)
 results<-calculate_terrain_shading(dtmf,steps=24,toArrays=FALSE)
 skyview<-results$skyview
 horizon<-results$horizon
+# Coastal exposure
+cex<-calculate_coastalexposure(dtmf,dtmm)
 
 # Example plots
 plot(wca,nr=2)
@@ -236,6 +240,8 @@ plot(wca,nr=2)
 r<-c(basins,skyview[[1]])
 names(r)<-c("Drainage basins","Skyview")
 plot(r)
+
+plot(cex[[c("dir_90","dir_270","all")]],main=c("Land fraction upwind: easterly wind","Land fraction upwind: westerly wind","Land fraction upwind: all directions"),nr=1)
 ```
 
 ### Wind
@@ -253,7 +259,7 @@ plot(windspeed[[13]],main=paste("Windspeed",terra::time(windspeed[[13]])))
 If only concerned with temperature downscaling, the wrapper function `tempdaily_downscale` allows daily mean, max and minima values to be downscaled using a single function. Options include applying estimates of the effects of coastal and cold air drainage processes to the downscaling.
 
 ```{r temp-dscale}
-dailytemps<-tempdaily_downscale( climdata,  tmean= NA, sst, dtmf, dtmm, basins = basins, uzf = windspeed,  cad = TRUE, coastal = TRUE, whgto = 2, thgto = 2 )
+dailytemps<-tempdaily_downscale( climdata,  tmean= NA, sst, dtmf, dtmm, basins = basins, uzf = windspeed,  cad = TRUE, coastal = TRUE, whgto = 2, thgto = 2, cex = cex )
 tmin<-dailytemps$tmin
 tmax<-dailytemps$tmax
 tmean<-dailytemps$tmean

@@ -8,7 +8,7 @@
 #' @param sst a vector or SpatRast of sea-surface temperature data (deg C) timeseries of same length or layer number as timesteps in climdata
 #' @param dtmf a high-resolution SpatRast of elevations
 #' @param dtmm a medium-resolution SpatRast of elevations covering a larger area
-#' than dtmf (only needed for coastal effects - see details).
+#' than dtmf. Needed for coastal effects if `cex` isn't supplied (see [calculate_coastalexposure()]).
 #' @param basins optionally, a fine-resolution SpatRast of basins as returned by [basindelin()]
 #' matching the coordinate reference system and extent of `dtmf`. Calculated if
 #' not supplied.
@@ -16,6 +16,8 @@
 #' Calculated if not supplied.
 #' @param cad optional logical indicating whether to calculate cold-air drainage effects
 #' @param coastal optional logical indicating whether to calculate coastal effects
+#' @param cex optionally, coastal exposure matching `dtmf` as returned by [calculate_coastalexposure()].
+#' Calculated from `dtmf` and `dtmm` if not supplied and `coastal = TRUE`.
 #' @param tempvar string name of element of climdata holding temperature data (ie 'temp','tmax','tmin')
 #' @param thgto height above ground of output temperature measurements.
 #' @param whgto height above ground of output wind speed measurements.
@@ -44,7 +46,7 @@
 #' # With sea temperature as a vector
 #' sst<-seq(10,13.1,length=31)
 #' dailytemps<-tempdaily_downscale(climdata,NA,sst,dtmf,dtmm,basins,wsf,cad = TRUE,coastal = TRUE,2,2)
-tempdaily_downscale<-function(climdata,tmean=NA,sst=NA,dtmf,dtmm,basins,uzf,cad=TRUE,coastal=TRUE,thgto=2,whgto=2){
+tempdaily_downscale<-function(climdata,tmean=NA,sst=NA,dtmf,dtmm,basins,uzf,cad=TRUE,coastal=TRUE,thgto=2,whgto=2,cex=NA){
   # Convert variables - unpack any wrapped spatRasters and convert arrays to spatraster
   input_class<-lapply(lapply(climdata,class),"[",1)
   if(any(input_class=="PackedSpatRaster")) climdata[which(input_class=="PackedSpatRaster")]<-lapply(climdata[which(input_class=="PackedSpatRaster")],unwrap)
@@ -73,7 +75,7 @@ tempdaily_downscale<-function(climdata,tmean=NA,sst=NA,dtmf,dtmm,basins,uzf,cad=
 
   # Check tmin and tmax among climdata variables
   if(!any(c("tmin","tmax") %in% names(climdata))) stop("Cannot find daily min/max temperature variables for tempdaily_downscale!!!")
-  if (class(dtmm) == "logical" & coastal) stop("dtmm needed for calculating coastal effects")
+  if (inherits(dtmm,"logical") & inherits(cex,"logical") & coastal) stop("dtmm or cex needed for calculating coastal effects")
 
   # If sst supplied as vector - check length and convert to spatraster
   if(is.numeric(sst)){
@@ -95,6 +97,7 @@ tempdaily_downscale<-function(climdata,tmean=NA,sst=NA,dtmf,dtmm,basins,uzf,cad=
     sstinterp<-.tmeinterp(sstinterp,NA,tme)
     if (crs(sst) != crs(dtmf)) sstinterp<-project(sstinterp,crs(dtmf))
     sstf<-.resample(sstinterp,dtmf,method="cubic")
+    if(inherits(cex,"logical")) cex<-calculate_coastalexposure(dtmf,dtmm) else cex<-.check_cex(cex,dtmf)
     # Calc windspeed at output height if required
     #if(class(uzf)[1] == "logical") uzf<-winddownscale(climdata$windspeed,climdata$winddir,dtmf,dtmm,dtmc,wca,whgti,thgto)
   }
@@ -112,7 +115,7 @@ tempdaily_downscale<-function(climdata,tmean=NA,sst=NA,dtmf,dtmm,basins,uzf,cad=
     tcad<-.apply_cad(lrf,mu,st)
     tminf<-tminf+tcad
   }
-  if (coastal) tminf<-.tempcoastal(tc=tminf,sst=sstf,u2=uzf,wdir=climdata$winddir,dtmf,dtmm,dtmc)
+  if (coastal) tminf<-.tempcoastal(tc=tminf,sstf=sstf,u2=uzf,wdir=climdata$winddir,dtmc=dtmc,cex=cex)
 
   # Downscale tmax - no cold air drainage
   lrc<-lapserate(.is(tmax), .is(rh), .is(pk))
@@ -122,7 +125,7 @@ tempdaily_downscale<-function(climdata,tmean=NA,sst=NA,dtmf,dtmm,basins,uzf,cad=
     lrf<-.resample(lrcp,dtmf)
   } else lrf<-.resample(lrc,dtmf)
   tmaxf<-.tempelev(tmax,lrf,lrc,dtmf+thgto,ifel(is.na(dtmc),0,dtmc+thgti))
-  if (coastal) tmaxf<-.tempcoastal(tc=tmaxf,sst=sstf,u2=uzf,wdir=climdata$winddir,dtmf,dtmm,dtmc)
+  if (coastal) tmaxf<-.tempcoastal(tc=tmaxf,sstf=sstf,u2=uzf,wdir=climdata$winddir,dtmc=dtmc,cex=cex)
 
   # Check tax>tmin (coastal effects can switch)
   diurnal<-(tmaxf-tminf)<0
@@ -144,7 +147,7 @@ tempdaily_downscale<-function(climdata,tmean=NA,sst=NA,dtmf,dtmm,basins,uzf,cad=
     lrf<-.resample(lrcp,dtmf)
   } else lrf<-.resample(lrc,dtmf)
   tmeanf<-.tempelev(tmean,lrf,lrc,dtmf+thgto,ifel(is.na(dtmc),0,dtmc+thgti))
-  if (coastal) tmeanf<-.tempcoastal(tc=tmeanf,sst=sstf,u2=uzf,wdir=climdata$winddir,dtmf,dtmm,dtmc)
+  if (coastal) tmeanf<-.tempcoastal(tc=tmeanf,sstf=sstf,u2=uzf,wdir=climdata$winddir,dtmc=dtmc,cex=cex)
 
   #tmeanf<-.hourtoday(temp_dailytohourly(tminf, tmaxf, climdata$tme),mean) # alternative but very slow!!!
 
@@ -164,7 +167,7 @@ tempdaily_downscale<-function(climdata,tmean=NA,sst=NA,dtmf,dtmm,basins,uzf,cad=
 #' @param sst a SpatRast of sea-surface temperature data (deg C) timeseries that overlaps climdata$tme
 #' @param dtmf a high-resolution SpatRast of elevations
 #' @param dtmm a medium-resolution SpatRast of elevations covering a larger area
-#' than dtmf (only needed for coastal effects - see details).
+#' than dtmf. Needed for coastal effects if `cex` isn't supplied (see [calculate_coastalexposure()]).
 #' @param basins optionally, a fine-resolution SpatRast of basins as returned by [basindelin()]
 #' matching the coordinate reference system and extent of `dtmf`. Calculated if
 #' not supplied.
@@ -172,6 +175,8 @@ tempdaily_downscale<-function(climdata,tmean=NA,sst=NA,dtmf,dtmm,basins,uzf,cad=
 #' Calculated if not supplied.
 #' @param cad optional logical indicating whether to calculate cold-air drainage effects
 #' @param coastal optional logical indicating whether to calculate coastal effects
+#' @param cex optionally, coastal exposure matching `dtmf` as returned by [calculate_coastalexposure()].
+#' Calculated from `dtmf` and `dtmm` if not supplied and `coastal = TRUE`.
 #' @param thgto height above ground of output temperature measurements.
 #' @param whgto height above ground of output wind speed measurements.
 #' @param tempvar string name of element of climdata holding temperature data (default = 'temp')
@@ -203,7 +208,7 @@ tempdaily_downscale<-function(climdata,tmean=NA,sst=NA,dtmf,dtmm,basins,uzf,cad=
 #' sst<-seq(10,18,length=length(climhrly$tme))
 #' tempf<-temphrly_downscale(climhrly, sst, dtmf, dtmm, basins, uzf = wsfhr,tempvar="temp")
 temphrly_downscale<-function(climhrly, sst, dtmf, dtmm = NA, basins = NA, uzf = NA,
-                        cad = TRUE, coastal = TRUE,thgto=2, whgto=2, tempvar='temp') {
+                        cad = TRUE, coastal = TRUE,thgto=2, whgto=2, tempvar='temp', cex = NA) {
   # Convert variables - unpack any wrapped spatRasters and convert arrays to spatraster
   input_class<-lapply(lapply(climhrly,class),"[",1)
   if(any(input_class=="PackedSpatRaster")) climhrly[which(input_class=="PackedSpatRaster")]<-lapply(climhrly[which(input_class=="PackedSpatRaster")],unwrap)
@@ -267,9 +272,10 @@ temphrly_downscale<-function(climhrly, sst, dtmf, dtmm = NA, basins = NA, uzf = 
     sstinterp<-.tmeinterp(sstinterp,NA,tme)
     if (crs(sst) != crs(dtmf)) sstinterp<-project(sstinterp,crs(dtmf))
     sstf<-.resample(sstinterp,dtmf,method="cubic")
+    if(inherits(cex,"logical")) cex<-calculate_coastalexposure(dtmf,dtmm) else cex<-.check_cex(cex,dtmf)
     # Calc windspeed at output height if required
     if(class(uzf)[1] == "logical") uzf<-winddownscale(climhrly$windspeed,climhrly$winddir,dtmf,dtmm,dtmc,whgti,thgto)
-    tcf<-.tempcoastal(tc=tcf,sst=sstf,u2=uzf,wdir=climhrly$winddir,dtmf,dtmm,dtmc)
+    tcf<-.tempcoastal(tc=tcf,sstf=sstf,u2=uzf,wdir=climhrly$winddir,dtmc=dtmc,cex=cex)
   }
   terra::time(tcf)<-tme
   return(tcf)
@@ -814,7 +820,8 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
 #' @param sst a SpatRast of sea-surface temperature data (deg C) that overlaps with climdata$tme
 #' @param dtmf a high-resolution SpatRast of elevations
 #' @param dtmm a medium-resolution SpatRast of elevations covering a larger area
-#' than dtmf (only needed for coastal effects - see details under [temphrly_downscale()]).
+#' than dtmf. Needed for wind downscaling, and for coastal effects if `cex` isn't supplied
+#' (see [calculate_coastalexposure()]).
 #' @param basins optionally, a fine-resolution SpatRast of basins as returned by [basindelin()]
 #' matching the coordinate reference system and extent of `dtmf`. Calculated if
 #' not supplied.
@@ -823,6 +830,8 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
 #' not supplied.
 #' @param cad optional logical indicating whether to calculate cold-air drainage effects
 #' @param coastal optional logical indicating whether to calculate coastal effects
+#' @param cex optionally, coastal exposure matching `dtmf` as returned by [calculate_coastalexposure()].
+#' Calculated from `dtmf` and `dtmm` if not supplied and `coastal = TRUE`.
 #' @param thgto height above ground of temperature output.
 #' @param whgto height above ground of wind speed output.
 #' @param include_tmean if TRUE and daily data will output mean daily temperature based on hourly downsccaling
@@ -872,7 +881,7 @@ precipdownscale <- function(prec, dtmf, dtmc, method = "Tps", fast = TRUE, norai
 spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, skyview=NA, horizon=NA,
                               cad = TRUE,coastal = TRUE, thgto =2, whgto=2,include_tmean=FALSE,
                                rhmin = 20, pksealevel = TRUE, patchsim = FALSE, terrainshade = TRUE,
-                               precipmethod = "Elev",fast = TRUE, noraincut = 0, toArrays=FALSE) {
+                               precipmethod = "Elev",fast = TRUE, noraincut = 0, toArrays=FALSE, cex=NA) {
 
   # Convert variables - unpack any wrapped spatRasters and convert arrays to spatraster
   input_class<-lapply(lapply(climdata,class),"[",1)
@@ -930,9 +939,9 @@ spatialdownscale<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wca=NA, 
   message('Downscaling temperature...')
   # for daily data will calculate daily means from tmin/tmax temporally downscaled to hourly temp
   if (hourly) {
-    tcf<-temphrly_downscale(climdata,sst,dtmf,dtmm,basins,uzf,cad,coastal,thgto,whgto)
+    tcf<-temphrly_downscale(climdata,sst,dtmf,dtmm,basins,uzf,cad,coastal,thgto,whgto,cex=cex)
   } else {
-    dailytemps<-tempdaily_downscale(climdata,tmean,sst,dtmf,dtmm,basins,uzf,cad,coastal,thgto,whgto)
+    dailytemps<-tempdaily_downscale(climdata,tmean,sst,dtmf,dtmm,basins,uzf,cad,coastal,thgto,whgto,cex=cex)
     tminf<-dailytemps$tmin
     tmaxf<-dailytemps$tmax
     tmeanf<-dailytemps$tmean

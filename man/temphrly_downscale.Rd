@@ -15,7 +15,8 @@ temphrly_downscale(
   coastal = TRUE,
   thgto = 2,
   whgto = 2,
-  tempvar = "temp"
+  tempvar = "temp",
+  cex = NA
 )
 }
 \arguments{
@@ -24,7 +25,7 @@ temphrly_downscale(
 \item{dtmf}{a high-resolution SpatRast of elevations}
 
 \item{dtmm}{a medium-resolution SpatRast of elevations covering a larger area
-than dtmf (only needed for coastal effects - see details).}
+than dtmf. Needed for coastal effects if \code{cex} isn't supplied (see \code{\link[=calculate_coastalexposure]{calculate_coastalexposure()}}).}
 
 \item{basins}{optionally, a fine-resolution SpatRast of basins as returned by \code{\link[=basindelin]{basindelin()}}
 matching the coordinate reference system and extent of \code{dtmf}. Calculated if
@@ -42,6 +43,9 @@ Calculated if not supplied.}
 \item{whgto}{height above ground of output wind speed measurements.}
 
 \item{tempvar}{string name of element of climdata holding temperature data (default = 'temp')}
+
+\item{cex}{optionally, coastal exposure matching \code{dtmf} as returned by \code{\link[=calculate_coastalexposure]{calculate_coastalexposure()}}.
+Calculated from \code{dtmf} and \code{dtmm} if not supplied and \code{coastal = TRUE}.}
 
 \item{climdata}{a \code{climdata} model object containing climate data of the same format as \code{era5climdata}.
 Expects temperature to be in degrees and with the name \code{temp}.}

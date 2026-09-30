@@ -170,54 +170,172 @@ flowacc<-function (dtm, basins = NA) {
   return(fa)
 }
 
-#' @title Calculates land to sea ratio in upwind direction
+#' @title Calculates land fraction in the upwind direction
 #'
-#' @description The function `coastalexposure` is used to calculate an inverse
-#' distance^2 weighted ratio of land to sea in a specified upwind direction.
+#' @description The function `coastalexposure` calculates, for each land cell, the
+#' proportion of land along a line in the upwind direction, with nearby land and sea
+#' carrying more weight than distant land and sea.
 #'
-#' @param landsea A SpatRast with NAs (representing sea) and any non-NA value (representing land).
-#' The object should have a larger extent than that for which land-sea ratio values are needed,
-#' as the calculation requires land / sea coverage to be assessed upwind outside the target area.
-#' @param e a terra::ext object indicating the region for which land-sea ratios are required.
-#' @param wdir an optional single numeric value specifying the direction (decimal degrees) from which the wind is blowing.
-#' @return a SpatRast of representing values ranging between zero
-#' (all upwind pixels sea) to one (all upwind pixels land).
-#' @details This function calculates a coefficient of the ratio of land to
-#' sea pixels in a specified upwind direction, across all elements of a
-#' SpatRast, weighted using an inverse distance squared function,
-#' such that nearby pixels have a greater influence on the coefficient.
+#' @param landsea a SpatRast with a projected coordinate reference system, with NA
+#' representing sea and any non-NA value representing land. Output covers its whole extent.
+#' @param wdir direction (decimal degrees clockwise from north) from which the wind is
+#' blowing, or `"all"` for the mean of 8 directions at 45 degree intervals.
+#' @param coarse optionally, a SpatRast or list of SpatRasts (NA = sea) with the same
+#' coordinate reference system as `landsea`, typically at coarser resolution and covering
+#' a wider area, used for samples beyond the extent of `landsea` (see details). Rasters in a
+#' different coordinate reference system are projected to that of `landsea`.
+#' @param n positive numeric controlling how strongly nearby land and sea is weighted
+#' relative to distant land and sea (see details). Default 2.
+#' @param jitter logical. If TRUE, the azimuth of each sample is perturbed by up to
+#' +/-10 degrees, which removes stripes caused by samples aligning with grid rows or columns.
+#'
+#' @details Ported from `coastalexposure()` in the terravars package, but returning land
+#' rather than sea fraction. Land and sea are sampled at distances of k^n x resolution
+#' (k in steps of 1/8) along the upwind line, out to the diagonal of the largest supplied
+#' raster, and the result is the mean of the samples. There is no explicit distance
+#' weight: nearby cells carry more weight because samples are more closely spaced near
+#' the focal cell. Each sample is read from the finest of `landsea` and `coarse` that
+#' covers it, so a wide coarse raster extends the search far beyond `landsea`. Samples
+#' outside all supplied rasters are ignored. When `n < 2` the search distance is capped
+#' at twice the diagonal of `landsea`, with a warning if this shortens it. Jitter offsets
+#' are deterministic, so results are reproducible.
+#'
+#' @return a SpatRast of the proportion of land upwind, from 0 (all sea) to 1 (all
+#' land). Sea cells are NA.
 #' @keywords spatial
 #' @import terra
 #' @importFrom Rcpp sourceCpp
 #' @useDynLib mesoclim, .registration = TRUE
 #' @export
 #' @examples
-#' climdata<-read_climdata(mesoclim::ukcpinput)
 #' dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
 #' dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
-#' landsea<- terra::mask(terra::resample(dtmm,dtmf),dtmf)
-#' ce1 <- coastalexposure(landsea, terra::ext(dtmf), 45)
-#' ce2 <- coastalexposure(landsea, terra::ext(dtmf), 270)
-#' par(mfrow=c(2,1))
-#' terra::plot(ce1, main = "Land to sea weighting, northeast wind")
-#' terra::plot(ce2, main = "Land to sea weighting, westerly wind")
-coastalexposure <- function(landsea, e, wdir) {
-  # Calculate sample distances
-  e2<-ext(landsea)
-  maxdist<-sqrt(xres(landsea)*(e2$xmax-e2$xmin)+yres(landsea)*(e2$ymax-e2$ymin))
-  reso<-xres(landsea)
-  slr<-landsea*0+1
-  slr[is.na(slr)]<-0
-  s<-c(0,(8:1000)/8)^2*reso
-  s<-s[s<=maxdist]
-  if (e2 != e) {
-    lss<-crop(slr,e)
-  } else lss<-slr
-  lsm<-.is(lss)
-  es<-ext(slr)
-  lsr<-invls_calc(lsm,reso,e$xmin,e$ymax,s,wdir,.is(slr),es$xmin,es$xmax,es$ymin,es$ymax)
-  lsr<-.rast(lsr,lss)
-  return(lsr)
+#' ce1 <- coastalexposure(dtmf, 45, coarse = dtmm)
+#' ce2 <- coastalexposure(dtmf, 270, coarse = dtmm)
+#' terra::plot(c(ce1, ce2), main = c("Land fraction, northeast wind", "Land fraction, westerly wind"))
+coastalexposure <- function(landsea, wdir, coarse = NULL, n = 2, jitter = TRUE) {
+  if (inherits(landsea, "PackedSpatRaster")) landsea <- terra::unwrap(landsea)
+  stopifnot(inherits(landsea, "SpatRaster"))
+  if (terra::is.lonlat(terra::crs(landsea))) stop("landsea must have a projected coordinate reference system!!")
+  stopifnot(is.logical(jitter), length(jitter) == 1L, !is.na(jitter))
+  stopifnot(is.numeric(n), length(n) == 1L, is.finite(n), n > 0)
+  if (is.character(wdir)) {
+    wdir <- match.arg(wdir, "all")
+    dirs <- seq(0, 315, by = 45)
+  } else {
+    stopifnot(is.numeric(wdir), length(wdir) == 1L)
+    dirs <- wdir
+  }
+  if (is.null(coarse)) {
+    coarse <- list()
+  } else if (inherits(coarse, c("SpatRaster", "PackedSpatRaster"))) {
+    coarse <- list(coarse)
+  }
+  coarse <- lapply(coarse, function(r) if (inherits(r, "PackedSpatRaster")) terra::unwrap(r) else r)
+  if (!all(vapply(coarse, inherits, logical(1), "SpatRaster"))) stop("coarse must be a SpatRaster or a list of SpatRasters!!")
+
+  # Levels sorted finest first: C++ uses the first level covering each sample point
+  coarse <- lapply(coarse, function(r) if (terra::same.crs(r, landsea)) r else terra::project(r, terra::crs(landsea), method = "near"))
+  levels <- c(list(landsea), coarse)
+  resos <- vapply(levels, function(r) terra::res(r)[1], numeric(1))
+  ord <- order(resos)
+  levels <- levels[ord]
+  resos <- resos[ord]
+  to_binary <- function(r) {
+    b <- r * 0 + 1
+    b[is.na(b)] <- 0
+    b
+  }
+  mats <- lapply(levels, function(r) terra::as.matrix(to_binary(r), wide = TRUE))
+  exts <- lapply(levels, terra::ext)
+  reso <- resos[1]
+
+  # Search to the diagonal of the largest level
+  maxdist_of <- function(r) {
+    ex <- terra::ext(r)
+    sqrt((ex$xmax - ex$xmin)^2 + (ex$ymax - ex$ymin)^2)
+  }
+  maxdist <- max(vapply(levels, maxdist_of, numeric(1)))
+  if (n < 2) {
+    landsea_cap <- 2 * maxdist_of(landsea)
+    if (maxdist > landsea_cap) {
+      warning(sprintf("n = %.3g is below 2: capping search distance at %.0f m (2 x landsea diagonal) instead of %.0f m!!", n, landsea_cap, maxdist), call. = FALSE)
+      maxdist <- landsea_cap
+    }
+  }
+  kmax <- max(8, ceiling((maxdist / reso)^(1 / n) * 8))
+  s <- (c(0, (8:kmax) / 8))^n * reso
+  s <- s[s <= maxdist]
+
+  lss <- to_binary(landsea)
+  lsm <- terra::as.matrix(lss, wide = TRUE)
+  e <- terra::ext(landsea)
+  jitter_deg <- if (jitter) 10 else 0
+  rasters <- lapply(dirs, function(d) {
+    lsr <- coastal_exposure_cpp(lsm, reso, e$xmin, e$ymax, s, d, mats, resos,
+                                vapply(exts, function(x) x$xmin, numeric(1)), vapply(exts, function(x) x$xmax, numeric(1)),
+                                vapply(exts, function(x) x$ymin, numeric(1)), vapply(exts, function(x) x$ymax, numeric(1)),
+                                jitter_deg)
+    .rast(lsr, lss)
+  })
+  if (length(dirs) > 1L) {
+    out <- terra::mean(terra::rast(rasters))
+    names(out) <- "coastalexposure_all"
+  } else {
+    out <- rasters[[1]]
+    names(out) <- paste0("coastalexposure_", dirs)
+  }
+  out
+}
+
+#' @title Calculate coastal exposure for coastal temperature effects
+#'
+#' @description The function `calculate_coastalexposure` calculates the land fraction
+#' upwind of each cell for a set of wind directions. The result depends only on the
+#' land/sea geometry, so it can be calculated once for an area and passed via the `cex`
+#' parameter to [spatialdownscale()], [spatialdownscale_tiles()], [tempdaily_downscale()]
+#' and [temphrly_downscale()].
+#'
+#' @param dtmf a fine-resolution SpatRast of elevations (NA = sea) defining the output grid.
+#' @param dtmm optionally, a SpatRast of elevations (NA = sea) covering a wider area than
+#' `dtmf`. Used at its own resolution and extent for samples beyond `dtmf`. NA to use
+#' `dtmf` only.
+#' @param coarse optionally, further SpatRasts (NA = sea) covering wider areas, e.g. a
+#' national land/sea mask (see [coastalexposure()]).
+#' @param ndir number of wind directions, evenly spaced from 0 degrees. Default 32.
+#' @param smooth size in cells of the moving window used to smooth the directional layers. Default 5.
+#' @param n,jitter passed to [coastalexposure()].
+#' @param filename optional file to which output is written (as 32-bit floats),
+#' recommended for large areas.
+#'
+#' @details For each direction, land fraction is calculated with [coastalexposure()],
+#' blended with the two neighbouring directions (weights 0.25, 0.5, 0.25) and smoothed
+#' spatially with a `smooth` x `smooth` moving-window mean.
+#'
+#' @return a SpatRast matching `dtmf` with `ndir` + 1 layers: the smoothed land
+#' fraction for each direction (named `dir_<azimuth>`), and `all`, the unsmoothed mean
+#' across directions.
+#' @keywords spatial
+#' @export
+#' @examples
+#' dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
+#' dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
+#' cex<-calculate_coastalexposure(dtmf, dtmm)
+#' terra::plot(cex[[c("dir_90","dir_270","all")]])
+calculate_coastalexposure<-function(dtmf, dtmm=NA, coarse=NULL, ndir=32, smooth=5, n=2, jitter=TRUE, filename=""){
+  if(inherits(dtmf,"PackedSpatRaster")) dtmf<-unwrap(dtmf)
+  if(inherits(dtmm,"PackedSpatRaster")) dtmm<-unwrap(dtmm)
+  if(inherits(coarse,c("SpatRaster","PackedSpatRaster"))) coarse<-list(coarse)
+  if(inherits(dtmm,"SpatRaster")) coarse<-c(list(dtmm),coarse)
+  dirs<-(0:(ndir-1))*360/ndir
+  lsr<-.is(rast(lapply(dirs,function(d) coastalexposure(dtmf,d,coarse=coarse,n=n,jitter=jitter))))
+  lsr2<-lsr
+  for (i in 0:(ndir-1)) lsr2[,,i+1]<-0.25*lsr[,,(i-1)%%ndir+1]+0.5*lsr[,,i+1]+0.25*lsr[,,(i+1)%%ndir+1]
+  lsr2<-focal(.rast(lsr2,dtmf),w=smooth,fun="mean",na.policy="omit",na.rm=TRUE)
+  cex<-c(lsr2,.rast(apply(lsr,c(1,2),mean),dtmf))
+  names(cex)<-c(paste0("dir_",dirs),"all")
+  if(filename!="") cex<-writeRaster(cex,filename,datatype="FLT4S",overwrite=TRUE)
+  return(cex)
 }
 #' @title Performs thin-plate spline downscaling
 #' @description The function `Tpsdownscale` is a thin plate spline model, typically

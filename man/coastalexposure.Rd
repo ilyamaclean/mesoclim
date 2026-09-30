@@ -2,42 +2,54 @@
 % Please edit documentation in R/climatefunctions.R
 \name{coastalexposure}
 \alias{coastalexposure}
-\title{Calculates land to sea ratio in upwind direction}
+\title{Calculates land fraction in the upwind direction}
 \usage{
-coastalexposure(landsea, e, wdir)
+coastalexposure(landsea, wdir, coarse = NULL, n = 2, jitter = TRUE)
 }
 \arguments{
-\item{landsea}{A SpatRast with NAs (representing sea) and any non-NA value (representing land).
-The object should have a larger extent than that for which land-sea ratio values are needed,
-as the calculation requires land / sea coverage to be assessed upwind outside the target area.}
+\item{landsea}{a SpatRast with a projected coordinate reference system, with NA
+representing sea and any non-NA value representing land. Output covers its whole extent.}
 
-\item{e}{a terra::ext object indicating the region for which land-sea ratios are required.}
+\item{wdir}{direction (decimal degrees clockwise from north) from which the wind is
+blowing, or \code{"all"} for the mean of 8 directions at 45 degree intervals.}
 
-\item{wdir}{an optional single numeric value specifying the direction (decimal degrees) from which the wind is blowing.}
+\item{coarse}{optionally, a SpatRast or list of SpatRasts (NA = sea) with the same
+coordinate reference system as \code{landsea}, typically at coarser resolution and covering
+a wider area, used for samples beyond the extent of \code{landsea} (see details). Rasters in a
+different coordinate reference system are projected to that of \code{landsea}.}
+
+\item{n}{positive numeric controlling how strongly nearby land and sea is weighted
+relative to distant land and sea (see details). Default 2.}
+
+\item{jitter}{logical. If TRUE, the azimuth of each sample is perturbed by up to
++/-10 degrees, which removes stripes caused by samples aligning with grid rows or columns.}
 }
 \value{
-a SpatRast of representing values ranging between zero
-(all upwind pixels sea) to one (all upwind pixels land).
+a SpatRast of the proportion of land upwind, from 0 (all sea) to 1 (all
+land). Sea cells are NA.
 }
 \description{
-The function \code{coastalexposure} is used to calculate an inverse
-distance^2 weighted ratio of land to sea in a specified upwind direction.
+The function \code{coastalexposure} calculates, for each land cell, the
+proportion of land along a line in the upwind direction, with nearby land and sea
+carrying more weight than distant land and sea.
 }
 \details{
-This function calculates a coefficient of the ratio of land to
-sea pixels in a specified upwind direction, across all elements of a
-SpatRast, weighted using an inverse distance squared function,
-such that nearby pixels have a greater influence on the coefficient.
+Ported from \code{coastalexposure()} in the terravars package, but returning land
+rather than sea fraction. Land and sea are sampled at distances of k^n x resolution
+(k in steps of 1/8) along the upwind line, out to the diagonal of the largest supplied
+raster, and the result is the mean of the samples. There is no explicit distance
+weight: nearby cells carry more weight because samples are more closely spaced near
+the focal cell. Each sample is read from the finest of \code{landsea} and \code{coarse} that
+covers it, so a wide coarse raster extends the search far beyond \code{landsea}. Samples
+outside all supplied rasters are ignored. When \code{n < 2} the search distance is capped
+at twice the diagonal of \code{landsea}, with a warning if this shortens it. Jitter offsets
+are deterministic, so results are reproducible.
 }
 \examples{
-climdata<-read_climdata(mesoclim::ukcpinput)
 dtmf<-terra::rast(system.file('extdata/dtms/dtmf.tif',package='mesoclim'))
 dtmm<-terra::rast(system.file('extdata/dtms/dtmm.tif',package='mesoclim'))
-landsea<- terra::mask(terra::resample(dtmm,dtmf),dtmf)
-ce1 <- coastalexposure(landsea, terra::ext(dtmf), 45)
-ce2 <- coastalexposure(landsea, terra::ext(dtmf), 270)
-par(mfrow=c(2,1))
-terra::plot(ce1, main = "Land to sea weighting, northeast wind")
-terra::plot(ce2, main = "Land to sea weighting, westerly wind")
+ce1 <- coastalexposure(dtmf, 45, coarse = dtmm)
+ce2 <- coastalexposure(dtmf, 270, coarse = dtmm)
+terra::plot(c(ce1, ce2), main = c("Land fraction, northeast wind", "Land fraction, westerly wind"))
 }
 \keyword{spatial}
