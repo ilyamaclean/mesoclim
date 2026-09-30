@@ -256,7 +256,7 @@ Expected speed-up on the one-month tiled Lizard example: coastal exposure falls 
     - vignette 2's "Topographical effects pre-processing" section computes `cex` with the other static inputs and passes it on;
     - update `@param dtmm` everywhere so the documented role is consistent (Q6);
     - update this file and the audit.
-18. **Clean-up:** remove the `.tempcoastal` export (audit item 17); update or retire `inst/extdata/data_scripts/testing_coastal_effect.R` and `testing_spdownscale.R`, which use the old functions.
+18. **Clean-up:** remove the `.tempcoastal` export (audit item 16); update or retire `inst/extdata/data_scripts/testing_coastal_effect.R` and `testing_spdownscale.R`, which use the old functions.
 
 ### Questions
 
