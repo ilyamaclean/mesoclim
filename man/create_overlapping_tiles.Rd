@@ -9,13 +9,15 @@ create_overlapping_tiles(template.r, overlap = 1000, sz = 10000)
 \arguments{
 \item{template.r}{= 1km land mask spatraster to inform whether land present}
 
-\item{overlap}{= overlap in metres of each tile (x & y)}
+\item{overlap}{= overlap in metres of each tile (x & y) - must be less than \code{sz}}
 
-\item{sz}{= base size of tiles in metres - some output tiles may be smaller}
+\item{sz}{= base size of tiles in metres. Where the remaining area is up to half a tile,
+the last tile in each direction is extended (up to 1.5 x \code{sz}), otherwise an extra smaller
+tile is added. If \code{sz} exceeds the area in one direction a single tile spans that direction.}
 }
 \value{
 named list where "tile_extents" holds the terra extent of each tile and
-"tile_land" is BOOLEAN of whether land cells within tile (based on template.r).
+"tile_land" is 'y' or 'n' indicating whether land cells within tile (based on template.r).
 Returned list ordered by cols.
 }
 \description{

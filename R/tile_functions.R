@@ -169,13 +169,16 @@ spatialdownscale_tiles<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wc
 
 #' Create overlapping tile set
 #' @param template.r = 1km land mask spatraster to inform whether land present
-#' @param overlap = overlap in metres of each tile (x & y)
-#' @param sz = base size of tiles in metres - some output tiles may be smaller
+#' @param overlap = overlap in metres of each tile (x & y) - must be less than `sz`
+#' @param sz = base size of tiles in metres. Where the remaining area is up to half a tile,
+#' the last tile in each direction is extended (up to 1.5 x `sz`), otherwise an extra smaller
+#' tile is added. If `sz` exceeds the area in one direction a single tile spans that direction.
 #'
 #' @returns named list where "tile_extents" holds the terra extent of each tile and
-#' "tile_land" is BOOLEAN of whether land cells within tile (based on template.r).
+#' "tile_land" is 'y' or 'n' indicating whether land cells within tile (based on template.r).
 #' Returned list ordered by cols.
 #' @export
+#' @keywords spatial
 #'
 #' @examples
 #' r<-terra::rast(system.file("extdata/dtms/dtmf.tif",package="mesoclim"))
@@ -184,51 +187,31 @@ spatialdownscale_tiles<-function(climdata, sst, dtmf, dtmm = NA, basins = NA, wc
 #' for(t in testtiles$tile_extents) terra::plot(terra::vect(terra::ext(t)),add=TRUE)
 #' testtiles<-create_overlapping_tiles(r,overlap=200,sz=20000)
 create_overlapping_tiles<-function(template.r,overlap=1000,sz=10000){
-  # If tile size > template.r return single tile with message
-  if(sz>ncol(template.r)*res(template.r)[1] & sz>nrow(template.r)*res(template.r)[2]){
-    warning("Requested tile size larger than input area - returning a single tile of whole area!")
-    tileset<-list("tile_extents"=list(ext(template.r)),"tile_land"='y')
-    return(tileset)
-  }
-  xmax<-ext(template.r)[2]
-  xmin<-ext(template.r)[1]
-  if(sz%%res(template.r)[1]!=0) warning("Choice of tile size is NOT divisible by resolution of template.r!!")
+  if(overlap<0 | overlap>=sz) stop("overlap must be zero or positive and less than sz!!")
+  rs<-res(template.r)
+  if(any(abs(sz/rs-round(sz/rs))>1e-6)) warning("Choice of tile size is NOT divisible by resolution of template.r!!")
+  e<-ext(template.r)
+  if(sz>=(e$xmax-e$xmin) & sz>=(e$ymax-e$ymin)) warning("Requested tile size larger than input area - returning a single tile of whole area!")
 
-  xtiles<-(xmax-xmin)%/%sz
-  xstart<-seq(xmin,xmin+(sz*xtiles-1),sz-overlap)
-  xend<-(xstart+sz)
-  xrem<-xmax-xend[length(xend)]
-  if(xrem< -(0.5*sz)){
-    xstart<-xstart[1:(length(xstart)-1)]
-    xend<-xend[1:(length(xend)-1)]
-    xend[length(xend)]<-xmax
+  # Start and end of tiles in one dimension
+  .tile_seq<-function(mn,mx){
+    tstart<-mn
+    tend<-mn+sz
+    while(tend[length(tend)]<mx){
+      if(mx-tend[length(tend)]<=0.5*sz){
+        tend[length(tend)]<-mx
+      } else {
+        tstart<-c(tstart,tend[length(tend)]-overlap)
+        tend<-c(tend,tstart[length(tstart)]+sz)
+      }
+    }
+    tend[length(tend)]<-mx
+    list(start=tstart,end=tend)
   }
-  if(xrem<=0.5*sz & xrem>-(0.5*sz)){
-    xend[length(xend)]<-xmax
-  }
-  if(xrem>0.5*sz){
-    xstart<-c(xstart,xend[length(xend)]-overlap)
-    xend<-c(xend,xmax)
-  }
-
-  ymax<-ext(template.r)[4]
-  ymin<-ext(template.r)[3]
-  ytiles<-(ymax-ymin)%/%sz
-  ystart<-seq(ymin,ymin+(sz*ytiles-1),sz-overlap)
-  yend<-(ystart+sz)
-  yrem<-ymax-yend[length(yend)]
-  if(yrem< -(0.5*sz)){
-    ystart<-ystart[1:(length(ystart)-1)]
-    yend<-yend[1:(length(yend)-1)]
-    yend[length(yend)]<-ymax
-  }
-  if(yrem<=0.5*sz & yrem> -(0.5*sz)){
-    yend[length(yend)]<-ymax
-  }
-  if(yrem>(0.5*sz)){
-    ystart<-c(ystart,yend[length(yend)]-overlap)
-    yend<-c(yend,ymax)
-  }
+  xs<-.tile_seq(e$xmin,e$xmax)
+  ys<-.tile_seq(e$ymin,e$ymax)
+  xstart<-xs$start; xend<-xs$end
+  ystart<-ys$start; yend<-ys$end
 
   elist<-list()
   etype<-c()
