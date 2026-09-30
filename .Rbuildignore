@@ -12,3 +12,5 @@
 ^\.claude$
 ^extradocs$
 ^mesoclim_audit\.md$
+^coastal_method\.md$
+^coastal_method_figs$
