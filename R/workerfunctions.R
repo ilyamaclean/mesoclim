@@ -125,9 +125,9 @@
   if (round(af,10) > 1) {			         # If resolution different aggregate
     ro<-terra::aggregate(r1, af, na.rm=TRUE)
     if (ext(ro) != terra::ext(r2)){           # if extents different then also resample
-      ro<-terra::resample(ro, r2, method)
+      ro<-terra::resample(ro, r2, method,gdal = c("BIGTIFF=TRUE"))
     }
-  } else ro<-terra::resample(r1, r2, method)  # if res same then just resample
+  } else ro<-terra::resample(r1, r2, method, gdal = c("BIGTIFF=TRUE"))  # if res same then just resample
 
   if(msk) ro<-terra::mask(ro, r2)
 
