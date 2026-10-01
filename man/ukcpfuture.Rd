@@ -5,32 +5,33 @@
 \alias{ukcpfuture}
 \title{A list of 12km resolution UKCP18 model future climate data}
 \format{
-a list with the following elements:
+a list with the following elements (climate variables as PackedSpatRasters):
 \describe{
-\item{dtm}{a wrapped SpatRast object of elevations (m) matching the extent and resolution of climate data}
-\item{tme}{POSIXlt object of dates and times}
+\item{dtm}{a wrapped SpatRast of UKCP18 land elevations (m) matching the climate data; NA where UKCP18 classes a cell as sea}
+\item{tme}{POSIXlt object of daily dates}
 \item{windheight_m}{numeric value in metres of wind height above ground}
 \item{tempheight_m}{numeric value in metres of temperature height above ground}
-\item{tmax}{Maximum Daily Temperature (deg C)}
-\item{tmin}{Minimum Daily Temperature (deg C)}
+\item{cloud}{Cloud cover (Percentage)}
 \item{relhum}{Relative humidity (Percentage)}
-\item{spechum}{Specific humidity}
+\item{prec}{Precipitation (mm/day)}
 \item{pres}{Sea-level atmospheric pressure (kPa)}
-\item{swnet}{Net downward shortwave radiation (W/m^2)}
-\item{lwnet}{Net downward longwave radiation (W/m^2)}
-\item{windspeed}{at 2m (m/s)}
+\item{lwrad}{Downward longwave radiation (W/m^2)}
+\item{swrad}{Downward shortwave radiation (W/m^2)}
+\item{tmax}{Maximum daily temperature (deg C)}
+\item{tmin}{Minimum daily temperature (deg C)}
+\item{windspeed}{Wind speed (m/s)}
 \item{winddir}{Wind direction (decimal degrees)}
-\item{prec}{Precipitation (mm)}
 }
 }
 \source{
-\url{ftp.ceda.ac.uk}
+\url{https://catalogue.ceda.ac.uk}. Created by \code{data-raw/ukcp_sample_data.R}.
 }
 \usage{
 ukcpfuture
 }
 \description{
-A list of hourly UKCP18 regional climata data for May 2030 for Southwest UK as
-returned by \code{\link[=ukcp18toclimarray]{ukcp18toclimarray()}} where collection='land-gcm' & domain='uk'
+A list of daily UKCP18 regional climate model data (rcp85, member 01) for May 2030 for
+Southwest UK, as returned by \code{\link[=ukcp18toclimarray]{ukcp18toclimarray()}} with collection='land-rcm' and domain='uk'.
+Covers the same 4 x 3 grid of 12 km cells as \link{ukcpinput}.
 }
 \keyword{datasets}

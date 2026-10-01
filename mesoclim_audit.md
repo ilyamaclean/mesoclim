@@ -1,6 +1,6 @@
 # mesoclim audit
 
-Last updated 30 September 2026 (`main` @ `d7ebe55`). This file lists open actions only. What has been done is recorded in the revision history at the end.
+Last updated 1 October 2026. This file lists open actions only. What has been done is recorded in the revision history at the end.
 
 ---
 
@@ -123,3 +123,4 @@ This audit is kept in the repository root and committed so it can be shared. It'
 | 2026-09-24 | Local checkout moved from `dev` to `main`. `btw` MCP set up (Rust installed). `era5toclimarray()` fixed: missing `lsm`, cropping without `aoi`, CRS84/EPSG:4326 resampling shift (`6af9311`). All four vignettes made to run on package data (`4791e6a`). Site rebuilt and pushed to `gh-pages`. |
 | 2026-09-25 | Audit restructured into setup / open actions / history; to-dos from `to_dos.md` merged in; audit moved to repository root. Tinker et al. (2024) SST reference and typo fixes added to vignettes. `claude/funny-goodall` worktree and branch deleted. |
 | 2026-09-30 | `.resample()` uses BIGTIFF (issue #6, `05b8b00`). `create_overlapping_tiles()` edge cases fixed, with tests (`b9c79e3`). `coastal_method.md` added: coastal method analysis, comparison with microclima/terravars, and implementation plan (`d7ebe55`). |
+| 2026-10-01 | `ukcpinput`, `ukcpfuture` and `bcmodel_list` extended from 3 × 3 to 4 × 3 cells (x 144000–192000) so they cover all of `lizard50m.tif`; reproducible via new `data-raw/ukcp_sample_data.R`. Dataset docs corrected (daily not hourly, `land-rcm`, actual variable list, `bcmodel_list` fitted for May 2018). |
