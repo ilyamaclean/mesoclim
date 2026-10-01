@@ -9,20 +9,20 @@ A named list with three elements:
 \describe{
 \item{tmin}{Bias-correction model for minimum daily temperature (deg C), of class \code{biascorrectmodels}}
 \item{tmax}{Bias-correction model for maximum daily temperature (deg C), of class \code{biascorrectmodels}}
-\item{prec}{Bias-correction model for daily precipitation (mm), of class \code{biascorrectmodels}}
+\item{prec}{Bias-correction model for daily precipitation (mm): a list of wrapped SpatRasters \code{mu_tot} and \code{mu_frac} as returned by \code{\link[=precipcorrect]{precipcorrect()}} with \code{mod_out = TRUE}}
 }
 }
 \source{
-Derived from UKCP18 RCM and HadUK-Grid data. See \code{\link[=biascorrect]{biascorrect()}} and \code{\link[=precipcorrect]{precipcorrect()}} for model-fitting functions.
+Derived from UKCP18 RCM and HadUK-Grid data by \code{data-raw/ukcp_sample_data.R}. See \code{\link[=biascorrect]{biascorrect()}} and \code{\link[=precipcorrect]{precipcorrect()}} for model-fitting functions.
 }
 \usage{
 model_list
 }
 \description{
 A list of bias-correction models for UKCP18 regional climate model member 01 for
-Southwest UK (Cornwall area), trained against HadUK-Grid observations for the
-period 2010–2019. Models are available for minimum temperature, maximum temperature
-and precipitation. Other climdata variables (e.g. relhum, pres, swrad, lwrad,
+Southwest UK, fitted for the land cells of \link{ukcpinput} (May 2018) against HadUK-Grid 1 km
+observations aggregated to 12 km, as in the bias correction vignette. Models are
+available for minimum temperature, maximum temperature and precipitation. Other climdata variables (e.g. relhum, pres, swrad, lwrad,
 windspeed) are not included; \code{\link[=biascorrect_climdata]{biascorrect_climdata()}} will apply correction only
 to variables present in the list and warn about any that are missing.
 }
